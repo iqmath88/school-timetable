@@ -1,8 +1,8 @@
 const KEY='school-timetable-v01';
 const stageDefaults=[['الأول',1,'#587B9B'],['الثاني',2,'#6F8F72'],['الثالث',3,'#9A7B60'],['الرابع',4,'#7D7398'],['الخامس',5,'#A16F78'],['السادس',6,'#557F83']];
 const defaultDays=[['الأحد',7,true],['الاثنين',7,true],['الثلاثاء',6,true],['الأربعاء',7,true],['الخميس',5,true],['الجمعة',0,false],['السبت',0,false]];
-const seed=()=>({version:'0.5',school:{name:'',year:'2026-2027'},days:defaultDays.map((x,i)=>({id:'d'+i,name:x[0],periods:x[1],active:x[2],order:i+1})),stages:stageDefaults.map(x=>({id:'g'+x[1],name:x[0],order:x[1],color:x[2]})),sections:[],subjects:[],teachers:[],assignments:[],teacherRules:{},fixedLessons:[],timetable:[]});
-function migrate(x){x=x||seed();x.version='0.5';x.teacherRules=x.teacherRules||{};x.fixedLessons=x.fixedLessons||[];x.timetable=x.timetable||[];x.teachers=x.teachers||[];x.assignments=x.assignments||[];return x}
+const seed=()=>({version:'0.5.1',school:{name:'',year:'2026-2027'},days:defaultDays.map((x,i)=>({id:'d'+i,name:x[0],periods:x[1],active:x[2],order:i+1})),stages:stageDefaults.map(x=>({id:'g'+x[1],name:x[0],order:x[1],color:x[2]})),sections:[],subjects:[],teachers:[],assignments:[],teacherRules:{},fixedLessons:[],timetable:[]});
+function migrate(x){x=x||seed();x.version='0.5.1';x.teacherRules=x.teacherRules||{};x.fixedLessons=x.fixedLessons||[];x.timetable=x.timetable||[];x.teachers=x.teachers||[];x.assignments=x.assignments||[];return x}
 function load(){try{return migrate(JSON.parse(localStorage.getItem(KEY)))}catch{return seed()}}
 let db=load(),page='school';
 const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),uid=p=>p+'_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
@@ -17,26 +17,75 @@ function days(){$('#workspace').innerHTML=`<h2>أيام الدوام وعدد ا
 function sections(){let rows=db.sections.slice().sort((a,b)=>(db.stages.find(g=>g.id===a.stageId)?.order||0)-(db.stages.find(g=>g.id===b.stageId)?.order||0)||a.order-b.order);$('#workspace').innerHTML=`<h2>المراحل والشعب</h2><div class="grid"><div class="field"><label>المرحلة</label><select id="stage">${db.stages.sort((a,b)=>a.order-b.order).map(g=>`<option value="${g.id}">${g.name}</option>`).join('')}</select></div><div class="field"><label>اسم الشعبة</label><input id="sectionName" placeholder="مثال: أ"></div></div><div class="actions"><button id="addSection">إضافة شعبة</button></div><table><thead><tr><th>المرحلة</th><th>الشعبة</th><th></th></tr></thead><tbody>${rows.length?rows.map(s=>{let g=db.stages.find(x=>x.id===s.stageId);return `<tr><td><span class="stage-dot" style="background:${g.color}"></span>${g.name}</td><td>${esc(s.name)}</td><td><button class="danger" data-del-section="${s.id}">حذف</button></td></tr>`}).join(''):`<tr><td colspan="3" class="empty">لم تضف شعب بعد</td></tr>`}</tbody></table>`;$('#addSection').onclick=()=>{let name=$('#sectionName').value.trim(),stageId=$('#stage').value;if(!name)return;if(db.sections.some(s=>s.stageId===stageId&&s.name===name))return alert('هذه الشعبة موجودة');let max=Math.max(0,...db.sections.filter(s=>s.stageId===stageId).map(s=>s.order));db.sections.push({id:uid('sec'),stageId,name,order:max+1});save();sections()};document.querySelectorAll('[data-del-section]').forEach(b=>b.onclick=()=>{if(db.assignments.some(a=>a.sectionId===b.dataset.delSection))return alert('لا يمكن حذف شعبة مرتبطة بتكليف');db.sections=db.sections.filter(s=>s.id!==b.dataset.delSection);save();sections()})}
 function simpleTable(arr,heads,row,type){return `<table><thead><tr>${heads.map(h=>`<th>${h}</th>`).join('')}<th></th></tr></thead><tbody>${arr.length?arr.map(x=>`<tr>${row(x).map(c=>`<td>${c}</td>`).join('')}<td><button class="danger" data-del-${type}="${x.id}">حذف</button></td></tr>`).join(''):`<tr><td colspan="${heads.length+1}" class="empty">لا توجد بيانات</td></tr>`}</tbody></table>`}
 function delWire(type,collection,rerender,ref){document.querySelectorAll(`[data-del-${type}]`).forEach(b=>b.onclick=()=>{let id=b.dataset['del'+type[0].toUpperCase()+type.slice(1)];if(db.assignments.some(a=>a[ref]===id))return alert('لا يمكن الحذف لأنه مرتبط بتكليف');db[collection]=db[collection].filter(x=>x.id!==id);save();rerender()})}
+
+function openEditModal(title, fields, onSave){
+  const overlay=document.createElement('div'); overlay.className='edit-overlay';
+  overlay.innerHTML=`<div class="edit-card" role="dialog" aria-modal="true"><div class="edit-head"><h3>${esc(title)}</h3><button type="button" class="icon-close" aria-label="إغلاق">×</button></div><div class="edit-fields"></div><div class="actions"><button type="button" class="save-edit">حفظ التعديلات</button><button type="button" class="secondary cancel-edit">إلغاء</button></div></div>`;
+  const host=overlay.querySelector('.edit-fields');
+  fields.forEach(f=>{
+    const wrap=document.createElement('div');wrap.className='field';
+    const label=document.createElement('label');label.textContent=f.label;wrap.appendChild(label);
+    const input=document.createElement(f.type==='textarea'?'textarea':'input');
+    input.dataset.key=f.key;
+    if(f.type&&f.type!=='textarea')input.type=f.type;
+    input.value=f.value??'';
+    if(f.placeholder)input.placeholder=f.placeholder;
+    wrap.appendChild(input);host.appendChild(wrap);
+  });
+  document.body.appendChild(overlay);
+  const close=()=>overlay.remove();
+  overlay.querySelector('.icon-close').onclick=close;
+  overlay.querySelector('.cancel-edit').onclick=close;
+  overlay.onclick=e=>{if(e.target===overlay)close()};
+  overlay.querySelector('.save-edit').onclick=()=>{
+    const values={};overlay.querySelectorAll('[data-key]').forEach(i=>values[i.dataset.key]=i.value);
+    if(onSave(values)!==false)close();
+  };
+}
+function editTeacher(id){
+  const t=db.teachers.find(x=>x.id===id);if(!t)return;
+  openEditModal('تعديل بيانات المدرس',[
+    {key:'name',label:'الاسم الكامل',value:t.name},
+    {key:'specialty',label:'التخصص',value:t.specialty||''},
+    {key:'notes',label:'ملاحظات',value:t.notes||'',type:'textarea'}
+  ],v=>{
+    v.name=v.name.trim();if(!v.name){alert('اسم المدرس مطلوب');return false}
+    if(db.teachers.some(x=>x.id!==t.id&&x.name===v.name)){alert('يوجد مدرس بهذا الاسم');return false}
+    t.name=v.name;t.specialty=v.specialty.trim();t.notes=v.notes.trim();db.timetable=[];save();teachers();
+  });
+}
+function editSubject(id){
+  const s=db.subjects.find(x=>x.id===id);if(!s)return;
+  openEditModal('تعديل المادة',[
+    {key:'name',label:'اسم المادة',value:s.name},
+    {key:'color',label:'لون المادة',value:s.color||'#DCE8F2',type:'color'}
+  ],v=>{
+    v.name=v.name.trim();if(!v.name){alert('اسم المادة مطلوب');return false}
+    if(db.subjects.some(x=>x.id!==s.id&&x.name===v.name)){alert('توجد مادة بهذا الاسم');return false}
+    s.name=v.name;s.color=v.color;db.timetable=[];save();subjects();
+  });
+}
+
 function subjects(){
   $('#workspace').innerHTML=`<h2>المواد الدراسية</h2><div class="grid"><div class="field"><label>اسم المادة</label><input id="subjectName"></div><div class="field"><label>لون المادة</label><input id="subjectColor" type="color" value="#DCE8F2"></div></div><div class="actions"><button id="addSubject">إضافة مادة</button></div>
-  <table><thead><tr><th>الاسم</th><th>اللون</th><th>الإجراءات</th></tr></thead><tbody>${db.subjects.length?db.subjects.map(x=>`<tr><td>${esc(x.name)}</td><td><span class="tag" style="background:${x.color}">${x.color}</span></td><td><button class="secondary" data-edit-sub="${x.id}">تعديل</button> <button class="danger" data-del-sub="${x.id}">حذف</button></td></tr>`).join(''):'<tr><td colspan="3" class="empty">لا توجد مواد</td></tr>'}</tbody></table>`;
+  <table><thead><tr><th>الاسم</th><th>اللون</th><th>الإجراءات</th></tr></thead><tbody>${db.subjects.length?db.subjects.map(x=>`<tr><td>${esc(x.name)}</td><td><span class="tag" style="background:${x.color}">${x.color}</span></td><td><button class="secondary edit-visible" data-edit-sub="${x.id}">✏️ تعديل</button> <button class="danger" data-del-sub="${x.id}">حذف</button></td></tr>`).join(''):'<tr><td colspan="3" class="empty">لا توجد مواد</td></tr>'}</tbody></table>`;
   $('#addSubject').onclick=()=>{let name=$('#subjectName').value.trim();if(!name)return;if(db.subjects.some(x=>x.name===name))return alert('المادة موجودة');db.subjects.push({id:uid('sub'),name,color:$('#subjectColor').value});db.timetable=[];save();subjects()};
-  document.querySelectorAll('[data-edit-sub]').forEach(b=>b.onclick=()=>{let x=db.subjects.find(v=>v.id===b.dataset.editSub);let name=prompt('اسم المادة',x.name);if(name===null)return;name=name.trim();if(!name)return alert('اسم المادة مطلوب');if(db.subjects.some(v=>v.id!==x.id&&v.name===name))return alert('يوجد مادة بهذا الاسم');let color=prompt('لون المادة بصيغة HEX',x.color);if(color===null)return;x.name=name;if(/^#[0-9a-f]{6}$/i.test(color.trim()))x.color=color.trim();db.timetable=[];save();subjects()});
+  document.querySelectorAll('[data-edit-sub]').forEach(b=>b.onclick=()=>editSubject(b.dataset.editSub));
   document.querySelectorAll('[data-del-sub]').forEach(b=>b.onclick=()=>{if(db.assignments.some(a=>a.subjectId===b.dataset.delSub))return alert('لا يمكن حذف مادة مرتبطة بتكليف');db.subjects=db.subjects.filter(x=>x.id!==b.dataset.delSub);db.timetable=[];save();subjects()});
 }
 function teachers(){
   $('#workspace').innerHTML=`<h2>المدرسون</h2><div class="grid"><div class="field"><label>الاسم الكامل</label><input id="teacherName"></div><div class="field"><label>التخصص</label><input id="teacherSpec"></div><div class="field"><label>ملاحظات</label><input id="teacherNotes"></div></div><div class="actions"><button id="addTeacher">إضافة مدرس</button></div><h3>إدخال جماعي</h3><div class="notice">كل مدرس في سطر، وافصل الاسم والتخصص والملاحظات بـ Tab أو فاصلة.</div><div class="field"><textarea id="bulkTeachers"></textarea></div><div class="actions"><button id="bulkAdd">إضافة القائمة</button></div>
-  <table><thead><tr><th>الاسم</th><th>التخصص</th><th>ملاحظات</th><th>الإجراءات</th></tr></thead><tbody>${db.teachers.length?db.teachers.map(x=>`<tr><td>${esc(x.name)}</td><td>${esc(x.specialty||'')}</td><td>${esc(x.notes||'')}</td><td><button class="secondary" data-edit-tea="${x.id}">تعديل</button> <button class="danger" data-del-tea="${x.id}">حذف</button></td></tr>`).join(''):'<tr><td colspan="4" class="empty">لا يوجد مدرسون</td></tr>'}</tbody></table>`;
+  <table><thead><tr><th>الاسم</th><th>التخصص</th><th>ملاحظات</th><th>الإجراءات</th></tr></thead><tbody>${db.teachers.length?db.teachers.map(x=>`<tr><td>${esc(x.name)}</td><td>${esc(x.specialty||'')}</td><td>${esc(x.notes||'')}</td><td><button class="secondary edit-visible" data-edit-tea="${x.id}">✏️ تعديل</button> <button class="danger" data-del-tea="${x.id}">حذف</button></td></tr>`).join(''):'<tr><td colspan="4" class="empty">لا يوجد مدرسون</td></tr>'}</tbody></table>`;
   function add(n,s='',no=''){n=n.trim();if(!n||db.teachers.some(t=>t.name===n))return false;db.teachers.push({id:uid('tea'),name:n,specialty:s.trim(),notes:no.trim()});return true}
   $('#addTeacher').onclick=()=>{if(add($('#teacherName').value,$('#teacherSpec').value,$('#teacherNotes').value)){db.timetable=[];save();teachers()}else alert('الاسم فارغ أو مكرر')};
   $('#bulkAdd').onclick=()=>{let n=0;$('#bulkTeachers').value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean).forEach(line=>{let p=line.includes('\t')?line.split('\t'):line.split(',');if(add(p[0]||'',p[1]||'',p.slice(2).join(' ')))n++});db.timetable=[];save();alert(`تمت إضافة ${n} مدرس`);teachers()};
-  document.querySelectorAll('[data-edit-tea]').forEach(b=>b.onclick=()=>{let t=db.teachers.find(x=>x.id===b.dataset.editTea);let name=prompt('الاسم الكامل',t.name);if(name===null)return;name=name.trim();if(!name)return alert('الاسم مطلوب');if(db.teachers.some(x=>x.id!==t.id&&x.name===name))return alert('يوجد مدرس بهذا الاسم');let sp=prompt('التخصص',t.specialty||'');if(sp===null)return;let no=prompt('الملاحظات',t.notes||'');if(no===null)return;t.name=name;t.specialty=sp.trim();t.notes=no.trim();db.timetable=[];save();teachers()});
+  document.querySelectorAll('[data-edit-tea]').forEach(b=>b.onclick=()=>editTeacher(b.dataset.editTea));
   document.querySelectorAll('[data-del-tea]').forEach(b=>b.onclick=()=>{if(db.assignments.some(a=>a.teacherId===b.dataset.delTea))return alert('لا يمكن حذف مدرس مرتبط بتكليف');db.teachers=db.teachers.filter(x=>x.id!==b.dataset.delTea);delete db.teacherRules[b.dataset.delTea];db.timetable=[];save();teachers()});
 }
 function assignments(){
   let opts=db.sections.slice().sort((a,b)=>(db.stages.find(g=>g.id===a.stageId)?.order||0)-(db.stages.find(g=>g.id===b.stageId)?.order||0)||a.order-b.order);
   $('#workspace').innerHTML=`<h2>تكليفات المدرسين</h2><div class="grid"><div class="field"><label>المدرس</label><select id="aTeacher">${db.teachers.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('')}</select></div><div class="field"><label>المادة</label><select id="aSubject">${db.subjects.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('')}</select></div><div class="field"><label>الشعبة</label><select id="aSection">${opts.map(s=>{let g=db.stages.find(x=>x.id===s.stageId);return `<option value="${s.id}">${g.name} ${esc(s.name)}</option>`}).join('')}</select></div><div class="field"><label>الحصص الأسبوعية</label><input id="aWeekly" type="number" min="1" max="20" value="4"></div></div><div class="actions"><button id="addAssignment">إضافة تكليف</button></div>
-  <table><thead><tr><th>المدرس</th><th>المادة</th><th>الشعبة</th><th>الحصص/أسبوع</th><th>الإجراءات</th></tr></thead><tbody>${db.assignments.length?db.assignments.map(a=>{let t=db.teachers.find(x=>x.id===a.teacherId),su=db.subjects.find(x=>x.id===a.subjectId),se=db.sections.find(x=>x.id===a.sectionId),g=se&&db.stages.find(x=>x.id===se.stageId);return `<tr><td>${esc(t?.name||'—')}</td><td>${esc(su?.name||'—')}</td><td>${g?g.name+' '+esc(se.name):'—'}</td><td>${a.weeklyPeriods}</td><td><button class="secondary" data-edit-a="${a.id}">تعديل</button> <button class="danger" data-del-a="${a.id}">حذف</button></td></tr>`}).join(''):`<tr><td colspan="5" class="empty">لا توجد تكليفات</td></tr>`}</tbody></table>`;
+  <table><thead><tr><th>المدرس</th><th>المادة</th><th>الشعبة</th><th>الحصص/أسبوع</th><th>الإجراءات</th></tr></thead><tbody>${db.assignments.length?db.assignments.map(a=>{let t=db.teachers.find(x=>x.id===a.teacherId),su=db.subjects.find(x=>x.id===a.subjectId),se=db.sections.find(x=>x.id===a.sectionId),g=se&&db.stages.find(x=>x.id===se.stageId);return `<tr><td>${esc(t?.name||'—')}</td><td>${esc(su?.name||'—')}</td><td>${g?g.name+' '+esc(se.name):'—'}</td><td>${a.weeklyPeriods}</td><td><button class="secondary edit-visible" data-edit-a="${a.id}">✏️ تعديل</button> <button class="danger" data-del-a="${a.id}">حذف</button></td></tr>`}).join(''):`<tr><td colspan="5" class="empty">لا توجد تكليفات</td></tr>`}</tbody></table>`;
   $('#addAssignment').onclick=()=>{let teacherId=$('#aTeacher').value,subjectId=$('#aSubject').value,sectionId=$('#aSection').value,weeklyPeriods=+$('#aWeekly').value;if(!teacherId||!subjectId||!sectionId||weeklyPeriods<1)return alert('أكمل البيانات');if(db.assignments.some(a=>a.teacherId===teacherId&&a.subjectId===subjectId&&a.sectionId===sectionId))return alert('هذا التكليف موجود');db.assignments.push({id:uid('asg'),teacherId,subjectId,sectionId,weeklyPeriods});db.timetable=[];save();assignments()};
   document.querySelectorAll('[data-edit-a]').forEach(b=>b.onclick=()=>assignmentEditDialog(b.dataset.editA));
   document.querySelectorAll('[data-del-a]').forEach(b=>b.onclick=()=>{db.fixedLessons=db.fixedLessons.filter(x=>x.assignmentId!==b.dataset.delA);db.assignments=db.assignments.filter(a=>a.id!==b.dataset.delA);db.timetable=[];save();assignments()});
@@ -288,6 +337,6 @@ function generator(){
   if($('#clearTT'))$('#clearTT').onclick=()=>{if(confirm('مسح الجدول المولد؟')){db.timetable=[];save();generator()}};
 }
 
-$('#exportBtn').onclick=()=>{let blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='school-timetable-v0.5-backup.json';a.click();URL.revokeObjectURL(a.href)};
+$('#exportBtn').onclick=()=>{let blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='school-timetable-v0.5.1-backup.json';a.click();URL.revokeObjectURL(a.href)};
 $('#importFile').onchange=e=>{let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{db=migrate(JSON.parse(r.result));save();render();alert('تم الاستيراد بنجاح')}catch{alert('ملف غير صالح')}};r.readAsText(f)};
 render();
