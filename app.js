@@ -1,17 +1,17 @@
 const KEY='school-timetable-v01';
 const stageDefaults=[['الأول',1,'#587B9B'],['الثاني',2,'#6F8F72'],['الثالث',3,'#9A7B60'],['الرابع',4,'#7D7398'],['الخامس',5,'#A16F78'],['السادس',6,'#557F83']];
 const defaultDays=[['الأحد',7,true],['الاثنين',7,true],['الثلاثاء',6,true],['الأربعاء',7,true],['الخميس',5,true],['الجمعة',0,false],['السبت',0,false]];
-const seed=()=>({version:'0.3',school:{name:'',year:'2026-2027'},days:defaultDays.map((x,i)=>({id:'d'+i,name:x[0],periods:x[1],active:x[2],order:i+1})),stages:stageDefaults.map(x=>({id:'g'+x[1],name:x[0],order:x[1],color:x[2]})),sections:[],subjects:[],teachers:[],assignments:[],teacherRules:{},fixedLessons:[]});
-function migrate(x){x=x||seed();x.version='0.3';x.teacherRules=x.teacherRules||{};x.fixedLessons=x.fixedLessons||[];x.teachers=x.teachers||[];x.assignments=x.assignments||[];return x}
+const seed=()=>({version:'0.4',school:{name:'',year:'2026-2027'},days:defaultDays.map((x,i)=>({id:'d'+i,name:x[0],periods:x[1],active:x[2],order:i+1})),stages:stageDefaults.map(x=>({id:'g'+x[1],name:x[0],order:x[1],color:x[2]})),sections:[],subjects:[],teachers:[],assignments:[],teacherRules:{},fixedLessons:[],timetable:[]});
+function migrate(x){x=x||seed();x.version='0.4';x.teacherRules=x.teacherRules||{};x.fixedLessons=x.fixedLessons||[];x.timetable=x.timetable||[];x.teachers=x.teachers||[];x.assignments=x.assignments||[];return x}
 function load(){try{return migrate(JSON.parse(localStorage.getItem(KEY)))}catch{return seed()}}
 let db=load(),page='school';
 const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),uid=p=>p+'_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 function save(){localStorage.setItem(KEY,JSON.stringify(db));renderSummary()}
-const pages=[['school','1. المدرسة'],['days','2. الأيام والحصص'],['sections','3. المراحل والشعب'],['subjects','4. المواد'],['teachers','5. المدرسون'],['assignments','6. التكليفات'],['constraints','7. قيود المدرسين'],['fixed','8. الحصص المثبتة'],['feasibility','9. فحص الجدوى']];
+const pages=[['school','1. المدرسة'],['days','2. الأيام والحصص'],['sections','3. المراحل والشعب'],['subjects','4. المواد'],['teachers','5. المدرسون'],['assignments','6. التكليفات'],['constraints','7. قيود المدرسين'],['fixed','8. الحصص المثبتة'],['feasibility','9. فحص الجدوى'],['generator','10. توليد الجدول']];
 function nav(){$('#steps').innerHTML=pages.map(x=>`<button class="step ${page===x[0]?'active':''}" data-p="${x[0]}">${x[1]}</button>`).join('');document.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{page=b.dataset.p;render()})}
 function completeness(){let c=[!!db.school.name,db.days.some(d=>d.active&&d.periods>0),db.sections.length,db.subjects.length,db.teachers.length,db.assignments.length];return Math.round(c.filter(Boolean).length/c.length*100)}
 function renderSummary(){if(!$('#summary'))return;let configured=db.teachers.filter(t=>db.teacherRules[t.id]).length;$('#summary').innerHTML=`<div class="cards"><div class="stat">اكتمال البيانات<b>${completeness()}%</b></div><div class="stat">الشعب<b>${db.sections.length}</b></div><div class="stat">المواد<b>${db.subjects.length}</b></div><div class="stat">المدرسون<b>${db.teachers.length}</b></div><div class="stat">قيود مضبوطة<b>${configured}</b></div><div class="stat">حصص مثبتة<b>${db.fixedLessons.length}</b></div></div><div class="progress" style="margin-top:12px"><i style="width:${completeness()}%"></i></div>`}
-function render(){nav();renderSummary();({school,days,sections,subjects,teachers,assignments,constraints,fixed,feasibility}[page])()}
+function render(){nav();renderSummary();({school,days,sections,subjects,teachers,assignments,constraints,fixed,feasibility,generator}[page])()}
 function school(){$('#workspace').innerHTML=`<h2>إعداد المدرسة</h2><div class="grid"><div class="field"><label>اسم المدرسة</label><input id="schoolName" value="${esc(db.school.name)}"></div><div class="field"><label>العام الدراسي</label><input id="schoolYear" value="${esc(db.school.year)}"></div></div><div class="actions"><button id="saveSchool">حفظ الإعدادات</button><button class="secondary" id="importBtn">استيراد نسخة احتياطية</button><button class="danger" id="resetBtn">إعادة ضبط المشروع</button></div>`;$('#saveSchool').onclick=()=>{db.school.name=$('#schoolName').value.trim();db.school.year=$('#schoolYear').value.trim();save()};$('#importBtn').onclick=()=>$('#importFile').click();$('#resetBtn').onclick=()=>{if(confirm('سيتم حذف جميع البيانات المحلية. هل أنت متأكد؟')){db=seed();save();render()}}}
 function days(){$('#workspace').innerHTML=`<h2>أيام الدوام وعدد الحصص</h2><div class="notice">يمكن أن يختلف عدد الحصص من يوم إلى آخر.</div><table><thead><tr><th>اليوم</th><th>دوام</th><th>عدد الحصص</th></tr></thead><tbody>${db.days.sort((a,b)=>a.order-b.order).map(d=>`<tr><td>${d.name}</td><td><input type="checkbox" data-active="${d.id}" ${d.active?'checked':''}></td><td><input type="number" min="0" max="12" data-periods="${d.id}" value="${d.periods}"></td></tr>`).join('')}</tbody></table>`;document.querySelectorAll('[data-active]').forEach(x=>x.onchange=()=>{db.days.find(d=>d.id===x.dataset.active).active=x.checked;save()});document.querySelectorAll('[data-periods]').forEach(x=>x.onchange=()=>{let d=db.days.find(d=>d.id===x.dataset.periods);d.periods=Math.max(0,+x.value||0);d.active=d.periods>0;save();days()})}
 function sections(){let rows=db.sections.slice().sort((a,b)=>(db.stages.find(g=>g.id===a.stageId)?.order||0)-(db.stages.find(g=>g.id===b.stageId)?.order||0)||a.order-b.order);$('#workspace').innerHTML=`<h2>المراحل والشعب</h2><div class="grid"><div class="field"><label>المرحلة</label><select id="stage">${db.stages.sort((a,b)=>a.order-b.order).map(g=>`<option value="${g.id}">${g.name}</option>`).join('')}</select></div><div class="field"><label>اسم الشعبة</label><input id="sectionName" placeholder="مثال: أ"></div></div><div class="actions"><button id="addSection">إضافة شعبة</button></div><table><thead><tr><th>المرحلة</th><th>الشعبة</th><th></th></tr></thead><tbody>${rows.length?rows.map(s=>{let g=db.stages.find(x=>x.id===s.stageId);return `<tr><td><span class="stage-dot" style="background:${g.color}"></span>${g.name}</td><td>${esc(s.name)}</td><td><button class="danger" data-del-section="${s.id}">حذف</button></td></tr>`}).join(''):`<tr><td colspan="3" class="empty">لم تضف شعب بعد</td></tr>`}</tbody></table>`;$('#addSection').onclick=()=>{let name=$('#sectionName').value.trim(),stageId=$('#stage').value;if(!name)return;if(db.sections.some(s=>s.stageId===stageId&&s.name===name))return alert('هذه الشعبة موجودة');let max=Math.max(0,...db.sections.filter(s=>s.stageId===stageId).map(s=>s.order));db.sections.push({id:uid('sec'),stageId,name,order:max+1});save();sections()};document.querySelectorAll('[data-del-section]').forEach(b=>b.onclick=()=>{if(db.assignments.some(a=>a.sectionId===b.dataset.delSection))return alert('لا يمكن حذف شعبة مرتبطة بتكليف');db.sections=db.sections.filter(s=>s.id!==b.dataset.delSection);save();sections()})}
@@ -101,10 +101,145 @@ function feasibility(){
   <div class="feas-head ${green?'ok':'bad'}"><div class="feas-score">${green?'✓':'!'}</div><div><h3>${green?'يمكن الانتقال إلى التوليد':'توجد مشاكل يجب معالجتها'}</h3><div>${reds} أخطاء مانعة — ${oranges} تحذيرات</div></div></div>
   ${green&&oranges===0?'<div class="issue green"><div class="issue-icon">🟢</div><div><b>البيانات سليمة</b><div class="muted">لم يكتشف الفحص الحالي مشكلة تمنع إنشاء جدول صالح.</div></div></div>':''}
   ${issues.map(item).join('')}
-  <div class="actions"><button id="rerun">إعادة الفحص</button>${green?'<button class="secondary" disabled title="سيتم تفعيله في v0.4">التوليد الآلي — في الإصدار القادم</button>':''}</div>`;
+  <div class="actions"><button id="rerun">إعادة الفحص</button>${green?'<button class="secondary" id="goGenerate">الانتقال إلى التوليد الآلي</button>':''}</div>`;
   $('#rerun').onclick=feasibility;
+  if($('#goGenerate')) $('#goGenerate').onclick=()=>{page='generator';render()};
 }
 
-$('#exportBtn').onclick=()=>{let blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='school-timetable-v0.3-backup.json';a.click();URL.revokeObjectURL(a.href)};
+
+function teacherShort(name){return String(name||'').trim().split(/\s+/).slice(0,2).join(' ')}
+function slotKey(dayId,period){return dayId+'|'+period}
+function generateTimetable(){
+  const blockers=analyzeFeasibility().filter(x=>x.level==='red');
+  if(blockers.length) return {ok:false,message:`يوجد ${blockers.length} خطأ مانع. عالجها من فحص الجدوى أولاً.`};
+
+  const slots=[];
+  db.days.filter(d=>d.active&&d.periods>0).sort((a,b)=>a.order-b.order).forEach(d=>{
+    for(let p=1;p<=d.periods;p++)slots.push({dayId:d.id,period:p,dayOrder:d.order});
+  });
+  const entries=[],teacherBusy=new Set(),sectionBusy=new Set(),asgCount={},asgDays={};
+  db.assignments.forEach(a=>{asgCount[a.id]=0;asgDays[a.id]={}});
+
+  function canPlace(a,sl){
+    const r=rule(a.teacherId),k=slotKey(sl.dayId,sl.period);
+    if((r.unavailable[sl.dayId]||[]).includes(sl.period))return false;
+    if(teacherBusy.has(a.teacherId+'|'+k)||sectionBusy.has(a.sectionId+'|'+k))return false;
+    const daily=entries.filter(e=>e.teacherId===a.teacherId&&e.dayId===sl.dayId).length;
+    if(daily>=Math.max(1,+r.maxDaily||99))return false;
+    return true;
+  }
+  function place(a,sl,locked=false){
+    const k=slotKey(sl.dayId,sl.period);
+    entries.push({id:uid('ent'),assignmentId:a.id,teacherId:a.teacherId,subjectId:a.subjectId,sectionId:a.sectionId,dayId:sl.dayId,period:sl.period,locked});
+    teacherBusy.add(a.teacherId+'|'+k);sectionBusy.add(a.sectionId+'|'+k);
+    asgCount[a.id]++;asgDays[a.id][sl.dayId]=(asgDays[a.id][sl.dayId]||0)+1;
+  }
+  // fixed first
+  for(const f of db.fixedLessons){
+    const a=db.assignments.find(x=>x.id===f.assignmentId),d=db.days.find(x=>x.id===f.dayId);
+    if(!a||!d)return {ok:false,message:'توجد حصة مثبتة غير صالحة.'};
+    const sl={dayId:f.dayId,period:f.period,dayOrder:d.order};
+    if(!canPlace(a,sl))return {ok:false,message:'تعذر تطبيق إحدى الحصص المثبتة بسبب تعارض أو قيد.'};
+    place(a,sl,true);
+  }
+
+  // remaining lesson units, hardest first
+  let units=[];
+  db.assignments.forEach(a=>{
+    for(let i=asgCount[a.id];i<a.weeklyPeriods;i++)units.push(a);
+  });
+  const possibleCount=a=>slots.filter(sl=>canPlace(a,sl)).length;
+  units.sort((a,b)=>possibleCount(a)-possibleCount(b));
+
+  function score(a,sl){
+    const r=rule(a.teacherId); let s=0;
+    const sameDay=asgDays[a.id][sl.dayId]||0;
+    if(sameDay)s+=1000*sameDay; // strongly avoid repeated subject/section same day
+    if(r.preferred.includes(sl.period))s-=35;
+    if(r.avoid.includes(sl.period))s+=35;
+    const teacherDay=entries.filter(e=>e.teacherId===a.teacherId&&e.dayId===sl.dayId);
+    if(teacherDay.length){
+      const adjacent=teacherDay.some(e=>Math.abs(e.period-sl.period)===1);
+      if(r.consecutive==='prefer'&&adjacent)s-=20;
+      if(r.consecutive==='avoid'&&adjacent)s+=20;
+      const ps=teacherDay.map(e=>e.period).concat(sl.period).sort((x,y)=>x-y);
+      s+=(Math.max(...ps)-Math.min(...ps)+1-ps.length)*12; // gaps
+    }
+    s+=teacherDay.length*4; // load spreading
+    s+=sl.period*.2;
+    return s;
+  }
+
+  let nodes=0,limit=180000;
+  function solve(idx){
+    if(idx>=units.length)return true;
+    if(++nodes>limit)return false;
+    // dynamic MRV: choose remaining unit with fewest candidates
+    let best=idx,bestC=null;
+    for(let i=idx;i<units.length;i++){
+      const a=units[i],c=slots.filter(sl=>canPlace(a,sl));
+      if(!bestC||c.length<bestC.length){best=i;bestC=c;if(c.length===0)break}
+    }
+    [units[idx],units[best]]=[units[best],units[idx]];
+    const a=units[idx],cands=(best===idx&&bestC?bestC:slots.filter(sl=>canPlace(a,sl))).sort((x,y)=>score(a,x)-score(a,y));
+    for(const sl of cands){
+      place(a,sl,false);
+      if(solve(idx+1))return true;
+      const e=entries.pop(),k=slotKey(e.dayId,e.period);
+      teacherBusy.delete(a.teacherId+'|'+k);sectionBusy.delete(a.sectionId+'|'+k);
+      asgCount[a.id]--;asgDays[a.id][sl.dayId]--; if(!asgDays[a.id][sl.dayId])delete asgDays[a.id][sl.dayId];
+    }
+    [units[idx],units[best]]=[units[best],units[idx]];
+    return false;
+  }
+  const ok=solve(0);
+  if(!ok)return {ok:false,message:nodes>limit?'لم يصل المحرك إلى حل ضمن حد البحث. جرّب تخفيف القيود أو راجع فحص الجدوى.':'تعذر إيجاد جدول يحقق جميع القيود الحالية.'};
+  db.timetable=entries;save();
+  return {ok:true,message:`تم إنشاء ${entries.length} حصة بنجاح.`,nodes};
+}
+function timetableIssues(){
+  let warnings=0;
+  db.assignments.forEach(a=>{
+    const es=db.timetable.filter(e=>e.assignmentId===a.id),days={};
+    es.forEach(e=>days[e.dayId]=(days[e.dayId]||0)+1);
+    Object.values(days).forEach(n=>{if(n>1)warnings+=n-1});
+  });
+  return warnings;
+}
+function timetableTable(){
+  if(!db.timetable.length)return '<div class="empty">لم يتم توليد جدول بعد.</div>';
+  const secs=db.sections.slice().sort((a,b)=>(db.stages.find(g=>g.id===a.stageId)?.order||0)-(db.stages.find(g=>g.id===b.stageId)?.order||0)||a.order-b.order);
+  const maxP=Math.max(...db.days.filter(d=>d.active).map(d=>d.periods));
+  let rows='';
+  db.days.filter(d=>d.active).sort((a,b)=>a.order-b.order).forEach(d=>{
+    for(let p=1;p<=d.periods;p++){
+      rows+=`<tr><th>${p===1?d.name:''}</th><th>الحصة ${p}</th>`+secs.map(sec=>{
+        const e=db.timetable.find(x=>x.sectionId===sec.id&&x.dayId===d.id&&x.period===p);
+        if(!e)return '<td class="tt-empty">—</td>';
+        const su=db.subjects.find(x=>x.id===e.subjectId),t=db.teachers.find(x=>x.id===e.teacherId);
+        return `<td class="lesson" style="background:${su?.color||'#eef4fa'}"><b>${esc(su?.name||'—')}</b><small>${esc(teacherShort(t?.name))}${e.locked?' 🔒':''}</small></td>`;
+      }).join('')+'</tr>';
+    }
+  });
+  return `<div class="tt-wrap"><table class="timetable"><thead><tr><th>اليوم</th><th>الحصة</th>${secs.map(s=>{let g=db.stages.find(x=>x.id===s.stageId);return `<th style="border-top:4px solid ${g?.color||'#888'}">${g?.name||''} ${esc(s.name)}</th>`}).join('')}</tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+function generator(){
+  const issues=analyzeFeasibility(),reds=issues.filter(x=>x.level==='red').length;
+  const warnings=timetableIssues();
+  $('#workspace').innerHTML=`<h2>التوليد الآلي للجدول</h2>
+  ${reds?`<div class="notice error">يوجد ${reds} خطأ مانع في فحص الجدوى. لن يبدأ المحرك قبل معالجتها.</div>`:`<div class="notice">المحرك يطبق الحصص المثبتة أولاً، ثم يستخدم MRV + Backtracking مع تقييم للتفضيلات وتوزيع المواد.</div>`}
+  <div class="actions"><button id="generateBtn" ${reds?'disabled':''}>${db.timetable.length?'إعادة توليد الجدول':'توليد الجدول تلقائياً'}</button><button class="secondary" id="checkBtn">فتح فحص الجدوى</button>${db.timetable.length?'<button class="danger" id="clearTT">مسح الجدول</button>':''}</div>
+  ${db.timetable.length?`<div class="generation-status"><b>الجدول الحالي:</b> ${db.timetable.length} حصة — ${warnings} حالات تكرار مادة في اليوم (تحذير وليست تعارضاً).</div>`:''}
+  ${timetableTable()}`;
+  $('#checkBtn').onclick=()=>{page='feasibility';render()};
+  if($('#generateBtn'))$('#generateBtn').onclick=()=>{
+    if(db.timetable.length&&!confirm('سيتم استبدال الجدول الحالي. هل تريد المتابعة؟'))return;
+    const b=$('#generateBtn');b.disabled=true;b.textContent='جاري التوليد...';
+    setTimeout(()=>{const r=generateTimetable();alert(r.message);generator()},30);
+  };
+  if($('#clearTT'))$('#clearTT').onclick=()=>{if(confirm('مسح الجدول المولد؟')){db.timetable=[];save();generator()}};
+}
+
+$('#exportBtn').onclick=()=>{let blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='school-timetable-v0.4-backup.json';a.click();URL.revokeObjectURL(a.href)};
 $('#importFile').onchange=e=>{let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{db=migrate(JSON.parse(r.result));save();render();alert('تم الاستيراد بنجاح')}catch{alert('ملف غير صالح')}};r.readAsText(f)};
 render();
