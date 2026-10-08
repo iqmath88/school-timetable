@@ -221,6 +221,7 @@ function teacherShort(name){return String(name||'').trim().split(/\s+/).slice(0,
 function slotKey(dayId,period){return dayId+'|'+period}
 // Generation runs in generator-worker.js; do not run backtracking on the UI thread.
 let generationWorker=null;
+let generationCancel=null;
 function startGeneration(){
  if(generationWorker)return;
  const blockers=analyzeFeasibility().filter(x=>x.level==='red');
@@ -228,18 +229,22 @@ function startGeneration(){
  if(db.timetable.length&&!confirm('سيبقى الجدول الحالي محفوظاً حتى ينجح إنشاء جدول جديد. متابعة؟'))return;
  const button=$('#generateBtn'),status=$('#generationProgress');
  button.disabled=true;button.textContent='جاري التوليد...';
- const began=Date.now();let finished=false;
- const worker=new Worker('generator-worker.js?v=083');generationWorker=worker;
- const tick=setInterval(()=>{if(!finished&&Date.now()-began>21000){finish({ok:false,reason:"time",message:"أوقف مراقب السلامة المحرك بعد تجاوز المهلة، والبيانات محفوظة."});return;}if(status&&!finished)status.textContent='البحث جارٍ... '+Math.round((Date.now()-began)/1000)+' ثانية. يمكن إيقافه دون فقد البيانات.'},500);
- const stop=$('#stopGenerate');if(stop){stop.hidden=false;stop.onclick=()=>finish({ok:false,reason:'cancelled',message:'أوقفت التوليد. بقي الجدول السابق محفوظاً.'})}
- const finish=result=>{if(finished)return;finished=true;clearInterval(tick);worker.terminate();generationWorker=null;
+ const began=Date.now();let finished=false,lastUpdate=Date.now(),lastProgress={nodes:0,bestDepth:0,total:0,placed:0},phase='تشغيل المحرك';
+ let worker;try{worker=new Worker('generator-worker.js?v=085')}catch(err){button.disabled=false;button.textContent='توليد الجدول تلقائياً';window.generationReport={ok:false,reason:'worker-error',message:'تعذر تشغيل ملف المحرك: '+String(err),seconds:'0'};generator();return}generationWorker=worker;
+ const tick=setInterval(()=>{if(finished)return;const elapsed=Date.now()-began;
+   if(elapsed>45000){finish({ok:false,reason:'time',...lastProgress,message:`أوقف مراقب السلامة المحرك بعد 45 ثانية. آخر مرحلة: ${phase}. لم تتغير البيانات.`});return}
+   if(status)status.textContent=`${phase} — ${Math.round(elapsed/1000)} ثانية — عقد ${lastProgress.nodes} — أفضل عمق ${lastProgress.bestDepth} من ${lastProgress.total||'—'}. ${Date.now()-lastUpdate>7000?'المحرك مشغول بالحساب، يمكن إيقافه.':''}`;
+ },500);
+ generationCancel=()=>finish({ok:false,reason:'cancelled',...lastProgress,message:'أوقفت التوليد. بقي الجدول السابق محفوظاً.'});
+ const stop=$('#stopGenerate');if(stop){stop.hidden=false;stop.onclick=()=>generationCancel()}
+ const finish=result=>{if(finished)return;finished=true;clearInterval(tick);worker.terminate();generationWorker=null;generationCancel=null;
    if(result.ok){db.timetable=result.entries.map((e,i)=>({...e,id:'ent_'+Date.now().toString(36)+'_'+i}));save();}
    window.generationReport={...result,seconds:((Date.now()-began)/1000).toFixed(1)};
    if(page==='generator')generator();
  };
- worker.onmessage=e=>{if(e.data.type==='progress'){if(status)status.textContent=`فُحصت ${e.data.nodes.toLocaleString('en-US')} محاولة، والحصص الموضوعة في الفرع الحالي: ${e.data.placed} من ${e.data.total}. الوقت: ${Math.round(e.data.elapsed/1000)} ثوانٍ.`;}else if(e.data.type==='result')finish(e.data.result)};
+ worker.onmessage=e=>{const data=e.data||{};lastUpdate=Date.now();if(data.type==='phase'){phase=data.phase||phase;return}if(data.type==='progress'){phase='البحث عن توزيع متوافق';lastProgress={nodes:data.nodes||0,bestDepth:data.bestDepth||0,total:data.total||0,placed:data.placed||0};return}if(data.type==='result')finish(data.result)};
  worker.onerror=e=>finish({ok:false,reason:'worker-error',message:'حدث خطأ في عامل التوليد. تأكد من رفع ملف generator-worker.js إلى GitHub.'});
- worker.postMessage({type:'start',db:structuredClone(db)});
+ try{worker.postMessage({type:'start',db:structuredClone(db)})}catch(err){finish({ok:false,reason:'exception',message:'فشل إرسال البيانات إلى المحرك: '+String(err)})}
 }
 
 function scheduleQuality(){
@@ -290,7 +295,7 @@ function generator(){
   ${timetableTable()}`;
   $('#checkBtn').onclick=()=>{page='feasibility';render()};
   if($('#generateBtn')){$('#generateBtn').disabled=!!generationWorker||!!reds;$('#generateBtn').onclick=startGeneration;}
-  if(generationWorker&&$('#stopGenerate'))$('#stopGenerate').onclick=()=>{generationWorker.terminate();generationWorker=null;window.generationReport={ok:false,reason:'cancelled',message:'أوقفت التوليد، ولم تتغير بيانات الجدول.',seconds:'—'};generator()};
+  if(generationWorker&&$('#stopGenerate'))$('#stopGenerate').onclick=()=>generationCancel?.();
   if($('#clearTT'))$('#clearTT').onclick=()=>{if(confirm('مسح الجدول المولد؟')){db.timetable=[];save();generator()}};
 }
 
