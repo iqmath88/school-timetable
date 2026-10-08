@@ -26,3 +26,16 @@
 .assignment-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:16px 0}.assignment-stats>div{background:#f1f5f9;border:1px solid #dae3ee;border-radius:12px;padding:13px;font-size:13px}.assignment-stats b{display:block;font-size:23px;margin-top:5px}.assignment-layout{display:grid;grid-template-columns:minmax(230px,290px) minmax(0,1fr);gap:18px;align-items:start}.teacher-index{border:1px solid #dfe6ee;background:#f9fbfd;border-radius:14px;padding:14px}.teacher-list{max-height:560px;overflow:auto;display:grid;gap:7px}.teacher-row{width:100%;display:block;text-align:right;background:white!important;color:#20344d!important;border:1px solid #dbe4ed!important;border-radius:10px;padding:11px;cursor:pointer}.teacher-row.chosen{background:#e9f1fb!important;border-color:#35659a!important}.teacher-row strong,.teacher-row small{display:block}.teacher-row small{font-size:12px;margin-top:5px;color:#62758a}.assignment-editor{min-width:0}.assignment-form{border:1px solid #dfe6ee;border-radius:14px;padding:16px;margin:14px 0}.selected-teacher{padding:14px;border-radius:12px;background:#edf3fa}.selected-teacher h3{margin:0 0 5px}.selected-teacher span,.hint{color:#61748b;font-size:13px}.draft-list{margin-top:12px}.lesson{min-width:85px;vertical-align:middle}.lesson b{font-weight:800;display:block;font-size:12px}.lesson small{display:block;font-size:10px;line-height:1.35;margin-top:3px}.tt-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}button,input,select{min-height:40px}@media(max-width:850px){.assignment-layout{grid-template-columns:1fr}.teacher-list{max-height:250px}.assignment-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:500px){.assignment-stats{gap:6px}.assignment-form,.teacher-index{padding:10px}.assignment-stats>div{padding:9px}.assignment-stats b{font-size:19px}}
 
 .generation-report{margin:12px 0;padding:16px;border:1px solid #aac4d8;background:#eff7ff;border-radius:12px;line-height:1.9}#stopGenerate[hidden]{display:none!important}
+
+/* v0.8.4 timetable presentation */
+.timetable{border-collapse:separate;border-spacing:2px;min-width:900px;table-layout:fixed}
+.timetable th{background:#e9f0f7;color:#243e5b;font-weight:800;padding:11px 6px;position:sticky;top:0;z-index:1}
+.timetable td{vertical-align:middle;min-height:48px;text-align:center;padding:6px 4px}
+.timetable td.lesson{border:1px solid rgba(33,54,80,.12);border-radius:7px;line-height:1.25;min-width:84px}
+.timetable td.lesson b{display:block;font-size:12px;font-weight:800;overflow-wrap:anywhere}
+.timetable td.lesson small{display:block;margin-top:4px;font-size:10px;color:#45556c;overflow-wrap:anywhere}
+.tt-wrap{max-width:100%;overflow:auto}
+.gap-diagnostic{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:14px;border:1px solid #dce4ed;border-radius:12px;margin:9px 0;background:#fff}
+.gap-diagnostic .muted{margin-top:6px;line-height:1.8}
+@media(max-width:700px){.gap-diagnostic{flex-direction:column;align-items:stretch}.gap-diagnostic button{width:100%}}
+@media print{.timetable{min-width:0;border-spacing:0}.timetable th{position:static}.timetable td.lesson{border-radius:0}}
