@@ -229,8 +229,8 @@ function startGeneration(){
  const button=$('#generateBtn'),status=$('#generationProgress');
  button.disabled=true;button.textContent='جاري التوليد...';
  const began=Date.now();let finished=false;
- const worker=new Worker('generator-worker.js?v=082');generationWorker=worker;
- const tick=setInterval(()=>{if(status&&!finished)status.textContent='البحث جارٍ... '+Math.round((Date.now()-began)/1000)+' ثانية. يمكن إيقافه دون فقد البيانات.'},500);
+ const worker=new Worker('generator-worker.js?v=083');generationWorker=worker;
+ const tick=setInterval(()=>{if(!finished&&Date.now()-began>21000){finish({ok:false,reason:"time",message:"أوقف مراقب السلامة المحرك بعد تجاوز المهلة، والبيانات محفوظة."});return;}if(status&&!finished)status.textContent='البحث جارٍ... '+Math.round((Date.now()-began)/1000)+' ثانية. يمكن إيقافه دون فقد البيانات.'},500);
  const stop=$('#stopGenerate');if(stop){stop.hidden=false;stop.onclick=()=>finish({ok:false,reason:'cancelled',message:'أوقفت التوليد. بقي الجدول السابق محفوظاً.'})}
  const finish=result=>{if(finished)return;finished=true;clearInterval(tick);worker.terminate();generationWorker=null;
    if(result.ok){db.timetable=result.entries.map((e,i)=>({...e,id:'ent_'+Date.now().toString(36)+'_'+i}));save();}
@@ -286,7 +286,7 @@ function generator(){
   <div class="actions"><button id="generateBtn" ${reds?'disabled':''}>${db.timetable.length?'إعادة توليد الجدول':'توليد الجدول تلقائياً'}</button><button class="secondary" id="checkBtn">فتح فحص الجدوى</button>${db.timetable.length?'<button class="danger" id="clearTT">مسح الجدول</button>':''}</div>
   ${db.timetable.length?`<div class="quality-grid"><div><b>${q.score}/100</b><span>جودة الجدول</span></div><div><b>${q.repeats}</b><span>تكرار يومي</span></div><div><b>${q.gaps}</b><span>فراغات المدرسين</span></div><div><b>${q.avoid}</b><span>حصص غير مفضلة</span></div></div><div class="generation-status"><b>الجدول الحالي:</b> ${db.timetable.length} حصة — ${warnings} تحذيرات توزيع.</div>`:''}
   <div id="generationProgress" class="notice" aria-live="polite">${generationWorker?'التوليد جارٍ...':'جاهز للتوليد'}</div><button id="stopGenerate" class="danger" ${generationWorker?'':'hidden'}>إيقاف التوليد</button>
-  ${window.generationReport?`<div class="generation-report"><b>نتيجة آخر محاولة:</b> ${esc(window.generationReport.message)}<br>السبب: ${esc(({nodes:'بلوغ حد المحاولات',time:'انتهاء الوقت المحدد',exhausted:'استنفاد البحث',cancelled:'إيقاف يدوي',exception:'خطأ برمجي','worker-error':'خطأ تشغيل العامل'})[window.generationReport.reason]||'نجاح')} — الزمن: ${window.generationReport.seconds} ثانية — العقد: ${window.generationReport.nodes||0}</div>`:''}
+  ${window.generationReport?`<div class="generation-report"><b>نتيجة آخر محاولة:</b> ${esc(window.generationReport.message)}<br>السبب: ${esc(({nodes:'بلوغ حد المحاولات',time:'انتهاء الوقت المحدد',exhausted:'استنفاد البحث',cancelled:'إيقاف يدوي',exception:'خطأ برمجي','worker-error':'خطأ تشغيل العامل'})[window.generationReport.reason]||'نجاح')} — الزمن: ${window.generationReport.seconds} ثانية — العقد: ${window.generationReport.nodes||0} — أفضل عمق: ${window.generationReport.bestDepth||0} من ${window.generationReport.total||'—'}</div>`:''}
   ${timetableTable()}`;
   $('#checkBtn').onclick=()=>{page='feasibility';render()};
   if($('#generateBtn')){$('#generateBtn').disabled=!!generationWorker||!!reds;$('#generateBtn').onclick=startGeneration;}
