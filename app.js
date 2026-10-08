@@ -1,8 +1,8 @@
 const KEY='school-timetable-v01';
 const stageDefaults=[['الأول',1,'#587B9B'],['الثاني',2,'#6F8F72'],['الثالث',3,'#9A7B60'],['الرابع',4,'#7D7398'],['الخامس',5,'#A16F78'],['السادس',6,'#557F83']];
 const defaultDays=[['الأحد',7,true],['الاثنين',7,true],['الثلاثاء',6,true],['الأربعاء',7,true],['الخميس',5,true],['الجمعة',0,false],['السبت',0,false]];
-const seed=()=>({version:'0.8.1',school:{name:'',year:'2026-2027'},days:defaultDays.map((x,i)=>({id:'d'+i,name:x[0],periods:x[1],active:x[2],order:i+1})),stages:stageDefaults.map(x=>({id:'g'+x[1],name:x[0],order:x[1],color:x[2]})),sections:[],subjects:[],teachers:[],assignments:[],teacherRules:{},fixedLessons:[],timetable:[],stageLoads:{},printSettings:{title:'جدول الحصص الأسبوعية',startDate:'',changeReasons:'',footer:'',showColors:true}});
-function migrate(x){x=x||seed();x.version='0.8.1';x.teacherRules=x.teacherRules||{};x.fixedLessons=x.fixedLessons||[];x.timetable=x.timetable||[];x.stageLoads=x.stageLoads||{};x.printSettings={title:'جدول الحصص الأسبوعية',startDate:'',changeReasons:'',footer:'',showColors:true,...(x.printSettings||{})};x.teachers=x.teachers||[];x.assignments=x.assignments||[];return x}
+const seed=()=>({version:'0.8.2',school:{name:'',year:'2026-2027'},days:defaultDays.map((x,i)=>({id:'d'+i,name:x[0],periods:x[1],active:x[2],order:i+1})),stages:stageDefaults.map(x=>({id:'g'+x[1],name:x[0],order:x[1],color:x[2]})),sections:[],subjects:[],teachers:[],assignments:[],teacherRules:{},fixedLessons:[],timetable:[],stageLoads:{},printSettings:{title:'جدول الحصص الأسبوعية',startDate:'',changeReasons:'',footer:'',showColors:true}});
+function migrate(x){x=x||seed();x.version='0.8.2';x.teacherRules=x.teacherRules||{};x.fixedLessons=x.fixedLessons||[];x.timetable=x.timetable||[];x.stageLoads=x.stageLoads||{};x.printSettings={title:'جدول الحصص الأسبوعية',startDate:'',changeReasons:'',footer:'',showColors:true,...(x.printSettings||{})};x.teachers=x.teachers||[];x.assignments=x.assignments||[];return x}
 function load(){try{return migrate(JSON.parse(localStorage.getItem(KEY)))}catch{return seed()}}
 let db=load(),page='school';
 const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),uid=p=>p+'_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
@@ -11,7 +11,7 @@ const pages=[['school','1. المدرسة'],['days','2. الأيام والحص�
 function nav(){$('#steps').innerHTML=pages.map(x=>`<button class="step ${page===x[0]?'active':''}" data-p="${x[0]}">${x[1]}</button>`).join('');document.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{page=b.dataset.p;render()})}
 function completeness(){let c=[!!db.school.name,db.days.some(d=>d.active&&d.periods>0),db.sections.length,db.subjects.length,db.teachers.length,db.assignments.length];return Math.round(c.filter(Boolean).length/c.length*100)}
 function renderSummary(){if(!$('#summary'))return;let configured=db.teachers.filter(t=>db.teacherRules[t.id]).length;$('#summary').innerHTML=`<div class="cards"><div class="stat">اكتمال البيانات<b>${completeness()}%</b></div><div class="stat">الشعب<b>${db.sections.length}</b></div><div class="stat">المواد<b>${db.subjects.length}</b></div><div class="stat">المدرسون<b>${db.teachers.length}</b></div><div class="stat">قيود مضبوطة<b>${configured}</b></div><div class="stat">حصص مثبتة<b>${db.fixedLessons.length}</b></div></div><div class="progress" style="margin-top:12px"><i style="width:${completeness()}%"></i></div>`}
-function render(){nav();renderSummary();({school,days,sections,subjects,teachers,loads,assignments,constraints,fixed,feasibility,generator,workspaceTT,printSetup}[page])();if(page!=='feasibility'&&window.issueFocus?.page===page)issueLocationPanel()}
+function render(){nav();renderSummary();({school,days,sections,subjects,teachers,loads,assignments,constraints,fixed,feasibility,generator,workspaceTT,printSetup}[page])()}
 function school(){$('#workspace').innerHTML=`<h2>إعداد المدرسة</h2><div class="grid"><div class="field"><label>اسم المدرسة</label><input id="schoolName" value="${esc(db.school.name)}"></div><div class="field"><label>العام الدراسي</label><input id="schoolYear" value="${esc(db.school.year)}"></div></div><div class="actions"><button id="saveSchool">حفظ الإعدادات</button><button class="secondary" id="importBtn">استيراد نسخة احتياطية</button><button class="danger" id="resetBtn">إعادة ضبط المشروع</button></div>`;$('#saveSchool').onclick=()=>{db.school.name=$('#schoolName').value.trim();db.school.year=$('#schoolYear').value.trim();save()};$('#importBtn').onclick=()=>$('#importFile').click();$('#resetBtn').onclick=()=>{if(confirm('سيتم حذف جميع البيانات المحلية. هل أنت متأكد؟')){db=seed();save();render()}}}
 function days(){$('#workspace').innerHTML=`<h2>أيام الدوام وعدد الحصص</h2><div class="notice">يمكن أن يختلف عدد الحصص من يوم إلى آخر.</div><table><thead><tr><th>اليوم</th><th>دوام</th><th>عدد الحصص</th></tr></thead><tbody>${db.days.sort((a,b)=>a.order-b.order).map(d=>`<tr><td>${d.name}</td><td><input type="checkbox" data-active="${d.id}" ${d.active?'checked':''}></td><td><input type="number" min="0" max="12" data-periods="${d.id}" value="${d.periods}"></td></tr>`).join('')}</tbody></table>`;document.querySelectorAll('[data-active]').forEach(x=>x.onchange=()=>{db.days.find(d=>d.id===x.dataset.active).active=x.checked;save()});document.querySelectorAll('[data-periods]').forEach(x=>x.onchange=()=>{let d=db.days.find(d=>d.id===x.dataset.periods);d.periods=Math.max(0,+x.value||0);d.active=d.periods>0;save();days()})}
 function sections(){let rows=db.sections.slice().sort((a,b)=>(db.stages.find(g=>g.id===a.stageId)?.order||0)-(db.stages.find(g=>g.id===b.stageId)?.order||0)||a.order-b.order);$('#workspace').innerHTML=`<h2>المراحل والشعب</h2><div class="grid"><div class="field"><label>المرحلة</label><select id="stage">${db.stages.sort((a,b)=>a.order-b.order).map(g=>`<option value="${g.id}">${g.name}</option>`).join('')}</select></div><div class="field"><label>اسم الشعبة</label><input id="sectionName" placeholder="مثال: أ"></div></div><div class="actions"><button id="addSection">إضافة شعبة</button></div><table><thead><tr><th>المرحلة</th><th>الشعبة</th><th></th></tr></thead><tbody>${rows.length?rows.map(s=>{let g=db.stages.find(x=>x.id===s.stageId);return `<tr><td><span class="stage-dot" style="background:${g.color}"></span>${g.name}</td><td>${esc(s.name)}</td><td><button class="danger" data-del-section="${s.id}">حذف</button></td></tr>`}).join(''):`<tr><td colspan="3" class="empty">لم تضف شعب بعد</td></tr>`}</tbody></table>`;$('#addSection').onclick=()=>{let name=$('#sectionName').value.trim(),stageId=$('#stage').value;if(!name)return;if(db.sections.some(s=>s.stageId===stageId&&s.name===name))return alert('هذه الشعبة موجودة');let max=Math.max(0,...db.sections.filter(s=>s.stageId===stageId).map(s=>s.order));db.sections.push({id:uid('sec'),stageId,name,order:max+1});save();sections()};document.querySelectorAll('[data-del-section]').forEach(b=>b.onclick=()=>{if(db.assignments.some(a=>a.sectionId===b.dataset.delSection))return alert('لا يمكن حذف شعبة مرتبطة بتكليف');db.sections=db.sections.filter(s=>s.id!==b.dataset.delSection);save();sections()})}
@@ -203,113 +203,43 @@ function analyzeFeasibility(){
   issues.forEach(i=>{if(!seen.has(i.code)){seen.add(i.code);unique.push(i)}});
   return unique;
 }
-function issueRoute(code){
- const [kind,id]=code.split(':');
- if(['SECTION_GAP','SECTION_EMPTY','SECTION_CAPACITY'].includes(kind))return {page:'assignments',section:id};
- if(['TEACHER_CAPACITY','TEACHER_DAILY'].includes(kind))return {page:'constraints',teacher:id};
- if(['REPEAT','NO_DAY','BROKEN'].includes(kind)){let a=db.assignments.find(x=>x.id===id);return {page:kind==='NO_DAY'?'constraints':'assignments',teacher:a?.teacherId,section:a?.sectionId};}
- if(kind.startsWith('FIX_'))return {page:'fixed',fixed:id};
- return {page:({SCHOOL_NAME:'school',NO_DAYS:'days',NO_SECTIONS:'sections',NO_SUBJECTS:'subjects',NO_TEACHERS:'teachers',NO_ASSIGNMENTS:'assignments'})[kind]||'assignments'};
+function feasibility(){
+  const issues=analyzeFeasibility(),reds=issues.filter(x=>x.level==='red').length,oranges=issues.filter(x=>x.level==='orange').length;
+  const green=reds===0;
+  const item=i=>`<div class="issue ${i.level}"><div class="issue-icon">${i.level==='red'?'🔴':'🟠'}</div><div><b>${esc(i.title)}</b><div class="muted">${esc(i.detail)}</div></div></div>`;
+  $('#workspace').innerHTML=`<h2>فحص إمكانية إنشاء الجدول</h2><div class="notice">هذا الفحص لا يولد الجدول. وظيفته اكتشاف الاستحالات والتنازلات المتوقعة قبل تشغيل محرك التوليد.</div>
+  <div class="feas-head ${green?'ok':'bad'}"><div class="feas-score">${green?'✓':'!'}</div><div><h3>${green?'يمكن الانتقال إلى التوليد':'توجد مشاكل يجب معالجتها'}</h3><div>${reds} أخطاء مانعة — ${oranges} تحذيرات</div></div></div>
+  ${green&&oranges===0?'<div class="issue green"><div class="issue-icon">🟢</div><div><b>البيانات سليمة</b><div class="muted">لم يكتشف الفحص الحالي مشكلة تمنع إنشاء جدول صالح.</div></div></div>':''}
+  ${issues.map(item).join('')}
+  <div class="actions"><button id="rerun">إعادة الفحص</button>${green?'<button class="secondary" id="goGenerate">الانتقال إلى التوليد الآلي</button>':''}</div>`;
+  $('#rerun').onclick=feasibility;
+  if($('#goGenerate')) $('#goGenerate').onclick=()=>{page='generator';render()};
 }
-function showIssueLocation(code){const target=issueRoute(code);window.issueFocus=target;if(target.teacher&&target.page==='constraints')window.constraintTeacher=target.teacher;page=target.page;render();document.querySelector('#issueLocation')?.scrollIntoView({behavior:'smooth',block:'center'});}
-function issueLocationPanel(){const t=window.issueFocus;if(!t||page!==t.page)return;let detail='راجع الإعدادات في هذه الصفحة.';
- if(t.section){const sec=db.sections.find(x=>x.id===t.section);if(sec){const g=db.stages.find(x=>x.id===sec.stageId),assign=db.assignments.filter(x=>x.sectionId===sec.id),used=assign.reduce((n,a)=>n+(+a.weeklyPeriods||0),0),cap=db.days.filter(d=>d.active).reduce((n,d)=>n+d.periods,0);const rows=db.subjects.map(sub=>{const expected=loadFor(sec.stageId,sub.id),actual=assign.filter(a=>a.subjectId===sub.id).reduce((n,a)=>n+(+a.weeklyPeriods||0),0);return {sub,expected,actual}}).filter(x=>x.expected||x.actual);detail=`<b>الشعبة: ${esc(g?.name)} ${esc(sec.name)}</b><p>المكلف ${used} من ${cap} خانة؛ الفراغ الإجمالي ${Math.max(0,cap-used)}.</p><div class="tt-wrap"><table><thead><tr><th>المادة</th><th>المقرر</th><th>المكلف</th><th>النقص</th></tr></thead><tbody>${rows.map(x=>`<tr class="${x.expected>x.actual?'focus-deficit':''}"><td>${esc(x.sub.name)}</td><td>${x.expected}</td><td>${x.actual}</td><td>${Math.max(0,x.expected-x.actual)}</td></tr>`).join('')}</tbody></table></div><p>لا يوجد يوم وحصة محددان لهذا الفراغ قبل توليد الجدول.</p>`;}}
- else if(t.teacher){const teacher=db.teachers.find(x=>x.id===t.teacher),r=rule(t.teacher),need=db.assignments.filter(x=>x.teacherId===t.teacher).reduce((n,a)=>n+(+a.weeklyPeriods||0),0),avail=db.days.filter(d=>d.active).reduce((n,d)=>n+Array.from({length:d.periods},(_,i)=>i+1).filter(x=>!(r.unavailable[d.id]||[]).includes(x)).length,0);detail=`<b>${esc(teacher?.name)}</b><p>النصاب: ${need} حصة، والمتاح بعد القيود: ${avail} خانة. عدّل قيود المدرس أدناه.</p>`;}
- const el=document.createElement('div');el.id='issueLocation';el.className='issue-location';el.innerHTML=`<h3>📍 موضع المشكلة</h3>${detail}<button class="secondary" id="issueReturn">العودة إلى الفحص</button>`;document.querySelector('#workspace').prepend(el);el.querySelector('#issueReturn').onclick=()=>{window.issueFocus=null;page='feasibility';render()};}
-function feasibility(){const issues=analyzeFeasibility(),reds=issues.filter(x=>x.level==='red').length,oranges=issues.filter(x=>x.level==='orange').length,green=reds===0;
- const item=i=>`<div class="issue ${i.level}"><div class="issue-icon">${i.level==='red'?'🔴':'🟠'}</div><div class="issue-main"><b>${esc(i.title)}</b><div class="muted">${esc(i.detail)}</div></div><button class="secondary issue-jump" data-issue="${esc(i.code)}">📍 عرض موضع المشكلة</button></div>`;
- $('#workspace').innerHTML=`<h2>فحص إمكانية إنشاء الجدول</h2><div class="notice">اضغط زر التنبيه للانتقال إلى الشعبة أو المدرس أو الحصة المثبتة ذات المشكلة. الفراغ الزمني لا يُحدد قبل التوليد.</div><div class="feas-head ${green?'ok':'bad'}"><div class="feas-score">${green?'✓':'!'}</div><div><h3>${green?'يمكن الانتقال إلى التوليد':'توجد مشاكل يجب معالجتها'}</h3><div>${reds} أخطاء مانعة — ${oranges} تحذيرات</div></div></div>${issues.map(item).join('')}<div class="actions"><button id="rerun">إعادة الفحص</button>${green?'<button class="secondary" id="goGenerate">الانتقال إلى التوليد الآلي</button>':''}</div>`;
- document.querySelectorAll('[data-issue]').forEach(x=>x.onclick=()=>showIssueLocation(x.dataset.issue));$('#rerun').onclick=feasibility;if($('#goGenerate'))$('#goGenerate').onclick=()=>{page='generator';render()};}
+
 
 function teacherShort(name){return String(name||'').trim().split(/\s+/).slice(0,2).join(' ')}
 function slotKey(dayId,period){return dayId+'|'+period}
-function generateTimetable(){
-  const blockers=analyzeFeasibility().filter(x=>x.level==='red');
-  if(blockers.length) return {ok:false,message:`يوجد ${blockers.length} خطأ مانع. عالجها من فحص الجدوى أولاً.`};
-
-  const slots=[];
-  db.days.filter(d=>d.active&&d.periods>0).sort((a,b)=>a.order-b.order).forEach(d=>{
-    for(let p=1;p<=d.periods;p++)slots.push({dayId:d.id,period:p,dayOrder:d.order});
-  });
-  const entries=[],teacherBusy=new Set(),sectionBusy=new Set(),asgCount={},asgDays={};
-  db.assignments.forEach(a=>{asgCount[a.id]=0;asgDays[a.id]={}});
-
-  function canPlace(a,sl){
-    const r=rule(a.teacherId),k=slotKey(sl.dayId,sl.period);
-    if((r.unavailable[sl.dayId]||[]).includes(sl.period))return false;
-    if(teacherBusy.has(a.teacherId+'|'+k)||sectionBusy.has(a.sectionId+'|'+k))return false;
-    const daily=entries.filter(e=>e.teacherId===a.teacherId&&e.dayId===sl.dayId).length;
-    if(daily>=Math.max(1,+r.maxDaily||99))return false;
-    return true;
-  }
-  function place(a,sl,locked=false){
-    const k=slotKey(sl.dayId,sl.period);
-    entries.push({id:uid('ent'),assignmentId:a.id,teacherId:a.teacherId,subjectId:a.subjectId,sectionId:a.sectionId,dayId:sl.dayId,period:sl.period,locked});
-    teacherBusy.add(a.teacherId+'|'+k);sectionBusy.add(a.sectionId+'|'+k);
-    asgCount[a.id]++;asgDays[a.id][sl.dayId]=(asgDays[a.id][sl.dayId]||0)+1;
-  }
-  // fixed first
-  for(const f of db.fixedLessons){
-    const a=db.assignments.find(x=>x.id===f.assignmentId),d=db.days.find(x=>x.id===f.dayId);
-    if(!a||!d)return {ok:false,message:'توجد حصة مثبتة غير صالحة.'};
-    const sl={dayId:f.dayId,period:f.period,dayOrder:d.order};
-    if(!canPlace(a,sl))return {ok:false,message:'تعذر تطبيق إحدى الحصص المثبتة بسبب تعارض أو قيد.'};
-    place(a,sl,true);
-  }
-
-  // remaining lesson units, hardest first
-  let units=[];
-  db.assignments.forEach(a=>{
-    for(let i=asgCount[a.id];i<a.weeklyPeriods;i++)units.push(a);
-  });
-  const possibleCount=a=>slots.filter(sl=>canPlace(a,sl)).length;
-  units.sort((a,b)=>possibleCount(a)-possibleCount(b));
-
-  function score(a,sl){
-    const r=rule(a.teacherId); let s=0;
-    const sameDay=asgDays[a.id][sl.dayId]||0;
-    if(sameDay)s+=1000*sameDay; // strongly avoid repeated subject/section same day
-    if(r.preferred.includes(sl.period))s-=35;
-    if(r.avoid.includes(sl.period))s+=35;
-    const teacherDay=entries.filter(e=>e.teacherId===a.teacherId&&e.dayId===sl.dayId);
-    if(teacherDay.length){
-      const adjacent=teacherDay.some(e=>Math.abs(e.period-sl.period)===1);
-      if(r.consecutive==='prefer'&&adjacent)s-=20;
-      if(r.consecutive==='avoid'&&adjacent)s+=20;
-      const ps=teacherDay.map(e=>e.period).concat(sl.period).sort((x,y)=>x-y);
-      s+=(Math.max(...ps)-Math.min(...ps)+1-ps.length)*12; // gaps
-    }
-    s+=teacherDay.length*4; // load spreading
-    s+=sl.period*.2;
-    return s;
-  }
-
-  let nodes=0,limit=180000;
-  function solve(idx){
-    if(idx>=units.length)return true;
-    if(++nodes>limit)return false;
-    // dynamic MRV: choose remaining unit with fewest candidates
-    let best=idx,bestC=null;
-    for(let i=idx;i<units.length;i++){
-      const a=units[i],c=slots.filter(sl=>canPlace(a,sl));
-      if(!bestC||c.length<bestC.length){best=i;bestC=c;if(c.length===0)break}
-    }
-    [units[idx],units[best]]=[units[best],units[idx]];
-    const a=units[idx],cands=(best===idx&&bestC?bestC:slots.filter(sl=>canPlace(a,sl))).sort((x,y)=>score(a,x)-score(a,y));
-    for(const sl of cands){
-      place(a,sl,false);
-      if(solve(idx+1))return true;
-      const e=entries.pop(),k=slotKey(e.dayId,e.period);
-      teacherBusy.delete(a.teacherId+'|'+k);sectionBusy.delete(a.sectionId+'|'+k);
-      asgCount[a.id]--;asgDays[a.id][sl.dayId]--; if(!asgDays[a.id][sl.dayId])delete asgDays[a.id][sl.dayId];
-    }
-    [units[idx],units[best]]=[units[best],units[idx]];
-    return false;
-  }
-  const ok=solve(0);
-  if(!ok)return {ok:false,message:nodes>limit?'لم يصل المحرك إلى حل ضمن حد البحث. جرّب تخفيف القيود أو راجع فحص الجدوى.':'تعذر إيجاد جدول يحقق جميع القيود الحالية.'};
-  db.timetable=entries;save();
-  return {ok:true,message:`تم إنشاء ${entries.length} حصة بنجاح.`,nodes};
+// Generation runs in generator-worker.js; do not run backtracking on the UI thread.
+let generationWorker=null;
+function startGeneration(){
+ if(generationWorker)return;
+ const blockers=analyzeFeasibility().filter(x=>x.level==='red');
+ if(blockers.length){alert('عالج الأخطاء المانعة أولاً');return;}
+ if(db.timetable.length&&!confirm('سيبقى الجدول الحالي محفوظاً حتى ينجح إنشاء جدول جديد. متابعة؟'))return;
+ const button=$('#generateBtn'),status=$('#generationProgress');
+ button.disabled=true;button.textContent='جاري التوليد...';
+ const began=Date.now();let finished=false;
+ const worker=new Worker('generator-worker.js?v=082');generationWorker=worker;
+ const tick=setInterval(()=>{if(status&&!finished)status.textContent='البحث جارٍ... '+Math.round((Date.now()-began)/1000)+' ثانية. يمكن إيقافه دون فقد البيانات.'},500);
+ const stop=$('#stopGenerate');if(stop){stop.hidden=false;stop.onclick=()=>finish({ok:false,reason:'cancelled',message:'أوقفت التوليد. بقي الجدول السابق محفوظاً.'})}
+ const finish=result=>{if(finished)return;finished=true;clearInterval(tick);worker.terminate();generationWorker=null;
+   if(result.ok){db.timetable=result.entries.map((e,i)=>({...e,id:'ent_'+Date.now().toString(36)+'_'+i}));save();}
+   window.generationReport={...result,seconds:((Date.now()-began)/1000).toFixed(1)};
+   if(page==='generator')generator();
+ };
+ worker.onmessage=e=>{if(e.data.type==='progress'){if(status)status.textContent=`فُحصت ${e.data.nodes.toLocaleString('en-US')} محاولة، والحصص الموضوعة في الفرع الحالي: ${e.data.placed} من ${e.data.total}. الوقت: ${Math.round(e.data.elapsed/1000)} ثوانٍ.`;}else if(e.data.type==='result')finish(e.data.result)};
+ worker.onerror=e=>finish({ok:false,reason:'worker-error',message:'حدث خطأ في عامل التوليد. تأكد من رفع ملف generator-worker.js إلى GitHub.'});
+ worker.postMessage({type:'start',db:structuredClone(db)});
 }
 
 function scheduleQuality(){
@@ -355,13 +285,12 @@ function generator(){
   ${reds?`<div class="notice error">يوجد ${reds} خطأ مانع في فحص الجدوى. لن يبدأ المحرك قبل معالجتها.</div>`:`<div class="notice">المحرك يطبق الحصص المثبتة أولاً، ثم يستخدم MRV + Backtracking مع تقييم للتفضيلات وتوزيع المواد.</div>`}
   <div class="actions"><button id="generateBtn" ${reds?'disabled':''}>${db.timetable.length?'إعادة توليد الجدول':'توليد الجدول تلقائياً'}</button><button class="secondary" id="checkBtn">فتح فحص الجدوى</button>${db.timetable.length?'<button class="danger" id="clearTT">مسح الجدول</button>':''}</div>
   ${db.timetable.length?`<div class="quality-grid"><div><b>${q.score}/100</b><span>جودة الجدول</span></div><div><b>${q.repeats}</b><span>تكرار يومي</span></div><div><b>${q.gaps}</b><span>فراغات المدرسين</span></div><div><b>${q.avoid}</b><span>حصص غير مفضلة</span></div></div><div class="generation-status"><b>الجدول الحالي:</b> ${db.timetable.length} حصة — ${warnings} تحذيرات توزيع.</div>`:''}
+  <div id="generationProgress" class="notice" aria-live="polite">${generationWorker?'التوليد جارٍ...':'جاهز للتوليد'}</div><button id="stopGenerate" class="danger" ${generationWorker?'':'hidden'}>إيقاف التوليد</button>
+  ${window.generationReport?`<div class="generation-report"><b>نتيجة آخر محاولة:</b> ${esc(window.generationReport.message)}<br>السبب: ${esc(({nodes:'بلوغ حد المحاولات',time:'انتهاء الوقت المحدد',exhausted:'استنفاد البحث',cancelled:'إيقاف يدوي',exception:'خطأ برمجي','worker-error':'خطأ تشغيل العامل'})[window.generationReport.reason]||'نجاح')} — الزمن: ${window.generationReport.seconds} ثانية — العقد: ${window.generationReport.nodes||0}</div>`:''}
   ${timetableTable()}`;
   $('#checkBtn').onclick=()=>{page='feasibility';render()};
-  if($('#generateBtn'))$('#generateBtn').onclick=()=>{
-    if(db.timetable.length&&!confirm('سيتم استبدال الجدول الحالي. هل تريد المتابعة؟'))return;
-    const b=$('#generateBtn');b.disabled=true;b.textContent='جاري التوليد...';
-    setTimeout(()=>{const r=generateTimetable();alert(r.message);generator()},30);
-  };
+  if($('#generateBtn')){$('#generateBtn').disabled=!!generationWorker||!!reds;$('#generateBtn').onclick=startGeneration;}
+  if(generationWorker&&$('#stopGenerate'))$('#stopGenerate').onclick=()=>{generationWorker.terminate();generationWorker=null;window.generationReport={ok:false,reason:'cancelled',message:'أوقفت التوليد، ولم تتغير بيانات الجدول.',seconds:'—'};generator()};
   if($('#clearTT'))$('#clearTT').onclick=()=>{if(confirm('مسح الجدول المولد؟')){db.timetable=[];save();generator()}};
 }
 
@@ -432,6 +361,6 @@ function printSetup(){
 function printDocument(){const p=db.printSettings;return `<article class="print-sheet ${p.showColors?'':'no-colors'}"><div class="print-meta"><span>تاريخ بدء التطبيق: <b>${esc(p.startDate||'غير محدد')}</b></span><span>العام الدراسي: <b>${esc(db.school.year)}</b></span></div><header class="print-heading"><h1>${esc(db.school.name||'اسم المدرسة')}</h1><h2>${esc(p.title)}</h2></header>${timetableTable()}<footer class="print-footer"><strong>أسباب تغيير الجدول:</strong><p>${esc(p.changeReasons||'—')}</p>${p.footer?`<p>${esc(p.footer)}</p>`:''}</footer></article>`}
 function printCSS(){return `@page{size:A3 landscape;margin:10mm}*{box-sizing:border-box}body{font-family:Tahoma,Arial,sans-serif;direction:rtl;color:#18324d;margin:0}.print-sheet{width:100%}.print-meta{display:flex;justify-content:space-between;font-size:12px}.print-heading{text-align:center;padding:12px 0}.print-heading h1{margin:0;font-size:23px}.print-heading h2{font-size:18px;margin:8px}.tt-wrap{overflow:visible}table{border-collapse:collapse;width:100%;table-layout:fixed;font-size:10px}th,td{border:1px solid #9eaebe;padding:5px 3px;text-align:center;overflow-wrap:anywhere}th{background:#e9eef4}td b,td small{display:block}td small{font-size:9px}.print-footer{border-top:2px solid #72869a;margin-top:16px;padding:8px;font-size:12px;white-space:pre-wrap}.no-colors .lesson,.no-colors th{background:#fff!important;border-top-color:#888!important}@media print{*{-webkit-print-color-adjust:exact;print-color-adjust:exact}}`}
 
-$('#exportBtn').onclick=()=>{let blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='school-timetable-v0.7-backup.json';a.click();URL.revokeObjectURL(a.href)};
+$('#exportBtn').onclick=()=>{let blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='school-timetable-v0.8.2-backup.json';a.click();URL.revokeObjectURL(a.href)};
 $('#importFile').onchange=e=>{let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{db=migrate(JSON.parse(r.result));save();render();alert('تم الاستيراد بنجاح')}catch{alert('ملف غير صالح')}};r.readAsText(f)};
 render();
