@@ -88,3 +88,10 @@
 .print-preview .compact-timetable td.lesson{max-width:110px!important;padding:1px 2px!important}
 .print-preview .compact-timetable td.lesson b{font-size:9px!important;line-height:1.1!important}
 .print-preview .compact-timetable td.lesson small{font-size:8px!important;line-height:1.1!important;margin:0!important}
+
+/* v0.9.6.6: fixed, content-derived column widths; never stretch to page */
+.print-preview .compact-timetable{width:var(--compact-width)!important;min-width:0!important;max-width:none!important;table-layout:fixed!important;margin-inline:auto!important}
+.print-preview .compact-timetable col.subject-col{width:auto!important}
+.print-preview .compact-timetable td.lesson{max-width:none!important}
+.print-preview .tt-wrap{overflow-x:auto!important}
+@media print{.compact-timetable{width:var(--compact-width)!important;max-width:none!important;table-layout:fixed!important;margin-inline:auto!important}.compact-timetable col.subject-col{width:auto!important}}

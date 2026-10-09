@@ -1,8 +1,8 @@
 const KEY='school-timetable-v01';
 const stageDefaults=[['الأول',1,'#587B9B'],['الثاني',2,'#6F8F72'],['الثالث',3,'#9A7B60'],['الرابع',4,'#7D7398'],['الخامس',5,'#A16F78'],['السادس',6,'#557F83']];
 const defaultDays=[['الأحد',7,true],['الاثنين',7,true],['الثلاثاء',6,true],['الأربعاء',7,true],['الخميس',5,true],['الجمعة',0,false],['السبت',0,false]];
-const seed=()=>({version:'0.9.6.4',school:{name:'',year:'2026-2027'},days:defaultDays.map((x,i)=>({id:'d'+i,name:x[0],periods:x[1],active:x[2],order:i+1})),stages:stageDefaults.map(x=>({id:'g'+x[1],name:x[0],order:x[1],color:x[2]})),sections:[],subjects:[],teachers:[],assignments:[],teacherRules:{},fixedLessons:[],timetable:[],stageLoads:{},stageDayPeriods:{},subjectRules:{},printSettings:{title:'جدول الحصص الأسبوعية',startDate:'',changeReasons:'',footer:'',showColors:true}});
-function migrate(x){x=x||seed();x.version='0.9.6.4';x.teacherRules=x.teacherRules||{};x.fixedLessons=x.fixedLessons||[];x.timetable=x.timetable||[];x.stageLoads=x.stageLoads||{};x.stageDayPeriods=x.stageDayPeriods||{};x.subjectRules=x.subjectRules||{};x.printSettings={title:'جدول الحصص الأسبوعية',startDate:'',changeReasons:'',footer:'',showColors:true,...(x.printSettings||{})};x.teachers=x.teachers||[];x.assignments=x.assignments||[];return x}
+const seed=()=>({version:'0.9.6.6',school:{name:'',year:'2026-2027'},days:defaultDays.map((x,i)=>({id:'d'+i,name:x[0],periods:x[1],active:x[2],order:i+1})),stages:stageDefaults.map(x=>({id:'g'+x[1],name:x[0],order:x[1],color:x[2]})),sections:[],subjects:[],teachers:[],assignments:[],teacherRules:{},fixedLessons:[],timetable:[],stageLoads:{},stageDayPeriods:{},subjectRules:{},printSettings:{title:'جدول الحصص الأسبوعية',startDate:'',changeReasons:'',footer:'',showColors:true}});
+function migrate(x){x=x||seed();x.version='0.9.6.6';x.teacherRules=x.teacherRules||{};x.fixedLessons=x.fixedLessons||[];x.timetable=x.timetable||[];x.stageLoads=x.stageLoads||{};x.stageDayPeriods=x.stageDayPeriods||{};x.subjectRules=x.subjectRules||{};x.printSettings={title:'جدول الحصص الأسبوعية',startDate:'',changeReasons:'',footer:'',showColors:true,...(x.printSettings||{})};x.teachers=x.teachers||[];x.assignments=x.assignments||[];return x}
 function load(){try{return migrate(JSON.parse(localStorage.getItem(KEY)))}catch{return seed()}}
 let db=load(),page='school';
 const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),uid=p=>p+'_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
@@ -332,6 +332,18 @@ function timetableIssues(){
 function timetableTable(stageIds=null){
   if(!db.timetable.length)return '<div class="empty">لم يتم توليد جدول بعد.</div>';
   const secs=db.sections.filter(s=>!stageIds||stageIds.includes(s.stageId)).sort((a,b)=>(db.stages.find(g=>g.id===a.stageId)?.order||0)-(db.stages.find(g=>g.id===b.stageId)?.order||0)||a.order-b.order);
+  // Actual content-based widths, rather than distributing columns across the paper.
+  // Use short teacher names exactly as displayed, and cap long labels to wrap.
+  const columnWidths=secs.map(sec=>{
+    const labels=[(db.stages.find(g=>g.id===sec.stageId)?.name||'')+' '+sec.name];
+    for(const e of db.timetable){if(e.sectionId!==sec.id)continue;
+      labels.push(db.subjects.find(x=>x.id===e.subjectId)?.name||'');
+      labels.push(teacherShort(db.teachers.find(x=>x.id===e.teacherId)?.name));
+    }
+    const approx=Math.max(...labels.map(x=>Array.from(String(x||'')).length*6.1));
+    return Math.max(78,Math.min(112,Math.ceil(approx+13)));
+  });
+  const tableWidth=50+columnWidths.reduce((a,b)=>a+b,0);
   const maxP=Math.max(...db.days.filter(d=>d.active).map(d=>d.periods));
   let rows='';
   db.days.filter(d=>d.active).sort((a,b)=>a.order-b.order).forEach(d=>{
@@ -344,7 +356,7 @@ function timetableTable(stageIds=null){
       }).join('')+'</tr>';
     }
   });
-  return `<div class="tt-wrap"><table class="timetable compact-timetable" dir="rtl"><colgroup><col class="day-col"><col class="period-col">${secs.map(()=>'<col class="subject-col">').join('')}</colgroup><thead><tr><th class="vertical-heading"><span>اليوم</span></th><th class="vertical-heading"><span>الحصة</span></th>${secs.map(s=>{let g=db.stages.find(x=>x.id===s.stageId);return `<th style="border-top:4px solid ${g?.color||'#888'}">${g?.name||''} ${esc(s.name)}</th>`}).join('')}</tr></thead><tbody>${rows}</tbody></table></div>`;
+  return `<div class="tt-wrap"><table class="timetable compact-timetable" dir="rtl" style="--compact-width:${tableWidth}px;width:${tableWidth}px!important;max-width:none!important"><colgroup><col class="day-col" style="width:26px"><col class="period-col" style="width:24px">${secs.map((_,i)=>`<col class="subject-col" style="width:${columnWidths[i]}px">`).join('')}</colgroup><thead><tr><th class="vertical-heading"><span>اليوم</span></th><th class="vertical-heading"><span>الحصة</span></th>${secs.map(s=>{let g=db.stages.find(x=>x.id===s.stageId);return `<th style="border-top:4px solid ${g?.color||'#888'}">${g?.name||''} ${esc(s.name)}</th>`}).join('')}</tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 function generator(){
   const issues=analyzeFeasibility(),reds=issues.filter(x=>x.level==='red').length;
@@ -496,16 +508,16 @@ html,body{margin:0;padding:0;background:#fff;color:#19334e;direction:rtl;font-fa
 .print-heading h2{font-size:13px;margin:1px}
 .print-heading h3{font-size:12px;margin:1px}
 .tt-wrap{overflow:visible!important;border:0!important;margin:0!important;padding:0!important}
-table.compact-timetable{direction:rtl;width:max-content!important;min-width:0!important;max-width:100%!important;table-layout:fixed!important;border-collapse:collapse!important;border-spacing:0!important;margin:3px 0!important;font-size:9px}
+table.compact-timetable{direction:rtl;width:var(--compact-width)!important;min-width:0!important;max-width:none!important;table-layout:fixed!important;border-collapse:collapse!important;border-spacing:0!important;margin:3px 0!important;font-size:9px}
 table.compact-timetable col.day-col{width:26px!important}
 table.compact-timetable col.period-col{width:24px!important}
-table.compact-timetable col.subject-col{width:110px!important}
+table.compact-timetable col.subject-col{width:auto}
 table.compact-timetable th,table.compact-timetable td{border:1px solid #b9c8d8!important;text-align:center!important;vertical-align:middle!important;padding:1px 2px!important;line-height:1.08!important;overflow-wrap:anywhere!important;word-break:normal!important;white-space:normal!important;border-radius:0!important}
 table.compact-timetable thead th{background:#e8eef5!important;color:#193c60!important;font-weight:800!important;font-size:9px!important}
 table.compact-timetable th.day-label{width:26px!important;min-width:26px!important;max-width:26px!important;padding:0!important;position:relative!important;vertical-align:middle!important}
 table.compact-timetable th.day-label .vertical-day{display:inline-block!important;writing-mode:vertical-rl!important;-webkit-writing-mode:vertical-rl!important;transform:rotate(180deg)!important;font-weight:900!important;font-size:14px!important;line-height:1!important;white-space:nowrap!important;letter-spacing:0!important;margin:auto!important}
 table.compact-timetable th.period-number{width:24px!important;min-width:24px!important;max-width:24px!important;padding:1px!important;font-size:10px!important;font-weight:900!important}
-table.compact-timetable td.lesson{min-width:0!important;max-width:110px!important;padding:1px 2px!important;border-top-width:1px!important}
+table.compact-timetable td.lesson{min-width:0!important;max-width:none!important;padding:1px 2px!important;border-top-width:1px!important}
 table.compact-timetable td.lesson b{display:block!important;font-size:8px!important;font-weight:800!important;line-height:1.12!important}
 table.compact-timetable td.lesson small{display:block!important;font-size:7px!important;color:#40546b!important;margin-top:0!important;line-height:1.12!important;overflow-wrap:anywhere!important}
 .vertical-heading{height:54px!important;width:26px!important;padding:0!important;vertical-align:middle!important}.vertical-heading span{display:inline-block!important;writing-mode:vertical-rl!important;transform:rotate(180deg)!important;font-weight:900!important;font-size:11px!important;white-space:nowrap!important}.day-label.day-d0{background:#dceafa!important}.day-label.day-d1{background:#e0f1e5!important}.day-label.day-d2{background:#fff0d9!important}.day-label.day-d3{background:#eee5fa!important}.day-label.day-d4{background:#fbe5eb!important}
@@ -570,6 +582,6 @@ async function exportSchedulePNG(mode,id){
  const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),15000);
 }
 
-$('#exportBtn').onclick=()=>{let blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='school-timetable-v0.9.6.5-backup.json';a.click();URL.revokeObjectURL(a.href)};
+$('#exportBtn').onclick=()=>{let blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='school-timetable-v0.9.6.6-backup.json';a.click();URL.revokeObjectURL(a.href)};
 $('#importFile').onchange=e=>{let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{db=migrate(JSON.parse(r.result));save();render();alert('تم الاستيراد بنجاح')}catch{alert('ملف غير صالح')}};r.readAsText(f)};
 render();

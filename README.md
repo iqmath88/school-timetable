@@ -1,11 +1,10 @@
-# School Timetable v0.9.6.5 — إصلاح تخطيط الطباعة
+# School Timetable v0.9.6.6 — Content-fit table widths
 
-- تعديل **بنية جدول الطباعة**: خلية واحدة مدمجة لكل يوم عبر `rowspan`، مع تدوير الاسم عمودياً وتكبيره.
-- عرض عمود اليوم 31px وعمود رقم الحصة 29px، وأرقام الحصص فقط.
-- توزيع عرض أعمدة الشعب بالتساوي ضمن مساحة الورقة مع التفاف النصوص.
-- فرض تنسيق مستقل للطباعة داخل نافذة الطباعة (وليس الاكتفاء بـ CSS الصفحة الرئيسية).
-- ضبط معاينة الطباعة وصورة PNG بعروض أعمدة أصغر.
-- تحديث معرفات ملفات CSS وJavaScript لمنع استمرار تحميل النسخة المخبأة في Safari.
-- لا تغييرات على محرك التوليد أو بيانات المدرسة.
+- The stage table now calculates a bounded width for each section based on actual subject and displayed teacher names.
+- The total table width is the sum of the column widths, rather than filling the entire print preview or A3 page.
+- The day column stays merged and vertical; the period column stays narrow.
+- Preview and print use the same table widths; the full-school view can scroll horizontally.
+- PNG already computes column widths from measured text and remains unchanged.
+- No changes to the scheduling engine, constraints or timetable data.
 
-**تنبيه:** اختبر طباعة مرحلة واحدة بصيغة A3 أفقي من Safari قبل اعتماد النتيجة. احتفظ بملف JSON الاحتياطي.
+Test in Safari print preview on iPad; printing output was not device-tested.
