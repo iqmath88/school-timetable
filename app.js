@@ -293,7 +293,7 @@ function startGeneration(){
  const button=$('#generateBtn'),status=$('#generationProgress');
  button.disabled=true;button.textContent='جاري التوليد...';
  const began=Date.now();let finished=false,lastUpdate=Date.now(),lastProgress={nodes:0,bestDepth:0,total:0,placed:0},phase='تشغيل المحرك';
- let worker;try{worker=new Worker('generator-worker.js?v=093')}catch(err){button.disabled=false;button.textContent='توليد الجدول تلقائياً';window.generationReport={ok:false,reason:'worker-error',message:'تعذر تشغيل ملف المحرك: '+String(err),seconds:'0'};generator();return}generationWorker=worker;
+ let worker;try{worker=new Worker('generator-worker.js?v=095')}catch(err){button.disabled=false;button.textContent='توليد الجدول تلقائياً';window.generationReport={ok:false,reason:'worker-error',message:'تعذر تشغيل ملف المحرك: '+String(err),seconds:'0'};generator();return}generationWorker=worker;
  const tick=setInterval(()=>{if(finished)return;const elapsed=Date.now()-began;
    if(elapsed>60000){finish({ok:false,reason:'time',...lastProgress,message:`أوقف مراقب السلامة المحرك بعد 60 ثانية. آخر مرحلة: ${phase}. لم تتغير البيانات.`});return}
    if(status)status.textContent=`${phase} — ${Math.round(elapsed/1000)} ثانية — عقد ${lastProgress.nodes} — أفضل عمق ${lastProgress.bestDepth} من ${lastProgress.total||'—'}. ${Date.now()-lastUpdate>7000?'المحرك مشغول بالحساب، يمكن إيقافه.':''}`;
@@ -301,7 +301,7 @@ function startGeneration(){
  generationCancel=()=>finish({ok:false,reason:'cancelled',...lastProgress,message:'أوقفت التوليد. بقي الجدول السابق محفوظاً.'});
  const stop=$('#stopGenerate');if(stop){stop.hidden=false;stop.onclick=()=>generationCancel()}
  const finish=result=>{if(finished)return;finished=true;clearInterval(tick);worker.terminate();generationWorker=null;generationCancel=null;
-   if(result.ok){db.timetable=result.entries.map((e,i)=>({...e,id:'ent_'+Date.now().toString(36)+'_'+i}));save();}
+   if(result.ok&&!result.reused){db.timetable=result.entries.map((e,i)=>({...e,id:'ent_'+Date.now().toString(36)+'_'+i}));save();}
    window.generationReport={...result,seconds:((Date.now()-began)/1000).toFixed(1)};
    if(page==='generator')generator();
  };
@@ -490,6 +490,6 @@ function printDocument(){
 
 function printCSS(){return ` .day-row.day-d0>th,.day-label.day-d0{background:#dceafa!important}.day-row.day-d1>th,.day-label.day-d1{background:#e0f1e5!important}.day-row.day-d2>th,.day-label.day-d2{background:#fff0d9!important}.day-row.day-d3>th,.day-label.day-d3{background:#eee5fa!important}.day-row.day-d4>th,.day-label.day-d4{background:#fbe5eb!important} @page{size:A3 landscape;margin:7mm}.school-print-page{break-after:page;page-break-after:always}.school-print-page:last-child{break-after:auto;page-break-after:auto}.school-print-page .print-heading{padding:4px 0}.school-print-page .print-heading h1{font-size:17px}.school-print-page .print-heading h2{font-size:14px;margin:3px}.school-print-page .print-heading h3{font-size:12px;margin:2px}.school-print-page table{font-size:8px}.school-print-page td,.school-print-page th{padding:2px 1px}.school-print-page td small{font-size:7px}.school-print-page .print-footer{margin-top:5px;padding:3px;font-size:9px}.school-print-page .print-footer p{margin:2px 0}*{box-sizing:border-box}body{font-family:Tahoma,Arial,sans-serif;direction:rtl;color:#18324d;margin:0}.print-sheet{width:100%}.print-meta{display:flex;justify-content:space-between;font-size:12px}.print-heading{text-align:center;padding:12px 0}.print-heading h1{margin:0;font-size:23px}.print-heading h2{font-size:18px;margin:8px}.tt-wrap{overflow:visible}table{border-collapse:collapse;width:100%;table-layout:fixed;font-size:10px}th,td{border:1px solid #9eaebe;padding:5px 3px;text-align:center;overflow-wrap:anywhere}th{background:#e9eef4}td b,td small{display:block}td small{font-size:9px}.print-footer{border-top:2px solid #72869a;margin-top:16px;padding:8px;font-size:12px;white-space:pre-wrap}.no-colors .lesson,.no-colors th{background:#fff!important;border-top-color:#888!important}@media print{*{-webkit-print-color-adjust:exact;print-color-adjust:exact}}`}
 
-$('#exportBtn').onclick=()=>{let blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='school-timetable-v0.9.4-backup.json';a.click();URL.revokeObjectURL(a.href)};
+$('#exportBtn').onclick=()=>{let blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='school-timetable-v0.9.5-backup.json';a.click();URL.revokeObjectURL(a.href)};
 $('#importFile').onchange=e=>{let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{db=migrate(JSON.parse(r.result));save();render();alert('تم الاستيراد بنجاح')}catch{alert('ملف غير صالح')}};r.readAsText(f)};
 render();

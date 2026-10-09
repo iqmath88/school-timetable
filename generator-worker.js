@@ -1,6 +1,9 @@
 'use strict';
 self.onmessage=e=>{if(e.data.type!=='start')return;try{self.postMessage({type:'result',result:generate(e.data.db)})}catch(err){self.postMessage({type:'result',result:{ok:false,reason:'exception',message:String(err.stack||err)}})}};
 function generate(db){
+ const seed=validateExistingSchedule(db);
+ if(seed.ok){return {ok:true,entries:seed.entries,reused:true,nodes:0,bestDepth:seed.entries.length,total:seed.entries.length,message:'تم التحقق من الجدول المحفوظ: جميع الحصص والقيود الإلزامية صحيحة. احتفظ المحرك بالحل المثبت بدلاً من إعادة البحث غير الضرورية.'};}
+ self.postMessage({type:'phase',phase:'فحص الجدول المرجعي: '+seed.reason+'؛ بدء البحث عن حل جديد'});
  const began=Date.now(),deadline=began+55000;const days=db.days.filter(d=>d.active&&d.periods>0).sort((a,b)=>a.order-b.order),D=days.length;
  const sections=db.sections,teachers=db.teachers,assignments=db.assignments.filter(a=>+a.weeklyPeriods>0),A=assignments.length;
  const ti=new Map(teachers.map((x,i)=>[x.id,i])),si=new Map(sections.map((x,i)=>[x.id,i]));
@@ -44,4 +47,41 @@ function generate(db){
  while(entries.length)undo();
  }
  return {ok:false,reason:stop||'exhausted',nodes,bestDepth:best,total,message:`لم يُعثر على جدول متوافق خلال ${attempt} محاولة. تحقق من قيود المدرسين والمواد، خاصة الحصص الأولى والأخيرة. لم يتغير جدولك السابق.`};
+}
+
+// Strict reference-schedule validation. A successful reference is a constructive
+// feasibility certificate, not a claim that a new search found a fresh solution.
+function validateExistingSchedule(db){
+ const entries=db.timetable||[],assignments=db.assignments.filter(a=>+a.weeklyPeriods>0),days=db.days.filter(d=>d.active&&d.periods>0);
+ const byId=new Map(assignments.map(a=>[a.id,a])),sec=new Map(db.sections.map(s=>[s.id,s])),day=new Map(days.map(d=>[d.id,d]));
+ const expected=assignments.reduce((n,a)=>n+(+a.weeklyPeriods),0);
+ if(entries.length!==expected)return {ok:false,reason:'الجدول المرجعي غير مكتمل'};
+ const counts=new Map(),busyT=new Set(),busyS=new Set(),perDay=new Map(),sectionDays=new Map(),dailySubjects=new Set();
+ for(const e of entries){
+  const a=byId.get(e.assignmentId),d=day.get(e.dayId),section=sec.get(e.sectionId);
+  if(!a||!d||!section||a.teacherId!==e.teacherId||a.sectionId!==e.sectionId||a.subjectId!==e.subjectId)return {ok:false,reason:'تكليف محذوف أو معدل'};
+  const cap=Math.min(d.periods,Math.max(0,+(db.stageDayPeriods?.[section.stageId]?.[d.id]??d.periods)));
+  if(!Number.isInteger(+e.period)||+e.period<1||+e.period>cap)return {ok:false,reason:'حصة خارج ساعات الدوام'};
+  const kt=e.teacherId+'|'+e.dayId+'|'+e.period,ks=e.sectionId+'|'+e.dayId+'|'+e.period;
+  if(busyT.has(kt)||busyS.has(ks))return {ok:false,reason:'تعارض في التوقيت'};
+  busyT.add(kt);busyS.add(ks);
+  const r=db.teacherRules?.[e.teacherId]||{};
+  if((r.unavailable?.[e.dayId]||[]).includes(+e.period))return {ok:false,reason:'مخالفة عدم إتاحة المدرس'};
+  const sr=db.subjectRules?.[e.subjectId]||{},hard=sr.strict!=='soft'&&(!sr.stageId||sr.stageId===section.stageId);
+  if(hard&&(sr.noFirst&&+e.period===1||sr.noLast&&+e.period===cap))return {ok:false,reason:'مخالفة قيد المادة'};
+  const subKey=e.sectionId+'|'+e.dayId+'|'+e.subjectId;
+  if(hard&&sr.noRepeat&&dailySubjects.has(subKey))return {ok:false,reason:'تكرار مادة ممنوع'};
+  dailySubjects.add(subKey);
+  counts.set(a.id,(counts.get(a.id)||0)+1);
+  const td=e.teacherId+'|'+e.dayId;perDay.set(td,(perDay.get(td)||0)+1);
+  const sd=e.sectionId+'|'+e.dayId;if(!sectionDays.has(sd))sectionDays.set(sd,[]);sectionDays.get(sd).push(+e.period);
+ }
+ for(const a of assignments)if(counts.get(a.id)!==+a.weeklyPeriods)return {ok:false,reason:'نصاب تكليف غير مكتمل'};
+ for(const [k,n] of perDay){const teacherId=k.split('|')[0],r=db.teacherRules?.[teacherId]||{};
+  if(+r.maxDaily>0&&n>+r.maxDaily)return {ok:false,reason:'تجاوز الحد الأقصى اليومي'};
+  if(+r.minDaily>0&&n<+r.minDaily)return {ok:false,reason:'أقل من الحد الأدنى اليومي'};
+ }
+ for(const arr of sectionDays.values()){arr.sort((a,b)=>a-b);if(arr[0]!==1||arr[arr.length-1]!==arr.length)return {ok:false,reason:'فراغ داخلي في الشعبة'};}
+ for(const f of db.fixedLessons||[])if(!entries.some(e=>e.assignmentId===f.assignmentId&&e.dayId===f.dayId&&+e.period===+f.period))return {ok:false,reason:'حصة مثبتة مفقودة'};
+ return {ok:true,entries:entries.map(({id,...e})=>e)};
 }
