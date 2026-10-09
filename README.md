@@ -1,3 +1,13 @@
+# School Timetable v0.9.7.6 — Forward-checking diagnostics
+
+- Added periodic per-teacher remaining-capacity pruning using distinct unoccupied times.
+- Added counters for slot, assignment, and teacher-capacity dead ends in worker result.
+- Increased maximum search duration to 120 seconds.
+- Updated versioned asset links to 0976.
+- No changes to localStorage schema or existing saved timetable.
+
+**Limitation:** This is an incremental browser-only search improvement, not a CP-SAT solver. A complete timetable is not guaranteed.
+
 # School Timetable v0.9.7.5 — Search & cache fixes
 
 - تحديث رابط عامل التوليد إلى `generator-worker.js?v=0975`، بعد أن بقي في النسخة السابقة `v=0973`.

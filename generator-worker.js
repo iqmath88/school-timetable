@@ -9,7 +9,7 @@ function generate(db){
  }
  if(seed.ok){return {ok:true,entries:seed.entries,reused:true,nodes:0,bestDepth:seed.entries.length,total:seed.entries.length,message:'تم التحقق من الجدول المحفوظ: جميع الحصص والقيود الإلزامية صحيحة. احتفظ المحرك بالحل المثبت بدلاً من إعادة البحث غير الضرورية.'};}
  self.postMessage({type:'phase',phase:'فحص الجدول المحفوظ: '+seed.reason+'؛ بدء البحث عن حل جديد'});
- const began=Date.now(),deadline=began+90000;const days=db.days.filter(d=>d.active&&d.periods>0).sort((a,b)=>a.order-b.order),D=days.length;
+ const began=Date.now(),deadline=began+120000;const days=db.days.filter(d=>d.active&&d.periods>0).sort((a,b)=>a.order-b.order),D=days.length;
  const sections=db.sections,teachers=db.teachers,assignments=db.assignments.filter(a=>+a.weeklyPeriods>0),A=assignments.length;
  const ti=new Map(teachers.map((x,i)=>[x.id,i])),si=new Map(sections.map((x,i)=>[x.id,i]));
  const at=assignments.map(a=>ti.get(a.teacherId)),as=assignments.map(a=>si.get(a.sectionId));
@@ -53,7 +53,7 @@ function generate(db){
  const needed=sections.map((_,s)=>assignments.reduce((n,a,i)=>n+(as[i]===s?+a.weeklyPeriods:0),0));
  for(let s=0;s<sections.length;s++)if(needed[s]>cap[s].reduce((a,b)=>a+b,0))return {ok:false,reason:'capacity',message:'نصاب إحدى الشعب يتجاوز طاقتها الأسبوعية'};
  self.postMessage({type:'phase',phase:'توزيع الحصص حسب سعة المراحل والقيود'});
- let best=0,attempt=0;
+ let best=0,attempt=0;let deadEndNoChoices=0,deadEndAssignment=0,deadEndTeacher=0;
  while(Date.now()<deadline&&attempt<600){attempt++;const quota=cap.map((row,s)=>{const q=row.slice(),missing=q.reduce((a,b)=>a+b,0)-needed[s];for(let j=0;j<missing;j++){let opts=q.map((v,d)=>({d,v,locked:[...fixed.keys()].some(k=>k.startsWith(s+'|'+d+'|')&&+k.split('|')[2]>=v)})).filter(x=>x.v>0&&!x.locked);if(!opts.length)break;opts.sort((a,b)=>(b.v-a.v)||(((a.d+attempt+s+j)%D)-((b.d+attempt+s+j)%D)));q[opts[(j+attempt+s)%Math.min(opts.length,3)].d]--;}return q});
  if(quota.some((q,s)=>q.reduce((a,b)=>a+b,0)!==needed[s]))continue;
  const slots=[];for(let s=0;s<sections.length;s++)for(let d=0;d<D;d++)for(let p=1;p<=quota[s][d];p++)slots.push({s,d,p});
@@ -63,12 +63,34 @@ function generate(db){
  let chosen=null,choices=null;
  for(const sl of ordered){if(used[sl.s][sl.d].has(sl.p))continue;const prior=sl.p===1||used[sl.s][sl.d].has(sl.p-1);if(!prior)continue;
  const pinned=fixed.get(sl.s+'|'+sl.d+'|'+sl.p);const choicesHere=(pinned!==undefined?[pinned]:assignmentBySection[sl.s]).filter(i=>can(i,sl.d,sl.p,quota));
- if(!choicesHere.length)return false;
+ if(!choicesHere.length){deadEndNoChoices++;return false;}
  if(!choices||choicesHere.length<choices.length||(choicesHere.length===choices.length&&((sl.idx+attempt*17)%31)<((chosen.idx+attempt*17)%31))){chosen=sl;choices=choicesHere;if(choices.length===1)break}}
  if(!chosen)return false;
  // Necessary-condition pruning: every remaining assignment must retain enough compatible free slots.
  // This catches impossible branches early instead of exploring millions of deeper permutations.
- for(let i=0;i<A;i++)if(remaining[i]>0){let free=0;const sec=as[i];for(let d=0;d<D;d++){if(teacherDay[at[i]][d]>=maxDaily[at[i]])continue;let dayFree=0;for(let p=1;p<=quota[sec][d];p++){const pinned=fixed.get(sec+'|'+d+'|'+p);if(pinned!==undefined&&pinned!==i)continue;if(can(i,d,p,quota))dayFree++;}const sr=subjectRule(i);free+=Math.min(dayFree,maxDaily[at[i]]-teacherDay[at[i]][d],Math.max(0,1+allowedRepeat[i]-assDay[i][d]));}if(free<remaining[i])return false;}
+ for(let i=0;i<A;i++)if(remaining[i]>0){let free=0;const sec=as[i];for(let d=0;d<D;d++){if(teacherDay[at[i]][d]>=maxDaily[at[i]])continue;let dayFree=0;for(let p=1;p<=quota[sec][d];p++){const pinned=fixed.get(sec+'|'+d+'|'+p);if(pinned!==undefined&&pinned!==i)continue;if(can(i,d,p,quota))dayFree++;}const sr=subjectRule(i);free+=Math.min(dayFree,maxDaily[at[i]]-teacherDay[at[i]][d],Math.max(0,1+allowedRepeat[i]-assDay[i][d]));}if(free<remaining[i]){deadEndAssignment++;return false;}}
+ // Forward-check each teacher's remaining demand against distinct available times.
+ // A teacher can teach only one section in a given period, regardless of the
+ // number of individually compatible section slots at that time.
+ if(entries.length%8===0)for(let t=0;t<teachers.length;t++){
+  let demand=0;for(let i=0;i<A;i++)if(at[i]===t)demand+=remaining[i];
+  if(!demand)continue;
+  let capacity=0;
+  for(let d=0;d<D;d++){
+   if(teacherDay[t][d]>=maxDaily[t])continue;
+   let open=0;
+   for(let p=1;p<=days[d].periods;p++){
+    if(busy.has(key(t,d,p))||(tRules[t].unavailable?.[days[d].id]||[]).includes(p))continue;
+    let usable=false;
+    for(let i=0;i<A&&!usable;i++)if(at[i]===t&&remaining[i]>0){
+     const sec=as[i];if(p<=quota[sec][d]&&!used[sec][d].has(p)&&can(i,d,p,quota))usable=true;
+    }
+    if(usable)open++;
+   }
+   capacity+=Math.min(open,maxDaily[t]-teacherDay[t][d]);
+  }
+  if(capacity<demand){deadEndTeacher++;return false;}
+ }
  choices.sort((a,b)=>{const score=i=>{const r=tRules[at[i]],p=chosen.p,d=chosen.d;return (remaining[i]?1/remaining[i]:99)+(assDay[i][d]?12:0)-(teacherDay[at[i]][d]>0&&teacherDay[at[i]][d]<minDaily[at[i]]?6:0)+((r.avoid||[]).includes(p)?3:0)-((r.preferred||[]).includes(p)?1:0)};return score(a)-score(b)||((a*37+attempt*53)%101)-((b*37+attempt*53)%101)});
  for(const i of choices){put(i,chosen.d,chosen.p,fixed.has(chosen.s+'|'+chosen.d+'|'+chosen.p));if(dfs(left-1))return true;undo();if(stop)return false}return false}
  if([...fixed.keys()].some(k=>{const [s,d,p]=k.split('|').map(Number);return p>quota[s][d]}))continue;
@@ -77,7 +99,7 @@ function generate(db){
  // Ensure all search state was undone before trying a different daily distribution.
  while(entries.length)undo();
  }
- return {ok:false,reason:stop||'exhausted',nodes,bestDepth:best,total,message:`لم يُعثر على جدول متوافق خلال ${attempt} محاولة. تحقق من قيود المدرسين والمواد، خاصة الحصص الأولى والأخيرة. لم يتغير جدولك السابق.`};
+ return {ok:false,reason:stop||'exhausted',nodes,bestDepth:best,total,diagnostics:{deadEndNoChoices,deadEndAssignment,deadEndTeacher,attempts:attempt},message:`لم يُعثر على جدول متوافق خلال ${attempt} محاولة. فحص المحرك تعارضات الفترات والمواد وسعة المدرسين؛ راجع تقرير التشخيص. لم يتغير جدولك السابق.`};
 }
 
 // Strict reference-schedule validation. A successful reference is a constructive
