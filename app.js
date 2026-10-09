@@ -20,11 +20,11 @@ function downloadRecovery(){
  a.href=URL.createObjectURL(blob);a.download='school-timetable-recovery-'+(obj.savedAt||'').slice(0,10)+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
 }
 
-const pages=[['school','1. المدرسة'],['days','2. الأيام والحصص'],['sections','3. المراحل والشعب'],['subjects','4. المواد'],['teachers','5. المدرسون'],['loads','6. حصص المراحل'],['assignments','7. إدارة التكليفات'],['constraints','7. قيود المدرسين'],['fixed','8. الحصص المثبتة'],['feasibility','9. فحص الجدوى'],['generator','10. توليد الجدول'],['workspaceTT','11. مساحة عمل الجدول'],['gapDiagnosis','12. تشخيص الفراغات'],['printSetup','13. الطباعة والحفظ']];
+const pages=[['school','1. المدرسة'],['days','2. الأيام والحصص'],['sections','3. المراحل والشعب'],['subjects','4. المواد'],['teachers','5. المدرسون'],['loads','6. حصص المراحل'],['assignments','7. إدارة التكليفات'],['audit','8. تدقيق التكليفات'],['constraints','7. قيود المدرسين'],['fixed','8. الحصص المثبتة'],['feasibility','9. فحص الجدوى'],['generator','10. توليد الجدول'],['workspaceTT','11. مساحة عمل الجدول'],['gapDiagnosis','12. تشخيص الفراغات'],['printSetup','13. الطباعة والحفظ']];
 function nav(){$('#steps').innerHTML=pages.map(x=>`<button class="step ${page===x[0]?'active':''}" data-p="${x[0]}">${x[1]}</button>`).join('');document.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{page=b.dataset.p;render()})}
 function completeness(){let c=[!!db.school.name,db.days.some(d=>d.active&&d.periods>0),db.sections.length,db.subjects.length,db.teachers.length,db.assignments.length];return Math.round(c.filter(Boolean).length/c.length*100)}
 function renderSummary(){if(!$('#summary'))return;let configured=db.teachers.filter(t=>db.teacherRules[t.id]).length;$('#summary').innerHTML=`<div class="cards"><div class="stat">اكتمال البيانات<b>${completeness()}%</b></div><div class="stat">الشعب<b>${db.sections.length}</b></div><div class="stat">المواد<b>${db.subjects.length}</b></div><div class="stat">المدرسون<b>${db.teachers.length}</b></div><div class="stat">قيود مضبوطة<b>${configured}</b></div><div class="stat">حصص مثبتة<b>${db.fixedLessons.length}</b></div></div><div class="progress" style="margin-top:12px"><i style="width:${completeness()}%"></i></div>`}
-function render(){nav();renderSummary();({school,days,sections,subjects,teachers,loads,assignments,constraints,fixed,feasibility,generator,workspaceTT,gapDiagnosis,printSetup}[page])()}
+function render(){nav();renderSummary();({school,days,sections,subjects,teachers,loads,assignments,audit,constraints,fixed,feasibility,generator,workspaceTT,gapDiagnosis,printSetup}[page])()}
 function school(){$('#workspace').innerHTML=`<h2>إعداد المدرسة</h2><div class="grid"><div class="field"><label>اسم المدرسة</label><input id="schoolName" value="${esc(db.school.name)}"></div><div class="field"><label>العام الدراسي</label><input id="schoolYear" value="${esc(db.school.year)}"></div></div><div class="actions"><button id="saveSchool">حفظ الإعدادات</button><button class="secondary" id="importBtn">استيراد نسخة احتياطية</button><button class="secondary" id="recoveryBtn">تنزيل نسخة الاسترجاع المحلية</button><button class="danger" id="resetBtn">إعادة ضبط المشروع</button></div>`;$('#saveSchool').onclick=()=>{db.school.name=$('#schoolName').value.trim();db.school.year=$('#schoolYear').value.trim();save()};$('#importBtn').onclick=()=>$('#importFile').click();$('#recoveryBtn').onclick=downloadRecovery;$('#resetBtn').onclick=()=>{if(confirm('سيتم حذف جميع البيانات المحلية. هل أنت متأكد؟')){if(!preserveTimetable('إعادة ضبط المشروع'))return;db=seed();save();render()}}}
 function sectionDayPeriods(sec,day){const x=db.stageDayPeriods?.[sec.stageId]?.[day.id];return day.active?Math.max(0,Math.min(day.periods,Number.isFinite(+x)&&x!==undefined?+x:day.periods)):0}
 function dayCapacity(sec){return db.days.reduce((n,d)=>n+sectionDayPeriods(sec,d),0)}
@@ -111,6 +111,7 @@ function loads(){
 function assignments(){
  const teachers=[...db.teachers].sort((a,b)=>a.name.localeCompare(b.name,'ar'));
  const selected=window.assignTeacher&&db.teachers.some(t=>t.id===window.assignTeacher)?window.assignTeacher:teachers[0]?.id;
+ const auditTarget=window.auditTarget||null; if(auditTarget?.teacherId)window.assignTeacher=auditTarget.teacherId;
  const stages=[...db.stages].sort((a,b)=>a.order-b.order);
  const count=t=>db.assignments.filter(a=>a.teacherId===t.id).length;
  const hours=t=>db.assignments.filter(a=>a.teacherId===t.id).reduce((n,a)=>n+(+a.weeklyPeriods||0),0);
@@ -132,6 +133,57 @@ function assignments(){
  $('#asAddDraft').onclick=()=>{if(!tid)return alert('اختر مدرساً');let subjectId=$('#asSubject').value,weeklyPeriods=+$('#asPeriods').value,ids=[...document.querySelectorAll('#asSections input:checked')].map(x=>x.value);if(!ids.length)return alert('اختر شعبة واحدة على الأقل');if(!Number.isInteger(weeklyPeriods)||weeklyPeriods<1||weeklyPeriods>20)return alert('أدخل عدد حصص صحيحاً من 1 إلى 20');let n=0;ids.forEach(sectionId=>{if(db.assignments.some(a=>a.subjectId===subjectId&&a.sectionId===sectionId)||draft.some(a=>a.subjectId===subjectId&&a.sectionId===sectionId))return;draft.push({teacherId:tid,subjectId,sectionId,weeklyPeriods});n++});paintDraft();if(!n)alert('هذه المادة مكلفة مسبقاً لهذه الشعب، أو موجودة في قائمة المراجعة')};
  $('#asSaveDraft').onclick=()=>{if(!draft.length)return alert('أضف تكليفات إلى قائمة المراجعة أولاً');let n=0;draft.forEach(a=>{if(!db.assignments.some(x=>x.subjectId===a.subjectId&&x.sectionId===a.sectionId)){db.assignments.push({id:uid('asg'),...a});n++}});if(n){db.timetable=[];save()}draft=[];alert('تم حفظ '+n+' تكليف');assignments()};
  sections();paintList();paintTeacher();
+ if(auditTarget){
+   if(auditTarget.stageId && $('#asStage')){$('#asStage').value=auditTarget.stageId;sections()}
+   if(auditTarget.subjectId && $('#asSubject')){$('#asSubject').value=auditTarget.subjectId;suggest()}
+   if(auditTarget.sectionId){const chk=[...document.querySelectorAll('#asSections input')].find(x=>x.value===auditTarget.sectionId);if(chk)chk.checked=true}
+   window.auditTarget=null;
+ }
+}
+// Read-only assignment audit. Stage loads define the planned weekly periods per subject.
+const auditState={stage:'all',section:'all',status:'all',teacher:'all'};
+function auditRows(){
+ const result=[];
+ const byPair=new Map();
+ db.assignments.forEach(a=>{const k=a.sectionId+'|'+a.subjectId;if(!byPair.has(k))byPair.set(k,[]);byPair.get(k).push(a)});
+ const stages=[...db.stages].sort((a,b)=>a.order-b.order);
+ stages.forEach(g=>{
+  db.sections.filter(sec=>sec.stageId===g.id).sort((a,b)=>(a.order||0)-(b.order||0)).forEach(sec=>{
+   const subjectIds=new Set(db.subjects.filter(sub=>loadFor(g.id,sub.id)>0).map(x=>x.id));
+   db.assignments.filter(a=>a.sectionId===sec.id).forEach(a=>subjectIds.add(a.subjectId));
+   [...subjectIds].forEach(subjectId=>{
+    const sub=db.subjects.find(x=>x.id===subjectId);
+    const as=byPair.get(sec.id+'|'+subjectId)||[];
+    const planned=loadFor(g.id,subjectId),assigned=as.reduce((n,a)=>n+(+a.weeklyPeriods||0),0);
+    const status=as.length>1?'duplicate':planned===0?'unplanned':assigned<planned?'missing':assigned>planned?'extra':'ok';
+    result.push({stage:g,section:sec,subject:sub,subjectId,planned,assigned,difference:assigned-planned,status,assignments:as,capacity:dayCapacity(sec)});
+   });
+  });
+ });
+ return result;
+}
+function audit(){
+ const all=auditRows(),stages=[...db.stages].sort((a,b)=>a.order-b.order);
+ const sections=db.sections.filter(x=>auditState.stage==='all'||x.stageId===auditState.stage);
+ if(auditState.section!=='all'&&!sections.some(x=>x.id===auditState.section))auditState.section='all';
+ const filtered=all.filter(x=>(auditState.stage==='all'||x.stage.id===auditState.stage)&&(auditState.section==='all'||x.section.id===auditState.section)&&(auditState.status==='all'||x.status===auditState.status)&&(auditState.teacher==='all'||x.assignments.some(a=>a.teacherId===auditState.teacher)));
+ const totals=filtered.reduce((o,x)=>(o.planned+=x.planned,o.assigned+=x.assigned,o.missing+=Math.max(0,x.planned-x.assigned),o.extra+=Math.max(0,x.assigned-x.planned),o),{planned:0,assigned:0,missing:0,extra:0});
+ const names={ok:'مكتمل',missing:'نقص',extra:'زيادة',duplicate:'تكليف مكرر',unplanned:'بلا خطة مقررة'};
+ const opts=(items,sel,label)=>`<option value="all">${label}</option>`+items.map(x=>`<option value="${esc(x.id)}" ${sel===x.id?'selected':''}>${esc(x.name)}</option>`).join('');
+ const teacherName=id=>db.teachers.find(t=>t.id===id)?.name||'مدرس غير موجود';
+ const bySection=sections.filter(sec=>auditState.section==='all'||auditState.section===sec.id).map(sec=>{const rows=all.filter(x=>x.section.id===sec.id);const planned=rows.reduce((n,x)=>n+x.planned,0),assigned=rows.reduce((n,x)=>n+x.assigned,0);return {sec,planned,assigned,capacity:dayCapacity(sec),missing:rows.reduce((n,x)=>n+Math.max(0,x.planned-x.assigned),0)}});
+ $('#workspace').innerHTML=`<div class="audit-screen"><div class="audit-heading"><div><h2>تدقيق التكليفات والحصص</h2><p>تقرير قراءة فقط: يقارن خطة حصص المراحل بالتكليفات المحفوظة، ولا يغير الجدول المولّد.</p></div><div class="actions"><button class="secondary" id="auditCSV">تصدير CSV</button><button class="secondary" id="auditPrint">طباعة التقرير</button></div></div>
+ <div class="audit-filters"><div class="field"><label>المرحلة</label><select id="auditStage">${opts(stages,auditState.stage,'جميع المراحل')}</select></div><div class="field"><label>الشعبة</label><select id="auditSection">${opts(sections,auditState.section,'جميع الشعب')}</select></div><div class="field"><label>الحالة</label><select id="auditStatus">${[['all','جميع الحالات'],['missing','النقص فقط'],['extra','الزيادة فقط'],['duplicate','التكليف المكرر'],['unplanned','بلا خطة مقررة'],['ok','المكتمل']].map(([id,n])=>`<option value="${id}" ${auditState.status===id?'selected':''}>${n}</option>`).join('')}</select></div><div class="field"><label>المدرس</label><select id="auditTeacher">${opts([...db.teachers].sort((a,b)=>a.name.localeCompare(b.name,'ar')),auditState.teacher,'جميع المدرسين')}</select></div></div>
+ <div class="audit-cards"><div>الحصص المخططة<b>${totals.planned}</b></div><div>الحصص المكلفة<b>${totals.assigned}</b></div><div class="audit-warn">النقص<b>${totals.missing}</b></div><div>الزيادة<b>${totals.extra}</b></div><div>صفوف التدقيق<b>${filtered.length}</b></div></div>
+ <div class="notice">المصدر: «حصص المراحل» هو العدد المخطط لكل مادة وشعبة. «إدارة التكليفات» هي الحصص المكلفة فعلياً. إذا كانت الخطة غير مدخلة، تظهر التكليفات تحت «بلا خطة مقررة» ولا يمكن الحكم على اكتمالها. فرق سعة الجدول اليومي يظهر مستقلاً أدناه.</div>
+ <h3>ملخص الشعب والسعة الأسبوعية</h3><div class="tt-wrap"><table><thead><tr><th>المرحلة / الشعبة</th><th>المخطط</th><th>المكلف</th><th>سعة الجدول</th><th>نقص المواد</th><th>ملاحظة</th></tr></thead><tbody>${bySection.map(x=>`<tr><td>${esc(stages.find(g=>g.id===x.sec.stageId)?.name||'—')} / ${esc(x.sec.name)}</td><td>${x.planned}</td><td>${x.assigned}</td><td>${x.capacity}</td><td>${x.missing}</td><td>${x.planned!==x.capacity?'الخطة تختلف عن سعة الجدول':x.assigned!==x.capacity?'التكليفات تختلف عن السعة':'متطابق مع السعة'}</td></tr>`).join('')||'<tr><td colspan="6">لا توجد شعب</td></tr>'}</tbody></table></div>
+ <h3>تفاصيل المواد والتكليفات</h3><div class="tt-wrap"><table class="audit-table"><thead><tr><th>المرحلة / الشعبة</th><th>المادة</th><th>المخطط</th><th>المكلف</th><th>الفرق</th><th>المدرس / المدرسون</th><th>الحالة</th><th>المعالجة</th></tr></thead><tbody>${filtered.map(x=>`<tr><td>${esc(x.stage.name)} / ${esc(x.section.name)}</td><td>${esc(x.subject?.name||'مادة محذوفة')}</td><td>${x.planned}</td><td>${x.assigned}</td><td>${x.difference>0?'+':''}${x.difference}</td><td>${esc(x.assignments.map(a=>teacherName(a.teacherId)).join('، ')||'غير مكلف')}</td><td><span class="audit-pill ${x.status}">${names[x.status]}</span></td><td><button class="secondary audit-fix" data-stage="${esc(x.stage.id)}" data-section="${esc(x.section.id)}" data-subject="${esc(x.subjectId)}" data-teacher="${esc(x.assignments[0]?.teacherId||'')}">فتح التكليفات</button></td></tr>`).join('')||'<tr><td colspan="8">لا توجد نتائج وفق المرشحات الحالية.</td></tr>'}</tbody></table></div>
+ <h3>نصاب المدرسين عبر جميع المراحل</h3><div class="tt-wrap"><table><thead><tr><th>المدرس</th><th>التخصص</th><th>التكليفات</th><th>الحصص الأسبوعية</th><th>الشعب والمواد</th><th>إجراء</th></tr></thead><tbody>${[...db.teachers].sort((a,b)=>a.name.localeCompare(b.name,'ar')).filter(t=>auditState.teacher==='all'||t.id===auditState.teacher).map(t=>{const as=db.assignments.filter(a=>a.teacherId===t.id);return `<tr><td>${esc(t.name)}</td><td>${esc(t.specialty||'—')}</td><td>${as.length}</td><td>${as.reduce((n,a)=>n+(+a.weeklyPeriods||0),0)}</td><td>${esc(as.map(a=>{const sec=db.sections.find(x=>x.id===a.sectionId);const stage=stages.find(g=>g.id===sec?.stageId);return (stage?.name||'—')+' / '+(sec?.name||'—')+' — '+(db.subjects.find(s=>s.id===a.subjectId)?.name||'—')+' ('+a.weeklyPeriods+')'}).join('، ')||'غير مكلف')}</td><td><button class="secondary audit-teacher" data-teacher="${esc(t.id)}">تكليفات المدرس</button></td></tr>`}).join('')}</tbody></table></div></div>`;
+ ['stage','section','status','teacher'].forEach(key=>{$('#audit'+key[0].toUpperCase()+key.slice(1)).onchange=e=>{auditState[key]=e.target.value;if(key==='stage')auditState.section='all';audit()}});
+ document.querySelectorAll('.audit-fix').forEach(b=>b.onclick=()=>{window.auditTarget={stageId:b.dataset.stage,sectionId:b.dataset.section,subjectId:b.dataset.subject,teacherId:b.dataset.teacher||null};if(!window.auditTarget.teacherId){window.auditTarget.teacherId=db.teachers[0]?.id||null}if(window.auditTarget.teacherId)window.assignTeacher=window.auditTarget.teacherId;page='assignments';render()});
+ document.querySelectorAll('.audit-teacher').forEach(b=>b.onclick=()=>{window.assignTeacher=b.dataset.teacher;page='assignments';render()});
+ $('#auditCSV').onclick=()=>{const rows=[['المرحلة','الشعبة','المادة','المخطط','المكلف','الفرق','المدرسون','الحالة'],...filtered.map(x=>[x.stage.name,x.section.name,x.subject?.name||'',x.planned,x.assigned,x.difference,x.assignments.map(a=>teacherName(a.teacherId)).join(' / '),names[x.status]])];const csv='\uFEFF'+rows.map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\r\n');const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download='assignment-audit.csv';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),15000)};
+ $('#auditPrint').onclick=()=>window.print();
 }
 function defaultRule(tid){let unavailable={};db.days.filter(d=>d.active).forEach(d=>unavailable[d.id]=[]);return {teacherId:tid,unavailable,preferred:[],avoid:[],maxDaily:7,consecutive:'neutral'}}
 function rule(tid){if(!db.teacherRules[tid])db.teacherRules[tid]=defaultRule(tid);return db.teacherRules[tid]}
