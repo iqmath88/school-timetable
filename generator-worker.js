@@ -28,15 +28,24 @@ function generate(db){
   }
   if(load>possible)return {ok:false,reason:'teacher-capacity',total,message:`لا يمكن توزيع نصاب المدرس ${teachers[t].name}: مطلوب ${load} حصة، والمتاح وفق أيامه وقيوده ${possible} فقط. لم تتغير البيانات.`};
  }
- for(let i=0;i<A;i++){
-  const sr=db.subjectRules?.[assignments[i].subjectId]||{};
-  if(sr.noRepeat&&sr.strict!=='soft'&&(!sr.stageId||sr.stageId===sections[as[i]].stageId)&&remaining[i]>D)
-   return {ok:false,reason:'subject-capacity',total,message:`المادة ${db.subjects.find(x=>x.id===assignments[i].subjectId)?.name||''} في ${sections[as[i]].name} تحتاج ${remaining[i]} حصص خلال ${D} أيام، بينما منع التكرار اليومي مفعّل. لم تتغير البيانات.`};
+ // Minimum repetition is based on days actually available to both teacher and section.
+ const allowedRepeat=assignments.map((a,i)=>{
+  let availableDays=0;const t=at[i],sec=as[i],r=tRules[t];
+  for(let d=0;d<D;d++){
+   let free=0;for(let p=1;p<=cap[sec][d];p++)if(!(r.unavailable?.[days[d].id]||[]).includes(p))free++;
+   if(free>0&&maxDaily[t]>0)availableDays++;
+  }
+  return Math.max(0,+a.weeklyPeriods-availableDays);
+ });
+ function repeatOK(i,d){
+  const sr=subjectRule(i);
+  const extra=assDay[i].reduce((n,v)=>n+Math.max(0,v-1),0);
+  return assDay[i][d]===0||extra<allowedRepeat[i];
  }
  const fixed=new Map(),entries=[];let nodes=0,bestDepth=0,stop='';
  const key=(t,d,p)=>t+'|'+d+'|'+p;
  function subjectRule(i){const r=db.subjectRules?.[assignments[i].subjectId]||{};return r.stageId&&r.stageId!==sections[as[i]].stageId?{}:r.strict==='soft'?{}:r}
- function can(i,d,p,quota){const t=at[i],s=as[i],r=tRules[t],sr=subjectRule(i);if(t===undefined||s===undefined||p>quota[s][d]||p<1||remaining[i]<1)return false;if(busy.has(key(t,d,p))||used[s][d].has(p)||teacherDay[t][d]>=maxDaily[t])return false;if((r.unavailable?.[days[d].id]||[]).includes(p))return false;const pin=fixed.get(s+'|'+d+'|'+p);if(pin!==undefined&&pin!==i)return false;if(sr.noFirst&&p===1||sr.noLast&&p===quota[s][d]||sr.noRepeat&&entries.some(x=>x.sectionId===assignments[i].sectionId&&x.subjectId===assignments[i].subjectId&&x.dayId===days[d].id))return false;return true}
+ function can(i,d,p,quota){const t=at[i],s=as[i],r=tRules[t],sr=subjectRule(i);if(t===undefined||s===undefined||p>quota[s][d]||p<1||remaining[i]<1)return false;if(busy.has(key(t,d,p))||used[s][d].has(p)||teacherDay[t][d]>=maxDaily[t])return false;if((r.unavailable?.[days[d].id]||[]).includes(p))return false;const pin=fixed.get(s+'|'+d+'|'+p);if(pin!==undefined&&pin!==i)return false;if(sr.noFirst&&p===1||sr.noLast&&p===quota[s][d]||!repeatOK(i,d))return false;return true}
  function put(i,d,p,locked=false){remaining[i]--;teacherDay[at[i]][d]++;assDay[i][d]++;busy.add(key(at[i],d,p));used[as[i]][d].add(p);entries.push({assignmentId:assignments[i].id,teacherId:assignments[i].teacherId,sectionId:assignments[i].sectionId,subjectId:assignments[i].subjectId,dayId:days[d].id,period:p,locked,_i:i,_d:d,_p:p})}
  function undo(){const x=entries.pop(),i=x._i,d=x._d,p=x._p;remaining[i]++;teacherDay[at[i]][d]--;assDay[i][d]--;busy.delete(key(at[i],d,p));used[as[i]][d].delete(p)}
  for(const f of db.fixedLessons||[]){const i=assignments.findIndex(a=>a.id===f.assignmentId),d=days.findIndex(x=>x.id===f.dayId);if(i<0||d<0)return {ok:false,reason:'fixed-conflict',message:'حصة مثبتة غير صالحة'};const s=as[i],p=+f.period;if(p>cap[s][d])return {ok:false,reason:'fixed-conflict',message:'حصة مثبتة خارج سعة الشعبة'};fixed.set(s+'|'+d+'|'+p,i)}
@@ -59,7 +68,7 @@ function generate(db){
  if(!chosen)return false;
  // Necessary-condition pruning: every remaining assignment must retain enough compatible free slots.
  // This catches impossible branches early instead of exploring millions of deeper permutations.
- for(let i=0;i<A;i++)if(remaining[i]>0){let free=0;const sec=as[i];for(let d=0;d<D;d++){if(teacherDay[at[i]][d]>=maxDaily[at[i]])continue;let dayFree=0;for(let p=1;p<=quota[sec][d];p++){const pinned=fixed.get(sec+'|'+d+'|'+p);if(pinned!==undefined&&pinned!==i)continue;if(can(i,d,p,quota))dayFree++;}const sr=subjectRule(i);const usedSame=sr.noRepeat&&entries.some(x=>x.sectionId===assignments[i].sectionId&&x.subjectId===assignments[i].subjectId&&x.dayId===days[d].id);free+=usedSame?0:Math.min(dayFree,maxDaily[at[i]]-teacherDay[at[i]][d],sr.noRepeat?1:99);}if(free<remaining[i])return false;}
+ for(let i=0;i<A;i++)if(remaining[i]>0){let free=0;const sec=as[i];for(let d=0;d<D;d++){if(teacherDay[at[i]][d]>=maxDaily[at[i]])continue;let dayFree=0;for(let p=1;p<=quota[sec][d];p++){const pinned=fixed.get(sec+'|'+d+'|'+p);if(pinned!==undefined&&pinned!==i)continue;if(can(i,d,p,quota))dayFree++;}const sr=subjectRule(i);free+=Math.min(dayFree,maxDaily[at[i]]-teacherDay[at[i]][d],Math.max(0,1+allowedRepeat[i]-assDay[i][d]));}if(free<remaining[i])return false;}
  choices.sort((a,b)=>{const score=i=>{const r=tRules[at[i]],p=chosen.p,d=chosen.d;return (remaining[i]?1/remaining[i]:99)+(assDay[i][d]?12:0)-(teacherDay[at[i]][d]>0&&teacherDay[at[i]][d]<minDaily[at[i]]?6:0)+((r.avoid||[]).includes(p)?3:0)-((r.preferred||[]).includes(p)?1:0)};return score(a)-score(b)});
  for(const i of choices){put(i,chosen.d,chosen.p,fixed.has(chosen.s+'|'+chosen.d+'|'+chosen.p));if(dfs(left-1))return true;undo();if(stop)return false}return false}
  if([...fixed.keys()].some(k=>{const [s,d,p]=k.split('|').map(Number);return p>quota[s][d]}))continue;
@@ -78,7 +87,7 @@ function validateExistingSchedule(db){
  const byId=new Map(assignments.map(a=>[a.id,a])),sec=new Map(db.sections.map(s=>[s.id,s])),day=new Map(days.map(d=>[d.id,d]));
  const expected=assignments.reduce((n,a)=>n+(+a.weeklyPeriods),0);
  if(entries.length!==expected)return {ok:false,reason:'الجدول المرجعي غير مكتمل'};
- const counts=new Map(),busyT=new Set(),busyS=new Set(),perDay=new Map(),sectionDays=new Map(),dailySubjects=new Set();
+ const assignmentDays=new Map(),counts=new Map(),busyT=new Set(),busyS=new Set(),perDay=new Map(),sectionDays=new Map(),dailySubjects=new Set();
  for(const e of entries){
   const a=byId.get(e.assignmentId),d=day.get(e.dayId),section=sec.get(e.sectionId);
   if(!a||!d||!section||a.teacherId!==e.teacherId||a.sectionId!==e.sectionId||a.subjectId!==e.subjectId)return {ok:false,reason:'تكليف محذوف أو معدل'};
@@ -92,13 +101,22 @@ function validateExistingSchedule(db){
   const sr=db.subjectRules?.[e.subjectId]||{},hard=sr.strict!=='soft'&&(!sr.stageId||sr.stageId===section.stageId);
   if(hard&&(sr.noFirst&&+e.period===1||sr.noLast&&+e.period===cap))return {ok:false,reason:'مخالفة قيد المادة'};
   const subKey=e.sectionId+'|'+e.dayId+'|'+e.subjectId;
-  if(hard&&sr.noRepeat&&dailySubjects.has(subKey))return {ok:false,reason:'تكرار مادة ممنوع'};
+  if(hard&&sr.noRepeat){const aDays=assignmentDays.get(a.id)||new Map();aDays.set(e.dayId,(aDays.get(e.dayId)||0)+1);assignmentDays.set(a.id,aDays);}
   dailySubjects.add(subKey);
   counts.set(a.id,(counts.get(a.id)||0)+1);
   const td=e.teacherId+'|'+e.dayId;perDay.set(td,(perDay.get(td)||0)+1);
   const sd=e.sectionId+'|'+e.dayId;if(!sectionDays.has(sd))sectionDays.set(sd,[]);sectionDays.get(sd).push(+e.period);
  }
  for(const a of assignments)if(counts.get(a.id)!==+a.weeklyPeriods)return {ok:false,reason:'نصاب تكليف غير مكتمل'};
+ for(const a of assignments){const section=sec.get(a.sectionId),sr=db.subjectRules?.[a.subjectId]||{};
+  if(sr.stageId&&sr.stageId!==section.stageId)continue;
+  const rule=db.teacherRules?.[a.teacherId]||{};let availableDays=0;
+  for(const d of days){const cap=Math.min(d.periods,Math.max(0,+(db.stageDayPeriods?.[section.stageId]?.[d.id]??d.periods)));
+   if(Array.from({length:cap},(_,j)=>j+1).some(p=>!(rule.unavailable?.[d.id]||[]).includes(p)))availableDays++;
+  }
+  const actual=[...(assignmentDays.get(a.id)||new Map()).values()].reduce((n,v)=>n+Math.max(0,v-1),0);
+  if(actual>Math.max(0,+a.weeklyPeriods-availableDays))return {ok:false,reason:'تكرار المادة يتجاوز الضرورة'};
+ }
  for(const [k,n] of perDay){const teacherId=k.split('|')[0],r=db.teacherRules?.[teacherId]||{};
   if(+r.maxDaily>0&&n>+r.maxDaily)return {ok:false,reason:'تجاوز الحد الأقصى اليومي'};
   if(+r.minDaily>0&&n<+r.minDaily)return {ok:false,reason:'أقل من الحد الأدنى اليومي'};

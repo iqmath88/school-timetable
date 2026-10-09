@@ -258,7 +258,7 @@ function analyzeFeasibility(){
       let allowed=0,allowedDays=0;
       activeDays.forEach(d=>{const cap=sectionDayPeriods(se,d);let count=0;for(let p=1;p<=cap;p++)if(!(sr.noFirst&&p===1)&&!(sr.noLast&&p===cap)&&!(r.unavailable[d.id]||[]).includes(p))count++;allowed+=count;if(count)allowedDays++});
       if(a.weeklyPeriods>allowed)push('red',`قيود المادة تمنع التكليف: ${su.name} — ${se.name}`,`المطلوب ${a.weeklyPeriods} والمتاح ${allowed} خانات فقط.`,`SUBJECT_CAP:${a.id}`);
-      if(sr.noRepeat&&a.weeklyPeriods>allowedDays)push('red',`تكرار ممنوع لمادة ${su.name}`,`المطلوب ${a.weeklyPeriods} حصص لكن الأيام الممكنة ${allowedDays} فقط.`,`SUBJECT_REPEAT:${a.id}`);
+      if(false&&sr.noRepeat&&a.weeklyPeriods>allowedDays)push('red',`تكرار ممنوع لمادة ${su.name}`,`المطلوب ${a.weeklyPeriods} حصص لكن الأيام الممكنة ${allowedDays} فقط.`,`SUBJECT_REPEAT:${a.id}`);
     }
 
   });
@@ -316,11 +316,11 @@ function generationDiagnostics(result){
   const r=rule(t.id);let slots=0,possibleDays=0;
   for(const d of active){const cap=sectionDayPeriods(sec,d);let n=0;for(let period=1;period<=cap;period++)if(!(sr.noFirst&&period===1)&&!(sr.noLast&&period===cap)&&!(r.unavailable?.[d.id]||[]).includes(period))n++;slots+=n;if(n)possibleDays++;}
   const required=+a.weeklyPeriods;
-  if(required>possibleDays&&!sr.noRepeat){add('warning',`تكرار ضروري — ${sub.name} / ${t.name}`,`الشعبة ${db.stages.find(g=>g.id===sec.stageId)?.name||''} ${sec.name}: ${required} حصص خلال ${possibleDays} أيام متاحة فقط. يلزم تكرار ${required-possibleDays} حصة على الأقل في يوم أو أكثر. الإجراء: اترك منع التكرار معطلاً أو حرر يوماً إضافياً للمدرس.`, 'constraints');}
+  if(required>possibleDays){add('warning',`تكرار ضروري — ${sub.name} / ${t.name}`,`الشعبة ${db.stages.find(g=>g.id===sec.stageId)?.name||''} ${sec.name}: ${required} حصص خلال ${possibleDays} أيام متاحة فقط. يلزم تكرار ${required-possibleDays} حصة على الأقل في يوم أو أكثر. سيسمح المحرك بالتكرار الضروري تلقائياً، دون تغيير قيود المدرس.`, 'constraints');}
   const dailyLimit=Math.max(1,+r.maxDaily||99);
   const perDay=active.map(d=>{const cap=sectionDayPeriods(sec,d);let count=0;for(let period=1;period<=cap;period++)if(!(sr.noFirst&&period===1)&&!(sr.noLast&&period===cap)&&!(r.unavailable?.[d.id]||[]).includes(period))count++;return Math.min(count,dailyLimit)});
   if(required>perDay.reduce((x,y)=>x+y,0))add('block',`استحالة توزيع — ${sub.name} / ${t.name}`,`الشعبة ${sec.name}: المطلوب ${required} والمتاح بعد احتساب الحد اليومي والقيود ${perDay.reduce((x,y)=>x+y,0)}. الإجراء: خفف قيد المدرس أو المادة.`, 'constraints');
-  if(+a.weeklyPeriods>slots||(sr.noRepeat&&+a.weeklyPeriods>possibleDays))add('block',`قيد المادة يمنع التكليف — ${sub.name}`,`${t.name}، ${db.stages.find(g=>g.id===sec.stageId)?.name||''} ${sec.name}: مطلوب ${a.weeklyPeriods} حصة، المتاح ${slots} خانة في ${possibleDays} أيام.`,'subjects');
+  if(+a.weeklyPeriods>slots||false)add('block',`قيد المادة يمنع التكليف — ${sub.name}`,`${t.name}، ${db.stages.find(g=>g.id===sec.stageId)?.name||''} ${sec.name}: مطلوب ${a.weeklyPeriods} حصة، المتاح ${slots} خانة في ${possibleDays} أيام.`,'subjects');
  });
  if(result&&!result.ok&&['time','nodes','exhausted'].includes(result.reason))add('warning','لم يثبت استحالة الجدول',`المحرك توقف بعد ${result.nodes||0} عقدة، وأفضل عمق ${result.bestDepth||0} من ${result.total||'—'}. انتهاء البحث لا يثبت أن البيانات مستحيلة. راجع التنبيهات ثم أعد المحاولة.`,'feasibility');
  return found;
@@ -449,7 +449,7 @@ function ttEntryInfo(e){
 function validateTimetableMove(e,dayId,period){
   const d=db.days.find(x=>x.id===dayId);
   if(!d||!d.active||period<1||period>sectionDayPeriods(db.sections.find(s=>s.id===e.sectionId)||{stageId:''},d))return {level:'red',message:'الخانة خارج أوقات الدوام.'};
-  const sr=db.subjectRules[e.subjectId]||{},stageId=db.sections.find(s=>s.id===e.sectionId)?.stageId;const applicable=!sr.stageId||sr.stageId===stageId;const cap=sectionDayPeriods(db.sections.find(s=>s.id===e.sectionId),d);if(applicable&&sr.strict!=='soft'&&((sr.noFirst&&period===1)||(sr.noLast&&period===cap)))return {level:'red',message:'الحصة تخالف قيد المادة الإلزامي.'};if(applicable&&sr.strict!=='soft'&&sr.noRepeat&&db.timetable.some(x=>x.id!==e.id&&x.sectionId===e.sectionId&&x.subjectId===e.subjectId&&x.dayId===dayId))return {level:'red',message:'تكرار المادة في اليوم ممنوع.'};
+  const sr=db.subjectRules[e.subjectId]||{},stageId=db.sections.find(s=>s.id===e.sectionId)?.stageId;const applicable=!sr.stageId||sr.stageId===stageId;const cap=sectionDayPeriods(db.sections.find(s=>s.id===e.sectionId),d);if(applicable&&sr.strict!=='soft'&&((sr.noFirst&&period===1)||(sr.noLast&&period===cap)))return {level:'red',message:'الحصة تخالف قيد المادة الإلزامي.'};if(false&&applicable&&sr.strict!=='soft'&&sr.noRepeat&&db.timetable.some(x=>x.id!==e.id&&x.sectionId===e.sectionId&&x.subjectId===e.subjectId&&x.dayId===dayId))return {level:'red',message:'تكرار المادة في اليوم ممنوع.'};
   const r=rule(e.teacherId);
   if((r.unavailable[dayId]||[]).includes(period))return {level:'red',message:'المدرس غير متاح في هذا الوقت.'};
   if(db.timetable.some(x=>x.id!==e.id&&x.teacherId===e.teacherId&&x.dayId===dayId&&x.period===period))return {level:'red',message:'المدرس لديه حصة أخرى في هذا الوقت.'};
@@ -479,7 +479,7 @@ function manualValidate(changes){
   const sr=db.subjectRules[e.subjectId]||{},applicable=!sr.stageId||sr.stageId===sec.stageId;
   if(applicable&&sr.strict!=='soft'&&((sr.noFirst&&e.period===1)||(sr.noLast&&e.period===sectionDayPeriods(sec,day))))errors.push('مخالفة قيد المادة الإلزامي');
   const repeats=draft.filter(x=>x.id!==e.id&&x.sectionId===e.sectionId&&x.subjectId===e.subjectId&&x.dayId===e.dayId).length;
-  if(repeats){if(applicable&&sr.strict!=='soft'&&sr.noRepeat)errors.push('تكرار المادة ممنوع');else warnings.push('تكرار المادة في يوم واحد')}
+  if(repeats){warnings.push('تكرار المادة في يوم واحد؛ تحقق من الضرورة حسب الأيام المتاحة')}
   if((r.avoid||[]).includes(e.period))warnings.push('وقت غير مفضل للمدرس');
  }
  return {errors:[...new Set(errors)],warnings:[...new Set(warnings)]};
