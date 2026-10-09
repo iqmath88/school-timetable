@@ -1,10 +1,5 @@
-# School Timetable v0.9.6.6 — Content-fit table widths
+# School Timetable v0.9.7 — Manual Editing
 
-- The stage table now calculates a bounded width for each section based on actual subject and displayed teacher names.
-- The total table width is the sum of the column widths, rather than filling the entire print preview or A3 page.
-- The day column stays merged and vertical; the period column stays narrow.
-- Preview and print use the same table widths; the full-school view can scroll horizontally.
-- PNG already computes column widths from measured text and remains unchanged.
-- No changes to the scheduling engine, constraints or timetable data.
+تحديث مستقل مبني على v0.9.6.6. يتضمن نقل حصة إلى خانة فارغة وتبديل حصتين داخل الشعبة أو بين الشعب، مع فحص التعارضات والقيود والحصص المثبتة قبل الحفظ، والتراجع عن آخر تعديل وسجل آخر 100 عملية. لا يعيد توليد الجدول عند التعديل. بيانات التطبيق محفوظة محلياً في المتصفح؛ احفظ نسخة JSON قبل التحديث. تحسين مؤشر الجودة مؤجل للإصدار v0.9.8.
 
-Test in Safari print preview on iPad; printing output was not device-tested.
+الملفات الخمسة جاهزة للرفع إلى جذر مستودع GitHub Pages.
