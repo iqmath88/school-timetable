@@ -1,3 +1,11 @@
+# School Timetable v0.9.7.7 — Search performance update
+
+تحسين أداء محرك البحث: تقليل تكرار فحص الحصص المثبتة، وجدولة الفحوص المكلفة، وتمديد مهلة المحاولة إلى 180 ثانية. لم تُعدّل بيانات المستخدم ولا قواعد التكرار الضروري.
+
+**تنبيه:** هذه نسخة تجريبية محسّنة للأداء؛ لا يوجد إثبات بعد بأنها تستطيع توليد جميع حصص المدرسة الـ692. احتفظ بنسخة JSON الاحتياطية قبل التحديث.
+
+ارفع الملفات الخمسة إلى جذر مستودع GitHub بدلاً من رفع ZIP وحده.
+
 # School Timetable v0.9.7.6 — Forward-checking diagnostics
 
 - Added periodic per-teacher remaining-capacity pruning using distinct unoccupied times.
