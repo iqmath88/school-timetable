@@ -75,3 +75,16 @@
 .print-preview .compact-timetable td.lesson{min-width:0!important;max-width:none!important;padding:3px!important}
 .print-preview .compact-timetable td.lesson b{font-size:11px!important}
 .print-preview .compact-timetable td.lesson small{font-size:9px!important}
+
+/* v0.9.6.5: compact stage preview without stretched subject columns */
+.print-preview .compact-timetable{width:max-content!important;max-width:100%!important;table-layout:fixed!important}
+.print-preview .compact-timetable col.day-col{width:26px!important}
+.print-preview .compact-timetable col.period-col{width:24px!important}
+.print-preview .compact-timetable col.subject-col{width:110px!important}
+.print-preview .compact-timetable th.day-label{width:26px!important;min-width:26px!important;max-width:26px!important}
+.print-preview .compact-timetable th.period-number{width:24px!important;min-width:24px!important;max-width:24px!important}
+.print-preview .compact-timetable th.vertical-heading{width:26px!important;padding:0!important;height:54px!important}
+.print-preview .compact-timetable th.vertical-heading span{display:inline-block!important;writing-mode:vertical-rl!important;transform:rotate(180deg)!important;font-weight:900!important;white-space:nowrap!important}
+.print-preview .compact-timetable td.lesson{max-width:110px!important;padding:1px 2px!important}
+.print-preview .compact-timetable td.lesson b{font-size:9px!important;line-height:1.1!important}
+.print-preview .compact-timetable td.lesson small{font-size:8px!important;line-height:1.1!important;margin:0!important}
