@@ -1,8 +1,8 @@
 const KEY='school-timetable-v01';
 const stageDefaults=[['الأول',1,'#587B9B'],['الثاني',2,'#6F8F72'],['الثالث',3,'#9A7B60'],['الرابع',4,'#7D7398'],['الخامس',5,'#A16F78'],['السادس',6,'#557F83']];
 const defaultDays=[['الأحد',7,true],['الاثنين',7,true],['الثلاثاء',6,true],['الأربعاء',7,true],['الخميس',5,true],['الجمعة',0,false],['السبت',0,false]];
-const seed=()=>({version:'0.9.6.2',school:{name:'',year:'2026-2027'},days:defaultDays.map((x,i)=>({id:'d'+i,name:x[0],periods:x[1],active:x[2],order:i+1})),stages:stageDefaults.map(x=>({id:'g'+x[1],name:x[0],order:x[1],color:x[2]})),sections:[],subjects:[],teachers:[],assignments:[],teacherRules:{},fixedLessons:[],timetable:[],stageLoads:{},stageDayPeriods:{},subjectRules:{},printSettings:{title:'جدول الحصص الأسبوعية',startDate:'',changeReasons:'',footer:'',showColors:true}});
-function migrate(x){x=x||seed();x.version='0.9.6.2';x.teacherRules=x.teacherRules||{};x.fixedLessons=x.fixedLessons||[];x.timetable=x.timetable||[];x.stageLoads=x.stageLoads||{};x.stageDayPeriods=x.stageDayPeriods||{};x.subjectRules=x.subjectRules||{};x.printSettings={title:'جدول الحصص الأسبوعية',startDate:'',changeReasons:'',footer:'',showColors:true,...(x.printSettings||{})};x.teachers=x.teachers||[];x.assignments=x.assignments||[];return x}
+const seed=()=>({version:'0.9.6.4',school:{name:'',year:'2026-2027'},days:defaultDays.map((x,i)=>({id:'d'+i,name:x[0],periods:x[1],active:x[2],order:i+1})),stages:stageDefaults.map(x=>({id:'g'+x[1],name:x[0],order:x[1],color:x[2]})),sections:[],subjects:[],teachers:[],assignments:[],teacherRules:{},fixedLessons:[],timetable:[],stageLoads:{},stageDayPeriods:{},subjectRules:{},printSettings:{title:'جدول الحصص الأسبوعية',startDate:'',changeReasons:'',footer:'',showColors:true}});
+function migrate(x){x=x||seed();x.version='0.9.6.4';x.teacherRules=x.teacherRules||{};x.fixedLessons=x.fixedLessons||[];x.timetable=x.timetable||[];x.stageLoads=x.stageLoads||{};x.stageDayPeriods=x.stageDayPeriods||{};x.subjectRules=x.subjectRules||{};x.printSettings={title:'جدول الحصص الأسبوعية',startDate:'',changeReasons:'',footer:'',showColors:true,...(x.printSettings||{})};x.teachers=x.teachers||[];x.assignments=x.assignments||[];return x}
 function load(){try{return migrate(JSON.parse(localStorage.getItem(KEY)))}catch{return seed()}}
 let db=load(),page='school';
 const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),uid=p=>p+'_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
@@ -344,7 +344,7 @@ function timetableTable(stageIds=null){
       }).join('')+'</tr>';
     }
   });
-  return `<div class="tt-wrap"><table class="timetable compact-timetable" dir="rtl"><thead><tr><th>اليوم</th><th>الحصة</th>${secs.map(s=>{let g=db.stages.find(x=>x.id===s.stageId);return `<th style="border-top:4px solid ${g?.color||'#888'}">${g?.name||''} ${esc(s.name)}</th>`}).join('')}</tr></thead><tbody>${rows}</tbody></table></div>`;
+  return `<div class="tt-wrap"><table class="timetable compact-timetable" dir="rtl"><colgroup><col class="day-col"><col class="period-col">${secs.map(()=>'<col class="subject-col">').join('')}</colgroup><thead><tr><th>اليوم</th><th>الحصة</th>${secs.map(s=>{let g=db.stages.find(x=>x.id===s.stageId);return `<th style="border-top:4px solid ${g?.color||'#888'}">${g?.name||''} ${esc(s.name)}</th>`}).join('')}</tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 function generator(){
   const issues=analyzeFeasibility(),reds=issues.filter(x=>x.level==='red').length;
@@ -483,7 +483,37 @@ function sheetMarkup(title,ids){
  return `<article class="print-sheet school-print-page ${p.showColors?'':'no-colors'}"><div class="print-meta"><span>تاريخ بدء التطبيق: <b>${esc(p.startDate||'غير محدد')}</b></span><span>العام الدراسي: <b>${esc(db.school.year)}</b></span></div><header class="print-heading"><h1>${esc(db.school.name||'اسم المدرسة')}</h1><h2>${esc(p.title)}</h2><h3>${esc(title)}</h3></header>${timetableTable(ids)}<footer class="print-footer"><strong>أسباب تغيير الجدول:</strong><p>${esc(p.changeReasons||'—')}</p>${p.footer?`<p>${esc(p.footer)}</p>`:''}</footer></article>`;
 }
 function printDocument(){return stageGroups().map(g=>sheetMarkup(g.title,g.ids)).join('')}
-function printCSS(){return `@page{size:A3 landscape;margin:7mm}*{box-sizing:border-box}body{font-family:Tahoma,Arial,sans-serif;direction:rtl;color:#18324d;margin:0;background:white}.school-print-page{break-after:page;page-break-after:always;break-inside:avoid;page-break-inside:avoid;width:100%;max-height:282mm}.school-print-page:last-child{break-after:auto;page-break-after:auto}.print-meta{display:flex;justify-content:space-between;font-size:11px}.print-heading{text-align:center;padding:4px 0}.print-heading h1{margin:0;font-size:18px}.print-heading h2{font-size:15px;margin:4px}.print-heading h3{font-size:13px;margin:3px}.tt-wrap{overflow:visible}table.compact-timetable{direction:rtl;border-collapse:collapse;width:100%;min-width:0;table-layout:auto;font-size:10px;margin:4px 0}table.compact-timetable th,table.compact-timetable td{border:1px solid #b5c3d1;padding:2px 3px;text-align:center;vertical-align:middle;overflow-wrap:break-word;word-break:normal;line-height:1.22}table.compact-timetable thead th{background:#e8eef5;color:#203e5d;font-weight:800}table.compact-timetable th.day-label{width:31px;min-width:31px;max-width:31px;padding:0;background:#e2ecf8}table.compact-timetable .vertical-day{display:block;writing-mode:vertical-rl;transform:rotate(180deg);font-size:13px;font-weight:900;letter-spacing:.4px;margin:auto;white-space:nowrap}table.compact-timetable .period-number{width:28px;min-width:28px;max-width:28px;padding:1px;font-weight:800}table.compact-timetable td.lesson{min-width:0;background:#f3f7fb;white-space:normal}table.compact-timetable td.lesson b{display:block;font-size:10px;color:#172f48;font-weight:800}table.compact-timetable td.lesson small{display:block;font-size:8.5px;color:#40546b;margin-top:2px;overflow-wrap:break-word}.day-label.day-d0{background:#dceafa!important}.day-label.day-d1{background:#e0f1e5!important}.day-label.day-d2{background:#fff0d9!important}.day-label.day-d3{background:#eee5fa!important}.day-label.day-d4{background:#fbe5eb!important}.print-footer{border-top:1px solid #aebac8;margin-top:6px;padding:4px;font-size:9px;white-space:pre-wrap}.print-footer p{margin:2px}.lock-mark{display:none!important}.no-colors .lesson{background:#fff!important}@media print{*{-webkit-print-color-adjust:exact;print-color-adjust:exact}}`}
+function printCSS(){return `
+@page{size:A3 landscape;margin:6mm}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:#fff;color:#19334e;direction:rtl;font-family:Tahoma,Arial,sans-serif}
+.print-sheet{width:100%;margin:0;padding:0;break-inside:avoid;page-break-inside:avoid}
+.school-print-page{break-after:page;page-break-after:always}
+.school-print-page:last-child{break-after:auto;page-break-after:auto}
+.print-meta{display:flex;justify-content:space-between;font-size:9px;line-height:1.3}
+.print-heading{text-align:center;padding:2px 0 4px}
+.print-heading h1{font-size:16px;margin:0 0 2px}
+.print-heading h2{font-size:13px;margin:1px}
+.print-heading h3{font-size:12px;margin:1px}
+.tt-wrap{overflow:visible!important;border:0!important;margin:0!important;padding:0!important}
+table.compact-timetable{direction:rtl;width:100%!important;min-width:0!important;max-width:100%!important;table-layout:fixed!important;border-collapse:collapse!important;border-spacing:0!important;margin:3px 0!important;font-size:9px}
+table.compact-timetable col.day-col{width:31px!important}
+table.compact-timetable col.period-col{width:29px!important}
+table.compact-timetable col.subject-col{width:auto}
+table.compact-timetable th,table.compact-timetable td{border:1px solid #b9c8d8!important;text-align:center!important;vertical-align:middle!important;padding:2px 3px!important;line-height:1.16!important;overflow-wrap:anywhere!important;word-break:normal!important;white-space:normal!important;border-radius:0!important}
+table.compact-timetable thead th{background:#e8eef5!important;color:#193c60!important;font-weight:800!important;font-size:9px!important}
+table.compact-timetable th.day-label{width:31px!important;min-width:31px!important;max-width:31px!important;padding:0!important;position:relative!important;vertical-align:middle!important}
+table.compact-timetable th.day-label .vertical-day{display:inline-block!important;writing-mode:vertical-rl!important;-webkit-writing-mode:vertical-rl!important;transform:rotate(180deg)!important;font-weight:900!important;font-size:14px!important;line-height:1!important;white-space:nowrap!important;letter-spacing:0!important;margin:auto!important}
+table.compact-timetable th.period-number{width:29px!important;min-width:29px!important;max-width:29px!important;padding:1px!important;font-size:10px!important;font-weight:900!important}
+table.compact-timetable td.lesson{min-width:0!important;max-width:none!important;padding:2px!important;border-top-width:1px!important}
+table.compact-timetable td.lesson b{display:block!important;font-size:9px!important;font-weight:800!important;line-height:1.18!important}
+table.compact-timetable td.lesson small{display:block!important;font-size:7.6px!important;color:#40546b!important;margin-top:1px!important;line-height:1.18!important;overflow-wrap:anywhere!important}
+.day-label.day-d0{background:#dceafa!important}.day-label.day-d1{background:#e0f1e5!important}.day-label.day-d2{background:#fff0d9!important}.day-label.day-d3{background:#eee5fa!important}.day-label.day-d4{background:#fbe5eb!important}
+.print-footer{border-top:1px solid #aebac8;margin-top:4px;padding:2px;font-size:8px;white-space:pre-wrap}.print-footer p{margin:1px}
+.lock-mark{display:none!important}.no-colors .lesson{background:#fff!important}
+@media print{*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}
+`}
+
 
 function openPrintSheets(){
  if(!db.timetable.length)return alert('لا يوجد جدول للطباعة');
@@ -513,10 +543,10 @@ async function exportSchedulePNG(mode,id){
  const font=(size,bold=false)=>`${bold?'700':'400'} ${size}px Tahoma,Arial,sans-serif`;
  const measure=(str,size,bold=false)=>{ctx.font=font(size,bold);return ctx.measureText(String(str||'')).width};
  const wrap=(str,max,size,bold=false)=>{let lines=[''];for(const word of String(str||'—').split(/\s+/)){let i=lines.length-1,test=lines[i]?lines[i]+' '+word:word;if(measure(test,size,bold)<=max||!lines[i])lines[i]=test;else lines.push(word)}return lines};
- const focusW=focus?190:0,dayW=focus?0:35,periodW=35,baseFont=focus?19:16,teacherFont=focus?16:13;
- const colWidths=headings.map(item=>{if(focus)return focusW;const entries=db.timetable.filter(e=>e.sectionId===item.id);const widest=Math.max(measure(exportSectionName(item.id),14,true),...entries.map(e=>Math.max(measure(db.subjects.find(s=>s.id===e.subjectId)?.name||'',baseFont,true),measure(teacherShort(db.teachers.find(t=>t.id===e.teacherId)?.name),teacherFont))));return Math.max(116,Math.min(184,Math.ceil(widest+20)))});
+ const focusW=focus?190:0,dayW=focus?0:31,periodW=29,baseFont=focus?19:16,teacherFont=focus?16:13;
+ const colWidths=headings.map(item=>{if(focus)return focusW;const entries=db.timetable.filter(e=>e.sectionId===item.id);const widest=Math.max(measure(exportSectionName(item.id),14,true),...entries.map(e=>Math.max(measure(db.subjects.find(s=>s.id===e.subjectId)?.name||'',baseFont,true),measure(teacherShort(db.teachers.find(t=>t.id===e.teacherId)?.name),teacherFont))));return Math.max(90,Math.min(148,Math.ceil(widest+16)))});
  const margin=24,tableW=dayW+periodW+colWidths.reduce((a,b)=>a+b,0),width=tableW+margin*2,headH=65,topH=160,footH=88;
- const rowHeights=rows.map(r=>{let h=49;headings.forEach(item=>{const day=focus?item:r.day,sectionId=mode==='section'?id:item.id;const e=db.timetable.find(e=>e.dayId===day.id&&e.period===r.period&&(mode==='teacher'?e.teacherId===id:e.sectionId===sectionId));if(!e)return;const ci=headings.indexOf(item),w=colWidths[ci]-14;const sub=db.subjects.find(s=>s.id===e.subjectId)?.name||'—',t=db.teachers.find(t=>t.id===e.teacherId)?.name||'—';const subLines=wrap(sub,w,baseFont,true).length,teachLines=wrap(mode==='teacher'?exportSectionName(e.sectionId):teacherShort(t),w,teacherFont).length;h=Math.max(h,12+subLines*(baseFont+3)+teachLines*(teacherFont+3))});return h});
+ const rowHeights=rows.map(r=>{let h=43;headings.forEach(item=>{const day=focus?item:r.day,sectionId=mode==='section'?id:item.id;const e=db.timetable.find(e=>e.dayId===day.id&&e.period===r.period&&(mode==='teacher'?e.teacherId===id:e.sectionId===sectionId));if(!e)return;const ci=headings.indexOf(item),w=colWidths[ci]-14;const sub=db.subjects.find(s=>s.id===e.subjectId)?.name||'—',t=db.teachers.find(t=>t.id===e.teacherId)?.name||'—';const subLines=wrap(sub,w,baseFont,true).length,teachLines=wrap(mode==='teacher'?exportSectionName(e.sectionId):teacherShort(t),w,teacherFont).length;h=Math.max(h,12+subLines*(baseFont+3)+teachLines*(teacherFont+3))});return h});
  const height=topH+headH+rowHeights.reduce((a,b)=>a+b,0)+footH;
  if(width>9000||height>9000||width*height>50000000)throw new Error('الصورة كبيرة لهذا الجهاز؛ جرّب تصدير مرحلة واحدة.');
  canvas.width=width;canvas.height=height;const c=canvas.getContext('2d');c.direction='rtl';c.fillStyle='#fff';c.fillRect(0,0,width,height);

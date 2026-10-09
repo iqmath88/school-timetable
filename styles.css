@@ -64,3 +64,14 @@
 .print-preview .compact-timetable{width:100%;table-layout:auto}
 .print-preview .compact-timetable td.lesson{min-width:0}
 @media print{.compact-timetable{width:100%;table-layout:auto}.compact-timetable td.lesson{min-width:0;max-width:none}.compact-timetable .day-label{width:28px;min-width:28px;max-width:28px}}
+
+/* v0.9.6.4: visible print preview matches actual merged-day print layout */
+.print-preview .compact-timetable{table-layout:fixed!important;width:100%!important;min-width:0!important}
+.print-preview .compact-timetable col.day-col{width:31px!important}
+.print-preview .compact-timetable col.period-col{width:29px!important}
+.print-preview .compact-timetable th.day-label{width:31px!important;min-width:31px!important;max-width:31px!important;padding:0!important;vertical-align:middle!important}
+.print-preview .compact-timetable th.day-label .vertical-day{display:inline-block!important;writing-mode:vertical-rl!important;-webkit-writing-mode:vertical-rl!important;transform:rotate(180deg)!important;font-weight:900!important;font-size:15px!important;white-space:nowrap!important}
+.print-preview .compact-timetable th.period-number{width:29px!important;min-width:29px!important;max-width:29px!important;padding:1px!important}
+.print-preview .compact-timetable td.lesson{min-width:0!important;max-width:none!important;padding:3px!important}
+.print-preview .compact-timetable td.lesson b{font-size:11px!important}
+.print-preview .compact-timetable td.lesson small{font-size:9px!important}
