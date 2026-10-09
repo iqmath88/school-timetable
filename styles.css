@@ -39,3 +39,13 @@
 .gap-diagnostic .muted{margin-top:6px;line-height:1.8}
 @media(max-width:700px){.gap-diagnostic{flex-direction:column;align-items:stretch}.gap-diagnostic button{width:100%}}
 @media print{.timetable{min-width:0;border-spacing:0}.timetable th{position:static}.timetable td.lesson{border-radius:0}}
+/* v0.9: day identity + stage identity, preserved on print */
+.day-row.day-d0>th,.day-label.day-d0{background:#dceafa!important;color:#244c7b!important}
+.day-row.day-d1>th,.day-label.day-d1{background:#e0f1e5!important;color:#245f3d!important}
+.day-row.day-d2>th,.day-label.day-d2{background:#fff0d9!important;color:#82541e!important}
+.day-row.day-d3>th,.day-label.day-d3{background:#eee5fa!important;color:#5d3980!important}
+.day-row.day-d4>th,.day-label.day-d4{background:#fbe5eb!important;color:#8b3b54!important}
+.day-row.day-d5>th,.day-label.day-d5{background:#e1f2f2!important;color:#2c6060!important}
+.day-row.day-d6>th,.day-label.day-d6{background:#f2ebdf!important;color:#745a31!important}
+.stage-period-input{min-width:48px!important;width:58px!important;padding:6px!important;text-align:center}
+@media print{.day-row>th,.day-label,.lesson{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}
