@@ -1,7 +1,7 @@
 'use strict';
 self.onmessage=e=>{if(e.data.type!=='start')return;try{self.postMessage({type:'result',result:generate(e.data.db)})}catch(err){self.postMessage({type:'result',result:{ok:false,reason:'exception',message:String(err.stack||err)}})}};
 function generate(db){
- const began=Date.now(),deadline=began+40000;const days=db.days.filter(d=>d.active&&d.periods>0).sort((a,b)=>a.order-b.order),D=days.length;
+ const began=Date.now(),deadline=began+55000;const days=db.days.filter(d=>d.active&&d.periods>0).sort((a,b)=>a.order-b.order),D=days.length;
  const sections=db.sections,teachers=db.teachers,assignments=db.assignments.filter(a=>+a.weeklyPeriods>0),A=assignments.length;
  const ti=new Map(teachers.map((x,i)=>[x.id,i])),si=new Map(sections.map((x,i)=>[x.id,i]));
  const at=assignments.map(a=>ti.get(a.teacherId)),as=assignments.map(a=>si.get(a.sectionId));
@@ -11,7 +11,7 @@ function generate(db){
  const fixed=new Map(),entries=[];let nodes=0,bestDepth=0,stop='';
  const key=(t,d,p)=>t+'|'+d+'|'+p;
  function subjectRule(i){const r=db.subjectRules?.[assignments[i].subjectId]||{};return r.stageId&&r.stageId!==sections[as[i]].stageId?{}:r.strict==='soft'?{}:r}
- function can(i,d,p,quota){const t=at[i],s=as[i],r=tRules[t],sr=subjectRule(i);if(t===undefined||s===undefined||p>quota[s][d]||p<1||remaining[i]<1)return false;if(busy.has(key(t,d,p))||used[s][d].has(p)||teacherDay[t][d]>=maxDaily[t])return false;if((r.unavailable?.[days[d].id]||[]).includes(p))return false;if(sr.noFirst&&p===1||sr.noLast&&p===quota[s][d]||sr.noRepeat&&entries.some(x=>x.sectionId===assignments[i].sectionId&&x.subjectId===assignments[i].subjectId&&x.dayId===days[d].id))return false;return true}
+ function can(i,d,p,quota){const t=at[i],s=as[i],r=tRules[t],sr=subjectRule(i);if(t===undefined||s===undefined||p>quota[s][d]||p<1||remaining[i]<1)return false;if(busy.has(key(t,d,p))||used[s][d].has(p)||teacherDay[t][d]>=maxDaily[t])return false;if((r.unavailable?.[days[d].id]||[]).includes(p))return false;const pin=fixed.get(s+'|'+d+'|'+p);if(pin!==undefined&&pin!==i)return false;if(sr.noFirst&&p===1||sr.noLast&&p===quota[s][d]||sr.noRepeat&&entries.some(x=>x.sectionId===assignments[i].sectionId&&x.subjectId===assignments[i].subjectId&&x.dayId===days[d].id))return false;return true}
  function put(i,d,p,locked=false){remaining[i]--;teacherDay[at[i]][d]++;assDay[i][d]++;busy.add(key(at[i],d,p));used[as[i]][d].add(p);entries.push({assignmentId:assignments[i].id,teacherId:assignments[i].teacherId,sectionId:assignments[i].sectionId,subjectId:assignments[i].subjectId,dayId:days[d].id,period:p,locked,_i:i,_d:d,_p:p})}
  function undo(){const x=entries.pop(),i=x._i,d=x._d,p=x._p;remaining[i]++;teacherDay[at[i]][d]--;assDay[i][d]--;busy.delete(key(at[i],d,p));used[as[i]][d].delete(p)}
  for(const f of db.fixedLessons||[]){const i=assignments.findIndex(a=>a.id===f.assignmentId),d=days.findIndex(x=>x.id===f.dayId);if(i<0||d<0)return {ok:false,reason:'fixed-conflict',message:'حصة مثبتة غير صالحة'};const s=as[i],p=+f.period;if(p>cap[s][d])return {ok:false,reason:'fixed-conflict',message:'حصة مثبتة خارج سعة الشعبة'};fixed.set(s+'|'+d+'|'+p,i)}
@@ -32,6 +32,9 @@ function generate(db){
  if(!choicesHere.length)return false;
  if(!choices||choicesHere.length<choices.length){chosen=sl;choices=choicesHere;if(choices.length===1)break}}
  if(!chosen)return false;
+ // Necessary-condition pruning: every remaining assignment must retain enough compatible free slots.
+ // This catches impossible branches early instead of exploring millions of deeper permutations.
+ for(let i=0;i<A;i++)if(remaining[i]>0){let free=0;const sec=as[i];for(let d=0;d<D;d++){if(teacherDay[at[i]][d]>=maxDaily[at[i]])continue;let dayFree=0;for(let p=1;p<=quota[sec][d];p++){const pinned=fixed.get(sec+'|'+d+'|'+p);if(pinned!==undefined&&pinned!==i)continue;if(can(i,d,p,quota))dayFree++;}free+=Math.min(dayFree,maxDaily[at[i]]-teacherDay[at[i]][d]);}if(free<remaining[i])return false;}
  choices.sort((a,b)=>{const ra=tRules[at[a]],rb=tRules[at[b]];const score=i=>{const r=tRules[at[i]],p=chosen.p,d=chosen.d;let available=0;for(let dd=0;dd<D;dd++)for(let pp=1;pp<=quota[as[i]][dd];pp++)if(!(r.unavailable?.[days[dd].id]||[]).includes(pp))available++;return available/(remaining[i]||1)+(assDay[i][d]?15:0)+((r.avoid||[]).includes(p)?3:0)-((r.preferred||[]).includes(p)?1:0)};return score(a)-score(b)});
  for(const i of choices){put(i,chosen.d,chosen.p,fixed.has(chosen.s+'|'+chosen.d+'|'+chosen.p));if(dfs(left-1))return true;undo();if(stop)return false}return false}
  if(dfs(total)){return {ok:true,entries:entries.map(({_i,_d,_p,...x})=>x),nodes,bestDepth:total,message:`تم توزيع ${total} حصة دون فراغات داخلية، مع تطبيق قيود المواد الإلزامية.`}}
