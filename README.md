@@ -1,5 +1,8 @@
-# School Timetable v0.9.8.1 — Formal Print Design
+# School Timetable v0.9.8.2 — Unified Print Layout
 
-Based on v0.9.8.0. Adds configurable formal academic print header/footer, centered school logo upload (PNG/JPG up to 1 MB), teacher-name visibility, notes, signatures, cell density, and saved print preferences in the existing JSON backup. No timetable generation or scheduling constraint logic intentionally changed.
-
-Upload all five root files to GitHub Pages. Export a JSON backup before updating.
+- Unified stage print preview and PDF print styles via the same `printCSS()` and `printDocument()` functions.
+- Stage tables fill the available A3 landscape printable width rather than using the old fixed pixel width.
+- Improved subject and teacher text sizing and formal print header/footer.
+- Existing timetable data, constraints and generator worker are unchanged.
+- PNG export still uses the existing canvas renderer and may differ from PDF; this release does not claim pixel-perfect PNG/PDF parity.
+- Back up your JSON data before deploying. Upload all five root files to GitHub Pages.
