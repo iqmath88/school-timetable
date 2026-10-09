@@ -358,9 +358,9 @@ function startGeneration(){
  const button=$('#generateBtn'),status=$('#generationProgress');
  button.disabled=true;button.textContent='جاري التوليد...';
  const began=Date.now();let finished=false,lastUpdate=Date.now(),lastProgress={nodes:0,bestDepth:0,total:0,placed:0},phase='تشغيل المحرك';
- let worker;try{worker=new Worker('generator-worker.js?v=0961')}catch(err){button.disabled=false;button.textContent='توليد الجدول تلقائياً';window.generationReport={ok:false,reason:'worker-error',message:'تعذر تشغيل ملف المحرك: '+String(err),seconds:'0'};generator();return}generationWorker=worker;
+ let worker;try{worker=new Worker('generator-worker.js?v=0973')}catch(err){button.disabled=false;button.textContent='توليد الجدول تلقائياً';window.generationReport={ok:false,reason:'worker-error',message:'تعذر تشغيل ملف المحرك: '+String(err),seconds:'0'};generator();return}generationWorker=worker;
  const tick=setInterval(()=>{if(finished)return;const elapsed=Date.now()-began;
-   if(elapsed>60000){finish({ok:false,reason:'time',...lastProgress,message:`أوقف مراقب السلامة المحرك بعد 60 ثانية. آخر مرحلة: ${phase}. لم تتغير البيانات.`});return}
+   if(elapsed>95000){finish({ok:false,reason:'time',...lastProgress,message:`أوقف مراقب السلامة المحرك بعد 95 ثانية. آخر مرحلة: ${phase}. لم تتغير البيانات.`});return}
    if(status)status.textContent=`${phase} — ${Math.round(elapsed/1000)} ثانية — عقد ${lastProgress.nodes} — أفضل عمق ${lastProgress.bestDepth} من ${lastProgress.total||'—'}. ${Date.now()-lastUpdate>7000?'المحرك مشغول بالحساب، يمكن إيقافه.':''}`;
  },500);
  generationCancel=()=>finish({ok:false,reason:'cancelled',...lastProgress,message:'أوقفت التوليد. بقي الجدول السابق محفوظاً.'});

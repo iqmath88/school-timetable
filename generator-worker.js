@@ -9,13 +9,30 @@ function generate(db){
  }
  if(seed.ok){return {ok:true,entries:seed.entries,reused:true,nodes:0,bestDepth:seed.entries.length,total:seed.entries.length,message:'تم التحقق من الجدول المحفوظ: جميع الحصص والقيود الإلزامية صحيحة. احتفظ المحرك بالحل المثبت بدلاً من إعادة البحث غير الضرورية.'};}
  self.postMessage({type:'phase',phase:'فحص الجدول المرجعي: '+seed.reason+'؛ بدء البحث عن حل جديد'});
- const began=Date.now(),deadline=began+55000;const days=db.days.filter(d=>d.active&&d.periods>0).sort((a,b)=>a.order-b.order),D=days.length;
+ const began=Date.now(),deadline=began+90000;const days=db.days.filter(d=>d.active&&d.periods>0).sort((a,b)=>a.order-b.order),D=days.length;
  const sections=db.sections,teachers=db.teachers,assignments=db.assignments.filter(a=>+a.weeklyPeriods>0),A=assignments.length;
  const ti=new Map(teachers.map((x,i)=>[x.id,i])),si=new Map(sections.map((x,i)=>[x.id,i]));
  const at=assignments.map(a=>ti.get(a.teacherId)),as=assignments.map(a=>si.get(a.sectionId));
  const cap=sections.map(sec=>days.map(d=>Math.min(d.periods,Math.max(0,+(db.stageDayPeriods?.[sec.stageId]?.[d.id]??d.periods)))));
  const total=assignments.reduce((n,a)=>n+(+a.weeklyPeriods||0),0),remaining=assignments.map(a=>+a.weeklyPeriods),tRules=teachers.map(t=>db.teacherRules[t.id]||{});
  const maxDaily=tRules.map(r=>+r.maxDaily>0?+r.maxDaily:99),minDaily=tRules.map(r=>Math.max(0,+r.minDaily||0)),busy=new Set(),used=sections.map(()=>days.map(()=>new Set())),teacherDay=teachers.map(()=>new Int8Array(D)),assDay=assignments.map(()=>new Int8Array(D));
+ // Necessary per-teacher and per-assignment capacity checks before expensive backtracking.
+ for(let t=0;t<teachers.length;t++){
+  const load=assignments.reduce((n,a,i)=>n+(at[i]===t?+a.weeklyPeriods:0),0);
+  if(!load)continue;
+  const r=tRules[t];let possible=0;
+  for(let d=0;d<D;d++){
+   let open=0;
+   for(let period=1;period<=days[d].periods;period++)if(!(r.unavailable?.[days[d].id]||[]).includes(period))open++;
+   possible+=Math.min(open,maxDaily[t]);
+  }
+  if(load>possible)return {ok:false,reason:'teacher-capacity',total,message:`لا يمكن توزيع نصاب المدرس ${teachers[t].name}: مطلوب ${load} حصة، والمتاح وفق أيامه وقيوده ${possible} فقط. لم تتغير البيانات.`};
+ }
+ for(let i=0;i<A;i++){
+  const sr=db.subjectRules?.[assignments[i].subjectId]||{};
+  if(sr.noRepeat&&sr.strict!=='soft'&&(!sr.stageId||sr.stageId===sections[as[i]].stageId)&&remaining[i]>D)
+   return {ok:false,reason:'subject-capacity',total,message:`المادة ${db.subjects.find(x=>x.id===assignments[i].subjectId)?.name||''} في ${sections[as[i]].name} تحتاج ${remaining[i]} حصص خلال ${D} أيام، بينما منع التكرار اليومي مفعّل. لم تتغير البيانات.`};
+ }
  const fixed=new Map(),entries=[];let nodes=0,bestDepth=0,stop='';
  const key=(t,d,p)=>t+'|'+d+'|'+p;
  function subjectRule(i){const r=db.subjectRules?.[assignments[i].subjectId]||{};return r.stageId&&r.stageId!==sections[as[i]].stageId?{}:r.strict==='soft'?{}:r}
@@ -28,7 +45,7 @@ function generate(db){
  for(let s=0;s<sections.length;s++)if(needed[s]>cap[s].reduce((a,b)=>a+b,0))return {ok:false,reason:'capacity',message:'نصاب إحدى الشعب يتجاوز طاقتها الأسبوعية'};
  self.postMessage({type:'phase',phase:'توزيع الحصص حسب سعة المراحل والقيود'});
  let best=0,attempt=0;
- while(Date.now()<deadline&&attempt<300){attempt++;const quota=cap.map((row,s)=>{const q=row.slice(),missing=q.reduce((a,b)=>a+b,0)-needed[s];for(let j=0;j<missing;j++){let opts=q.map((v,d)=>({d,v,locked:[...fixed.keys()].some(k=>k.startsWith(s+'|'+d+'|')&&+k.split('|')[2]>=v)})).filter(x=>x.v>0&&!x.locked);if(!opts.length)break;opts.sort((a,b)=>((a.v+((a.d+attempt+s)%D)*.1)-(b.v+((b.d+attempt+s)%D)*.1)));q[opts[(j+attempt)%Math.min(opts.length,3)].d]--;}return q});
+ while(Date.now()<deadline&&attempt<600){attempt++;const quota=cap.map((row,s)=>{const q=row.slice(),missing=q.reduce((a,b)=>a+b,0)-needed[s];for(let j=0;j<missing;j++){let opts=q.map((v,d)=>({d,v,locked:[...fixed.keys()].some(k=>k.startsWith(s+'|'+d+'|')&&+k.split('|')[2]>=v)})).filter(x=>x.v>0&&!x.locked);if(!opts.length)break;opts.sort((a,b)=>((a.v+((a.d+attempt+s)%D)*.1)-(b.v+((b.d+attempt+s)%D)*.1)));q[opts[(j+attempt)%Math.min(opts.length,3)].d]--;}return q});
  if(quota.some((q,s)=>q.reduce((a,b)=>a+b,0)!==needed[s]))continue;
  const slots=[];for(let s=0;s<sections.length;s++)for(let d=0;d<D;d++)for(let p=1;p<=quota[s][d];p++)slots.push({s,d,p});
  const ordered=slots.map((x,i)=>({...x,idx:i})),assignmentBySection=sections.map((_,s)=>assignments.map((a,i)=>as[i]===s?i:-1).filter(i=>i>=0));
