@@ -8,7 +8,7 @@ function generate(db){
   if(verified.ok)return {ok:true,entries:verified.entries,reused:false,nodes:0,bestDepth:verified.entries.length,total:verified.entries.length,message:'تم استعادة الجدول المرجعي بعد فحص جميع القيود الحالية: 688 حصة. احفظ نسخة احتياطية جديدة الآن.'};
  }
  if(seed.ok){return {ok:true,entries:seed.entries,reused:true,nodes:0,bestDepth:seed.entries.length,total:seed.entries.length,message:'تم التحقق من الجدول المحفوظ: جميع الحصص والقيود الإلزامية صحيحة. احتفظ المحرك بالحل المثبت بدلاً من إعادة البحث غير الضرورية.'};}
- self.postMessage({type:'phase',phase:'فحص الجدول المرجعي: '+seed.reason+'؛ بدء البحث عن حل جديد'});
+ self.postMessage({type:'phase',phase:'فحص الجدول المحفوظ: '+seed.reason+'؛ بدء البحث عن حل جديد'});
  const began=Date.now(),deadline=began+90000;const days=db.days.filter(d=>d.active&&d.periods>0).sort((a,b)=>a.order-b.order),D=days.length;
  const sections=db.sections,teachers=db.teachers,assignments=db.assignments.filter(a=>+a.weeklyPeriods>0),A=assignments.length;
  const ti=new Map(teachers.map((x,i)=>[x.id,i])),si=new Map(sections.map((x,i)=>[x.id,i]));
@@ -54,7 +54,7 @@ function generate(db){
  for(let s=0;s<sections.length;s++)if(needed[s]>cap[s].reduce((a,b)=>a+b,0))return {ok:false,reason:'capacity',message:'نصاب إحدى الشعب يتجاوز طاقتها الأسبوعية'};
  self.postMessage({type:'phase',phase:'توزيع الحصص حسب سعة المراحل والقيود'});
  let best=0,attempt=0;
- while(Date.now()<deadline&&attempt<600){attempt++;const quota=cap.map((row,s)=>{const q=row.slice(),missing=q.reduce((a,b)=>a+b,0)-needed[s];for(let j=0;j<missing;j++){let opts=q.map((v,d)=>({d,v,locked:[...fixed.keys()].some(k=>k.startsWith(s+'|'+d+'|')&&+k.split('|')[2]>=v)})).filter(x=>x.v>0&&!x.locked);if(!opts.length)break;opts.sort((a,b)=>((a.v+((a.d+attempt+s)%D)*.1)-(b.v+((b.d+attempt+s)%D)*.1)));q[opts[(j+attempt)%Math.min(opts.length,3)].d]--;}return q});
+ while(Date.now()<deadline&&attempt<600){attempt++;const quota=cap.map((row,s)=>{const q=row.slice(),missing=q.reduce((a,b)=>a+b,0)-needed[s];for(let j=0;j<missing;j++){let opts=q.map((v,d)=>({d,v,locked:[...fixed.keys()].some(k=>k.startsWith(s+'|'+d+'|')&&+k.split('|')[2]>=v)})).filter(x=>x.v>0&&!x.locked);if(!opts.length)break;opts.sort((a,b)=>(b.v-a.v)||(((a.d+attempt+s+j)%D)-((b.d+attempt+s+j)%D)));q[opts[(j+attempt+s)%Math.min(opts.length,3)].d]--;}return q});
  if(quota.some((q,s)=>q.reduce((a,b)=>a+b,0)!==needed[s]))continue;
  const slots=[];for(let s=0;s<sections.length;s++)for(let d=0;d<D;d++)for(let p=1;p<=quota[s][d];p++)slots.push({s,d,p});
  const ordered=slots.map((x,i)=>({...x,idx:i})),assignmentBySection=sections.map((_,s)=>assignments.map((a,i)=>as[i]===s?i:-1).filter(i=>i>=0));
@@ -64,12 +64,12 @@ function generate(db){
  for(const sl of ordered){if(used[sl.s][sl.d].has(sl.p))continue;const prior=sl.p===1||used[sl.s][sl.d].has(sl.p-1);if(!prior)continue;
  const pinned=fixed.get(sl.s+'|'+sl.d+'|'+sl.p);const choicesHere=(pinned!==undefined?[pinned]:assignmentBySection[sl.s]).filter(i=>can(i,sl.d,sl.p,quota));
  if(!choicesHere.length)return false;
- if(!choices||choicesHere.length<choices.length){chosen=sl;choices=choicesHere;if(choices.length===1)break}}
+ if(!choices||choicesHere.length<choices.length||(choicesHere.length===choices.length&&((sl.idx+attempt*17)%31)<((chosen.idx+attempt*17)%31))){chosen=sl;choices=choicesHere;if(choices.length===1)break}}
  if(!chosen)return false;
  // Necessary-condition pruning: every remaining assignment must retain enough compatible free slots.
  // This catches impossible branches early instead of exploring millions of deeper permutations.
  for(let i=0;i<A;i++)if(remaining[i]>0){let free=0;const sec=as[i];for(let d=0;d<D;d++){if(teacherDay[at[i]][d]>=maxDaily[at[i]])continue;let dayFree=0;for(let p=1;p<=quota[sec][d];p++){const pinned=fixed.get(sec+'|'+d+'|'+p);if(pinned!==undefined&&pinned!==i)continue;if(can(i,d,p,quota))dayFree++;}const sr=subjectRule(i);free+=Math.min(dayFree,maxDaily[at[i]]-teacherDay[at[i]][d],Math.max(0,1+allowedRepeat[i]-assDay[i][d]));}if(free<remaining[i])return false;}
- choices.sort((a,b)=>{const score=i=>{const r=tRules[at[i]],p=chosen.p,d=chosen.d;return (remaining[i]?1/remaining[i]:99)+(assDay[i][d]?12:0)-(teacherDay[at[i]][d]>0&&teacherDay[at[i]][d]<minDaily[at[i]]?6:0)+((r.avoid||[]).includes(p)?3:0)-((r.preferred||[]).includes(p)?1:0)};return score(a)-score(b)});
+ choices.sort((a,b)=>{const score=i=>{const r=tRules[at[i]],p=chosen.p,d=chosen.d;return (remaining[i]?1/remaining[i]:99)+(assDay[i][d]?12:0)-(teacherDay[at[i]][d]>0&&teacherDay[at[i]][d]<minDaily[at[i]]?6:0)+((r.avoid||[]).includes(p)?3:0)-((r.preferred||[]).includes(p)?1:0)};return score(a)-score(b)||((a*37+attempt*53)%101)-((b*37+attempt*53)%101)});
  for(const i of choices){put(i,chosen.d,chosen.p,fixed.has(chosen.s+'|'+chosen.d+'|'+chosen.p));if(dfs(left-1))return true;undo();if(stop)return false}return false}
  if([...fixed.keys()].some(k=>{const [s,d,p]=k.split('|').map(Number);return p>quota[s][d]}))continue;
  if(dfs(total)){return {ok:true,entries:entries.map(({_i,_d,_p,...x})=>x),nodes,bestDepth:total,message:`تم توزيع ${total} حصة دون فراغات داخلية، مع تطبيق قيود المواد الإلزامية.`}}
@@ -101,7 +101,7 @@ function validateExistingSchedule(db){
   const sr=db.subjectRules?.[e.subjectId]||{},hard=sr.strict!=='soft'&&(!sr.stageId||sr.stageId===section.stageId);
   if(hard&&(sr.noFirst&&+e.period===1||sr.noLast&&+e.period===cap))return {ok:false,reason:'مخالفة قيد المادة'};
   const subKey=e.sectionId+'|'+e.dayId+'|'+e.subjectId;
-  if(hard&&sr.noRepeat){const aDays=assignmentDays.get(a.id)||new Map();aDays.set(e.dayId,(aDays.get(e.dayId)||0)+1);assignmentDays.set(a.id,aDays);}
+  if(true){const aDays=assignmentDays.get(a.id)||new Map();aDays.set(e.dayId,(aDays.get(e.dayId)||0)+1);assignmentDays.set(a.id,aDays);}
   dailySubjects.add(subKey);
   counts.set(a.id,(counts.get(a.id)||0)+1);
   const td=e.teacherId+'|'+e.dayId;perDay.set(td,(perDay.get(td)||0)+1);
