@@ -1,3 +1,5 @@
-# School Timetable v0.9.8.3 — Full-width Stage Print Fix
+School Timetable v0.9.8.4 — Two-page print layout
 
-إصلاح عرض جدول المرحلة في معاينة الطباعة وPDF ليشغل كامل عرض الورقة، وإزالة العرض الثابت والأعمدة المحددة بالبكسل. لا تعديل لمحرك التوليد أو البيانات.
+Printing and print preview now show two A3 landscape sheets: (1) all intermediate sections (grades 1–3), (2) all preparatory sections (grades 4–6). All timetable data and generator logic are unchanged.
+
+Upload all five files to the GitHub repository root. Back up the existing schedule JSON first. In Safari choose A3 landscape and 100% scale; if the browser adds extra pages, turn off browser headers and footers.
