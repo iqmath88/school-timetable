@@ -1,13 +1,11 @@
-# School Timetable v0.9.5 — Verified Reference Schedule
+# School Timetable v0.9.6
 
-- Validates all saved timetable entries, assignment loads, teacher clashes, section clashes, mandatory teacher unavailability, daily min/max, subject hard constraints, fixed lessons, and internal section gaps.
-- If the current timetable passes, retains the proven feasible schedule and avoids an unnecessary expensive search. This is **reuse of a verified solution**, not a new optimization run.
-- If saved schedule is missing or invalid, the existing DFS search runs with diagnostics.
-- A3 landscape school print remains two pages: intermediate and preparatory.
-- No automatic changes to teacher constraints.
+تحديث التصدير والطباعة:
+- تصدير PNG مباشر من المتصفح عبر Canvas: المدرسة كاملة، المتوسطة، الإعدادية، مرحلة واحدة، مدرس، شعبة.
+- على iPad/iPhone تُستخدم نافذة المشاركة عند دعمها، وإلا التنزيل المباشر.
+- طباعة كل مرحلة في صفحة A3 أفقية مستقلة (6 صفحات).
+- إخفاء أقفال الحصص في الطباعة والصور، والإبقاء عليها في مساحة العمل.
+- ألوان هادئة واضحة أو تباين مرتفع لتصدير PNG.
+- لا تُمس بيانات المدرسة الموجودة في localStorage، ويمكن استيراد نسخة JSON.
 
-## Installation
-Upload index.html, app.js, generator-worker.js, styles.css, README.md to the repository root. Back up school data before updating. The JSON backup is not included in the public release because it contains personal teacher data.
-
-## Limitations
-The search algorithm may still time out when asked to build a fresh schedule from scratch. The reference validator provides a trustworthy baseline, not a proof of solver completeness.
+ملاحظة: الصور المجمعة كبيرة وقد يحد الجهاز من حجمها؛ استخدم تصدير المتوسطة/الإعدادية أو المراحل عند الحاجة.
