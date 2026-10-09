@@ -1,8 +1,8 @@
 const KEY='school-timetable-v01';
 const stageDefaults=[['الأول',1,'#587B9B'],['الثاني',2,'#6F8F72'],['الثالث',3,'#9A7B60'],['الرابع',4,'#7D7398'],['الخامس',5,'#A16F78'],['السادس',6,'#557F83']];
 const defaultDays=[['الأحد',7,true],['الاثنين',7,true],['الثلاثاء',6,true],['الأربعاء',7,true],['الخميس',5,true],['الجمعة',0,false],['السبت',0,false]];
-const seed=()=>({version:'0.9.8.2',school:{name:'',year:'2026-2027'},days:defaultDays.map((x,i)=>({id:'d'+i,name:x[0],periods:x[1],active:x[2],order:i+1})),stages:stageDefaults.map(x=>({id:'g'+x[1],name:x[0],order:x[1],color:x[2]})),sections:[],subjects:[],teachers:[],assignments:[],teacherRules:{},fixedLessons:[],timetable:[],manualHistory:[],stageLoads:{},stageDayPeriods:{},subjectRules:{},printSettings:{title:'جدول الحصص الأسبوعية',startDate:'',changeReasons:'',footer:'',showColors:true,theme:'formal',logo:'',logoPosition:'center',showTeachers:true,showNotes:true,showSignatures:true,density:'compact',signature1:'منظّم الجدول',signature2:'معاون المدير',signature3:'مدير المدرسة'}});
-function migrate(x){x=x||seed();x.version='0.9.8.2';x.teacherRules=x.teacherRules||{};x.fixedLessons=x.fixedLessons||[];x.timetable=x.timetable||[];x.stageLoads=x.stageLoads||{};x.stageDayPeriods=x.stageDayPeriods||{};x.subjectRules=x.subjectRules||{};x.printSettings={title:'جدول الحصص الأسبوعية',startDate:'',changeReasons:'',footer:'',showColors:true,theme:'formal',logo:'',logoPosition:'center',showTeachers:true,showNotes:true,showSignatures:true,density:'compact',signature1:'منظّم الجدول',signature2:'معاون المدير',signature3:'مدير المدرسة',...(x.printSettings||{})};x.manualHistory=x.manualHistory||[];x.teachers=x.teachers||[];x.assignments=x.assignments||[];return x}
+const seed=()=>({version:'0.9.8.3',school:{name:'',year:'2026-2027'},days:defaultDays.map((x,i)=>({id:'d'+i,name:x[0],periods:x[1],active:x[2],order:i+1})),stages:stageDefaults.map(x=>({id:'g'+x[1],name:x[0],order:x[1],color:x[2]})),sections:[],subjects:[],teachers:[],assignments:[],teacherRules:{},fixedLessons:[],timetable:[],manualHistory:[],stageLoads:{},stageDayPeriods:{},subjectRules:{},printSettings:{title:'جدول الحصص الأسبوعية',startDate:'',changeReasons:'',footer:'',showColors:true,theme:'formal',logo:'',logoPosition:'center',showTeachers:true,showNotes:true,showSignatures:true,density:'compact',signature1:'منظّم الجدول',signature2:'معاون المدير',signature3:'مدير المدرسة'}});
+function migrate(x){x=x||seed();x.version='0.9.8.3';x.teacherRules=x.teacherRules||{};x.fixedLessons=x.fixedLessons||[];x.timetable=x.timetable||[];x.stageLoads=x.stageLoads||{};x.stageDayPeriods=x.stageDayPeriods||{};x.subjectRules=x.subjectRules||{};x.printSettings={title:'جدول الحصص الأسبوعية',startDate:'',changeReasons:'',footer:'',showColors:true,theme:'formal',logo:'',logoPosition:'center',showTeachers:true,showNotes:true,showSignatures:true,density:'compact',signature1:'منظّم الجدول',signature2:'معاون المدير',signature3:'مدير المدرسة',...(x.printSettings||{})};x.manualHistory=x.manualHistory||[];x.teachers=x.teachers||[];x.assignments=x.assignments||[];return x}
 function load(){try{return migrate(JSON.parse(localStorage.getItem(KEY)))}catch{return seed()}}
 let db=load(),page='school';
 const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),uid=p=>p+'_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
@@ -421,7 +421,7 @@ function timetableTable(stageIds=null){
       }).join('')+'</tr>';
     }
   });
-  return `<div class="tt-wrap"><table class="timetable compact-timetable" dir="rtl" style="--compact-width:${tableWidth}px;width:${tableWidth}px!important;max-width:none!important"><colgroup><col class="day-col" style="width:26px"><col class="period-col" style="width:24px">${secs.map((_,i)=>`<col class="subject-col" style="width:${columnWidths[i]}px">`).join('')}</colgroup><thead><tr><th class="vertical-heading"><span>اليوم</span></th><th class="vertical-heading"><span>الحصة</span></th>${secs.map(s=>{let g=db.stages.find(x=>x.id===s.stageId);return `<th style="border-top:4px solid ${g?.color||'#888'}">${g?.name||''} ${esc(s.name)}</th>`}).join('')}</tr></thead><tbody>${rows}</tbody></table></div>`;
+  return `<div class="tt-wrap"><table class="timetable compact-timetable" dir="rtl" style="--compact-width:${tableWidth}px"><colgroup><col class="day-col" ><col class="period-col" >${secs.map((_,i)=>`<col class="subject-col">`).join('')}</colgroup><thead><tr><th class="vertical-heading"><span>اليوم</span></th><th class="vertical-heading"><span>الحصة</span></th>${secs.map(s=>{let g=db.stages.find(x=>x.id===s.stageId);return `<th style="border-top:4px solid ${g?.color||'#888'}">${g?.name||''} ${esc(s.name)}</th>`}).join('')}</tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 function generator(){
   const issues=analyzeFeasibility(),reds=issues.filter(x=>x.level==='red').length;
@@ -617,10 +617,10 @@ html,body{margin:0;padding:0;background:#fff;color:#19334e;direction:rtl;font-fa
 .print-heading h2{font-size:13px;margin:1px}
 .print-heading h3{font-size:12px;margin:1px}
 .tt-wrap{overflow:visible!important;border:0!important;margin:0!important;padding:0!important}
-table.compact-timetable{direction:rtl;width:var(--compact-width)!important;min-width:0!important;max-width:none!important;table-layout:fixed!important;border-collapse:collapse!important;border-spacing:0!important;margin:3px 0!important;font-size:9px}
+table.compact-timetable{direction:rtl;width:100%!important;min-width:0!important;max-width:100%!important;table-layout:fixed!important;border-collapse:collapse!important;border-spacing:0!important;margin:3px 0!important;font-size:9px}
 table.compact-timetable col.day-col{width:28px!important}
 table.compact-timetable col.period-col{width:28px!important}
-table.compact-timetable col.subject-col{width:auto}
+table.compact-timetable col.subject-col{width:auto!important}
 table.compact-timetable th,table.compact-timetable td{border:1px solid #c4ced8!important;text-align:center!important;vertical-align:middle!important;padding:1px 2px!important;line-height:1.08!important;overflow-wrap:anywhere!important;word-break:normal!important;white-space:normal!important;border-radius:0!important}
 table.compact-timetable thead th{background:#e8eef5!important;color:#193c60!important;font-weight:800!important;font-size:9px!important}
 table.compact-timetable th.day-label{width:26px!important;min-width:26px!important;max-width:26px!important;padding:0!important;position:relative!important;vertical-align:middle!important}
@@ -707,7 +707,7 @@ async function exportSchedulePNG(mode,id){
  const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),15000);
 }
 
-$('#exportBtn').onclick=()=>{let blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='school-timetable-v0.9.8.2-backup.json';a.click();URL.revokeObjectURL(a.href)};
+$('#exportBtn').onclick=()=>{let blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='school-timetable-v0.9.8.3-backup.json';a.click();URL.revokeObjectURL(a.href)};
 $('#importFile').onchange=e=>{let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{const incoming=migrate(JSON.parse(r.result));
  if(!Array.isArray(incoming.sections)||!Array.isArray(incoming.assignments)||!Array.isArray(incoming.timetable))throw Error('بيانات غير مكتملة');
  const oldCount=db.timetable?.length||0,newCount=incoming.timetable.length;

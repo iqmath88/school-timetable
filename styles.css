@@ -106,3 +106,12 @@
 .unified-preview{margin-top:20px;border:1px solid #d8e0e8;background:#edf1f5;border-radius:14px;padding:12px}
 .unified-preview iframe{display:block;width:100%;height:720px;border:1px solid #cbd5df;background:#fff;border-radius:8px}
 @media(max-width:800px){.unified-preview{padding:5px}.unified-preview iframe{height:560px}}
+
+/* v0.9.8.3: shared full-width stage timetable, overrides historical fixed widths */
+.print-preview .tt-wrap{width:100%!important;max-width:100%!important;overflow-x:auto!important}
+.print-preview table.compact-timetable{width:100%!important;max-width:100%!important;min-width:0!important;table-layout:fixed!important;margin:3px 0!important}
+.print-preview table.compact-timetable col.day-col{width:28px!important}
+.print-preview table.compact-timetable col.period-col{width:28px!important}
+.print-preview table.compact-timetable col.subject-col{width:auto!important}
+.print-preview table.compact-timetable td.lesson{max-width:none!important}
+@media print{.print-preview table.compact-timetable,table.compact-timetable{width:100%!important;max-width:100%!important;min-width:0!important;table-layout:fixed!important;margin:3px 0!important}.print-preview .tt-wrap{overflow:visible!important}}
