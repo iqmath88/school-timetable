@@ -1,15 +1,5 @@
-# School Timetable v0.9.8.0 — حل موثّق لبيانات المدرسة
+# School Timetable v0.9.8.1 — Formal Print Design
 
-## النتيجة
-تم إيجاد جدول كامل من 692 حصة باستخدام نموذج برمجة عددية صحيحة خارج المتصفح، ثم اجتاز الجدول مدقق التطبيق الأصلي `validateExistingSchedule`.
+Based on v0.9.8.0. Adds configurable formal academic print header/footer, centered school logo upload (PNG/JPG up to 1 MB), teacher-name visibility, notes, signatures, cell density, and saved print preferences in the existing JSON backup. No timetable generation or scheduling constraint logic intentionally changed.
 
-## تعارض تم اكتشافه
-المدرس وسام نافع: 10 حصص، 4 أيام لازمة لتوزيع تكليفاته، والحد الأدنى اليومي 3 يفرض 12 حصة. تعديل `minDaily` من 3 إلى 2 يجعل الحل المرفق صالحاً. **هذا التعديل موجود فقط في نسخة JSON المرفقة، ولا يغيّر بيانات المستخدم تلقائياً.**
-
-## التثبيت
-ارفع الملفات الخمسة إلى جذر GitHub Pages. للحصول على الجدول المكتمل فوراً، صدّر أولاً نسخة احتياطية من بيانات Safari الحالية، ثم استورد `School_Timetable_692_Solved_Backup.json` من واجهة التطبيق. الاستيراد يستبدل بيانات المدرسة الحالية بالبيانات المرفقة؛ راجع أي تغييرات أحدث قبل الاستيراد.
-
-إذا كانت بيانات التطبيق مطابقة للنسخة المرفقة وتم ضبط الحد الأدنى اليومي لوسام نافع على 2، يمكن لمحرك التوليد إعادة استخدام الحل الموثّق بعد التحقق منه. هذا ليس محرك MILP عاماً داخل المتصفح، ولا يضمن حل مجموعات بيانات مختلفة.
-
-## إصلاح إضافي
-تحديث مراقب السلامة من 95 إلى 195 ثانية حتى لا يوقف المحرك قبل مهلة البحث الداخلية (180 ثانية). لا يعني ذلك أن البحث التراجعي سيجد دائماً حلاً جديداً.
+Upload all five root files to GitHub Pages. Export a JSON backup before updating.
