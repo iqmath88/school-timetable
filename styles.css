@@ -49,3 +49,18 @@
 .day-row.day-d6>th,.day-label.day-d6{background:#f2ebdf!important;color:#745a31!important}
 .stage-period-input{min-width:48px!important;width:58px!important;padding:6px!important;text-align:center}
 @media print{.day-row>th,.day-label,.lesson{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}
+
+/* v0.9.6.3 — compact academic timetable, merged vertical days */
+.compact-timetable{direction:rtl;table-layout:auto;border-collapse:collapse;border-spacing:0;min-width:0;width:max-content;max-width:none;margin:0;font-size:12px}
+.compact-timetable th,.compact-timetable td{border:1px solid #c4d0dd;text-align:center;vertical-align:middle;padding:4px 5px;line-height:1.25;overflow-wrap:break-word;word-break:normal}
+.compact-timetable thead th{background:#e8eef5;color:#234461;font-weight:800;position:static;white-space:normal}
+.compact-timetable .day-label{width:34px;min-width:34px;max-width:34px;padding:0!important;vertical-align:middle}
+.compact-timetable .vertical-day{display:block;writing-mode:vertical-rl;transform:rotate(180deg);font-weight:900;font-size:15px;letter-spacing:.4px;white-space:nowrap;margin:auto}
+.compact-timetable .period-number{width:32px;min-width:32px;max-width:32px;padding:2px!important;font-weight:800}
+.compact-timetable td.lesson{min-width:94px;max-width:170px;border-radius:0;padding:5px 6px;white-space:normal}
+.compact-timetable td.lesson b{font-size:12px;line-height:1.3;overflow-wrap:break-word}
+.compact-timetable td.lesson small{font-size:10px;line-height:1.3;overflow-wrap:break-word}
+.compact-timetable .day-row:nth-child(even) td:not(.lesson){background:#f6f9fc}
+.print-preview .compact-timetable{width:100%;table-layout:auto}
+.print-preview .compact-timetable td.lesson{min-width:0}
+@media print{.compact-timetable{width:100%;table-layout:auto}.compact-timetable td.lesson{min-width:0;max-width:none}.compact-timetable .day-label{width:28px;min-width:28px;max-width:28px}}
