@@ -115,3 +115,10 @@
 .print-preview table.compact-timetable col.subject-col{width:auto!important}
 .print-preview table.compact-timetable td.lesson{max-width:none!important}
 @media print{.print-preview table.compact-timetable,table.compact-timetable{width:100%!important;max-width:100%!important;min-width:0!important;table-layout:fixed!important;margin:3px 0!important}.print-preview .tt-wrap{overflow:visible!important}}
+
+/* v0.9.8.5 application chrome: navy and muted gold */
+:root{--accent:#102C50;--ink:#102C50;--bg:#F6F5F1;--line:#DCE2E8}
+body>header{background:#102C50!important;border-bottom:4px solid #C8A65A!important}
+button:not(.danger):not(.secondary):not(.warn){background:#102C50}
+.step.active{background:#102C50!important;border-bottom:2px solid #C8A65A!important}
+.design-options h3{color:#102C50!important;border-bottom-color:#C8A65A!important}
