@@ -7,7 +7,7 @@ function generate(db){
  const at=assignments.map(a=>ti.get(a.teacherId)),as=assignments.map(a=>si.get(a.sectionId));
  const cap=sections.map(sec=>days.map(d=>Math.min(d.periods,Math.max(0,+(db.stageDayPeriods?.[sec.stageId]?.[d.id]??d.periods)))));
  const total=assignments.reduce((n,a)=>n+(+a.weeklyPeriods||0),0),remaining=assignments.map(a=>+a.weeklyPeriods),tRules=teachers.map(t=>db.teacherRules[t.id]||{});
- const maxDaily=tRules.map(r=>+r.maxDaily>0?+r.maxDaily:99),busy=new Set(),used=sections.map(()=>days.map(()=>new Set())),teacherDay=teachers.map(()=>new Int8Array(D)),assDay=assignments.map(()=>new Int8Array(D));
+ const maxDaily=tRules.map(r=>+r.maxDaily>0?+r.maxDaily:99),minDaily=tRules.map(r=>Math.max(0,+r.minDaily||0)),busy=new Set(),used=sections.map(()=>days.map(()=>new Set())),teacherDay=teachers.map(()=>new Int8Array(D)),assDay=assignments.map(()=>new Int8Array(D));
  const fixed=new Map(),entries=[];let nodes=0,bestDepth=0,stop='';
  const key=(t,d,p)=>t+'|'+d+'|'+p;
  function subjectRule(i){const r=db.subjectRules?.[assignments[i].subjectId]||{};return r.stageId&&r.stageId!==sections[as[i]].stageId?{}:r.strict==='soft'?{}:r}
@@ -25,7 +25,7 @@ function generate(db){
  const slots=[];for(let s=0;s<sections.length;s++)for(let d=0;d<D;d++)for(let p=1;p<=quota[s][d];p++)slots.push({s,d,p});
  const ordered=slots.map((x,i)=>({...x,idx:i})),assignmentBySection=sections.map((_,s)=>assignments.map((a,i)=>as[i]===s?i:-1).filter(i=>i>=0));
  let failed=false;
- function dfs(left){if(!left)return true;if((++nodes&511)===0){if(Date.now()>deadline){stop='time';return false}if(nodes%4096===0)self.postMessage({type:'progress',nodes,bestDepth:best,placed:entries.length,total})}if(entries.length>best)best=entries.length;
+ function dfs(left){if(!left)return teacherDay.every((row,t)=>row.every(n=>!n||n>=minDaily[t]));if((++nodes&511)===0){if(Date.now()>deadline){stop='time';return false}if(nodes%4096===0)self.postMessage({type:'progress',nodes,bestDepth:best,placed:entries.length,total})}if(entries.length>best)best=entries.length;
  let chosen=null,choices=null;
  for(const sl of ordered){if(used[sl.s][sl.d].has(sl.p))continue;const prior=sl.p===1||used[sl.s][sl.d].has(sl.p-1);if(!prior)continue;
  const pinned=fixed.get(sl.s+'|'+sl.d+'|'+sl.p);const choicesHere=(pinned!==undefined?[pinned]:assignmentBySection[sl.s]).filter(i=>can(i,sl.d,sl.p,quota));
@@ -34,9 +34,10 @@ function generate(db){
  if(!chosen)return false;
  // Necessary-condition pruning: every remaining assignment must retain enough compatible free slots.
  // This catches impossible branches early instead of exploring millions of deeper permutations.
- for(let i=0;i<A;i++)if(remaining[i]>0){let free=0;const sec=as[i];for(let d=0;d<D;d++){if(teacherDay[at[i]][d]>=maxDaily[at[i]])continue;let dayFree=0;for(let p=1;p<=quota[sec][d];p++){const pinned=fixed.get(sec+'|'+d+'|'+p);if(pinned!==undefined&&pinned!==i)continue;if(can(i,d,p,quota))dayFree++;}free+=Math.min(dayFree,maxDaily[at[i]]-teacherDay[at[i]][d]);}if(free<remaining[i])return false;}
- choices.sort((a,b)=>{const ra=tRules[at[a]],rb=tRules[at[b]];const score=i=>{const r=tRules[at[i]],p=chosen.p,d=chosen.d;let available=0;for(let dd=0;dd<D;dd++)for(let pp=1;pp<=quota[as[i]][dd];pp++)if(!(r.unavailable?.[days[dd].id]||[]).includes(pp))available++;return available/(remaining[i]||1)+(assDay[i][d]?15:0)+((r.avoid||[]).includes(p)?3:0)-((r.preferred||[]).includes(p)?1:0)};return score(a)-score(b)});
+ for(let i=0;i<A;i++)if(remaining[i]>0){let free=0;const sec=as[i];for(let d=0;d<D;d++){if(teacherDay[at[i]][d]>=maxDaily[at[i]])continue;let dayFree=0;for(let p=1;p<=quota[sec][d];p++){const pinned=fixed.get(sec+'|'+d+'|'+p);if(pinned!==undefined&&pinned!==i)continue;if(can(i,d,p,quota))dayFree++;}const sr=subjectRule(i);const usedSame=sr.noRepeat&&entries.some(x=>x.sectionId===assignments[i].sectionId&&x.subjectId===assignments[i].subjectId&&x.dayId===days[d].id);free+=usedSame?0:Math.min(dayFree,maxDaily[at[i]]-teacherDay[at[i]][d],sr.noRepeat?1:99);}if(free<remaining[i])return false;}
+ choices.sort((a,b)=>{const score=i=>{const r=tRules[at[i]],p=chosen.p,d=chosen.d;return (remaining[i]?1/remaining[i]:99)+(assDay[i][d]?12:0)-(teacherDay[at[i]][d]>0&&teacherDay[at[i]][d]<minDaily[at[i]]?6:0)+((r.avoid||[]).includes(p)?3:0)-((r.preferred||[]).includes(p)?1:0)};return score(a)-score(b)});
  for(const i of choices){put(i,chosen.d,chosen.p,fixed.has(chosen.s+'|'+chosen.d+'|'+chosen.p));if(dfs(left-1))return true;undo();if(stop)return false}return false}
+ if([...fixed.keys()].some(k=>{const [s,d,p]=k.split('|').map(Number);return p>quota[s][d]}))continue;
  if(dfs(total)){return {ok:true,entries:entries.map(({_i,_d,_p,...x})=>x),nodes,bestDepth:total,message:`تم توزيع ${total} حصة دون فراغات داخلية، مع تطبيق قيود المواد الإلزامية.`}}
  if(stop)break;
  // Ensure all search state was undone before trying a different daily distribution.
