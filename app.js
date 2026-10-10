@@ -346,6 +346,29 @@ function feasibility(){
 
 
 function teacherShort(name){return String(name||'').trim().split(/\s+/).slice(0,2).join(' ')}
+// Print-only compact teacher label. Resolve collisions among different teachers.
+function printTeacherLabels(){
+ const byId=new Map(), groups=new Map();
+ for(const t of db.teachers){
+  const parts=String(t.name||'').trim().split(/\s+/).filter(Boolean);
+  const short=parts.length>1?`${parts[0]} ${Array.from(parts[1])[0]}.`:(parts[0]||'—');
+  byId.set(t.id,short);
+  if(!groups.has(short))groups.set(short,[]);
+  groups.get(short).push(t);
+ }
+ for(const [label,teachers] of groups){
+  if(teachers.length<2)continue;
+  for(const t of teachers){
+   const parts=String(t.name||'').trim().split(/\s+/).filter(Boolean);
+   byId.set(t.id,parts.length>2?`${parts[0]} ${parts[1]} ${Array.from(parts[2])[0]}.`:parts.join(' '));
+  }
+ }
+ // Never leave two distinct teachers with the same printed label.
+ const secondGroups=new Map();
+ for(const [id,label] of byId){if(!secondGroups.has(label))secondGroups.set(label,[]);secondGroups.get(label).push(id)}
+ for(const [label,ids] of secondGroups){if(ids.length>1)ids.forEach(id=>byId.set(id,db.teachers.find(t=>t.id===id)?.name||label))}
+ return byId;
+}
 function slotKey(dayId,period){return dayId+'|'+period}
 // Generation runs in generator-worker.js; do not run backtracking on the UI thread.
 let generationWorker=null;
@@ -410,6 +433,7 @@ function timetableTable(stageIds=null, groupedPrint=false){
   });
   const tableWidth=50+columnWidths.reduce((a,b)=>a+b,0);
   const maxP=Math.max(...db.days.filter(d=>d.active).map(d=>d.periods));
+  const shortPrintNames=printTeacherLabels();
   let rows='';
   db.days.filter(d=>d.active).sort((a,b)=>a.order-b.order).forEach(d=>{
     for(let p=1;p<=d.periods;p++){
@@ -417,7 +441,7 @@ function timetableTable(stageIds=null, groupedPrint=false){
         const e=db.timetable.find(x=>x.sectionId===sec.id&&x.dayId===d.id&&x.period===p);
         if(p>sectionDayPeriods(sec,d))return '<td class="tt-off">—</td>';if(!e)return '<td class="tt-empty">—</td>';
         const su=db.subjects.find(x=>x.id===e.subjectId),t=db.teachers.find(x=>x.id===e.teacherId);
-        return `<td class="lesson" style="background:${db.stages.find(g=>g.id===sec.stageId)?.color||'#eef4fa'}22;border-top:3px solid ${db.stages.find(g=>g.id===sec.stageId)?.color||'#a0aec0'}"><b>${esc(su?.name||'—')}</b><small>${esc(teacherShort(t?.name))}</small></td>`;
+        return `<td class="lesson" style="background:${db.stages.find(g=>g.id===sec.stageId)?.color||'#eef4fa'}22;border-top:3px solid ${db.stages.find(g=>g.id===sec.stageId)?.color||'#a0aec0'}"><span class="lesson-inline"><b>${esc(su?.name||'—')}</b><span class="lesson-sep"> / </span><small>${esc(shortPrintNames.get(t?.id)||'—')}</small></span></td>`;
       }).join('')+'</tr>';
     }
   });
@@ -654,7 +678,11 @@ html,body{margin:0!important;padding:0!important;background:white!important;colo
 .school-print-page table.compact-timetable .vertical-day{display:inline-block!important;writing-mode:vertical-rl!important;transform:rotate(180deg)!important;white-space:nowrap!important;font-size:11px!important;font-weight:900!important}
 .school-print-page table.compact-timetable .period-number{width:7mm!important;background:#e8eef5!important;font-size:9px!important;font-weight:900!important}
 .school-print-page table.compact-timetable td.lesson b{display:block!important;margin:0!important;font-size:10px!important;line-height:1.08!important;font-weight:800!important}
-.school-print-page table.compact-timetable td.lesson small{display:block!important;margin:0!important;font-size:8.6px!important;line-height:1.08!important;font-weight:600!important;color:#34475c!important}
+.school-print-page table.compact-timetable td.lesson small{display:inline!important;margin:0!important;font-size:11.2px!important;line-height:1.12!important;font-weight:700!important;color:#26374a!important}
+.school-print-page table.compact-timetable td.lesson .lesson-inline{display:block!important;text-align:center!important;line-height:1.12!important;overflow-wrap:normal!important;word-break:normal!important}
+.school-print-page table.compact-timetable td.lesson .lesson-inline b{display:inline!important;font-size:11.8px!important;line-height:1.12!important;font-weight:900!important}
+.school-print-page table.compact-timetable td.lesson .lesson-sep{display:inline!important;font-size:10px!important;font-weight:600!important}
+.school-print-page.hide-teachers td.lesson .lesson-sep{display:none!important}
 .school-print-page table.compact-timetable tbody tr:has(.day-label)>td,.school-print-page table.compact-timetable tbody tr:has(.day-label)>th{border-top:.5mm solid #C8A65A!important}
 .school-print-page .print-footer{display:block!important;height:17mm!important;min-height:17mm!important;max-height:17mm!important;overflow:hidden!important;margin:2mm 0 0!important;padding:1mm 2mm!important;border-top:.4mm solid #C8A65A!important;font-size:8px!important;line-height:1.1!important}
 .school-print-page .print-reasons p{margin:.5mm 0!important}

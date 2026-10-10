@@ -1,1 +1,1 @@
-v0.9.10.0: Increased school print subject font 8.7px to 10px and teacher font 7.2px to 8.6px; reduced horizontal cell padding. Kept print row height 5.85mm, page rules, timetable data and generator unchanged. Verify A3 landscape print on iPad; long labels may wrap.
+الإصدار v0.9.10.1 — عرض المادة / الاسم الأول والحرف الأول من الاسم الثاني داخل خلايا جداول الشعب، مع معالجة الأسماء المتشابهة. تبقى أبعاد الخلايا ومحرك التوليد دون تغيير. احتفظ بنسخة JSON احتياطية قبل التحديث.
