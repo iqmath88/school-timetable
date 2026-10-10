@@ -1,1 +1,1 @@
-الإصدار v0.9.9.7: توحيد قواعد الطباعة وإزالة التعارضات القديمة؛ A3 أفقي، صفحتان مستقلتان. لم يتم تعديل محرك التوليد أو بيانات الحصص.
+v0.9.9.8 iPad print pagination hotfix. A3 landscape. Reduced fixed sheet from 286mm to 275mm and rows from 6.65mm to 5.85mm to accommodate WebKit pagination. No timetable generation changes. Actual iPad print validation pending.
