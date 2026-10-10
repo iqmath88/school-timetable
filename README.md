@@ -7,3 +7,6 @@
 - Retains A3 landscape, grouped stages, color/BW printing and two-sheet page-break rules.
 - Important: verify the actual Safari PDF still has exactly two pages before official use; browser paper settings can override CSS.
 - Back up JSON before deploying.
+
+
+v0.9.9.2: رفع قيد قص الرأس الرسمي وزيادة ارتفاع خلايا الجداول للاستفادة من الفراغ السفلي في A3؛ لم يتغير محرك التوليد أو بيانات الجدول.

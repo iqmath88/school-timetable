@@ -764,6 +764,17 @@ table.compact-timetable td.lesson small{display:block!important;font-size:7px!im
 .school-print-page .print-signatures b{font-size:10px!important}
 .school-print-page .print-signatures span{font-size:9px!important}
 .school-print-page.print-bw table.compact-timetable td.lesson small{color:#333!important}
+/* v0.9.9.2: restore unclipped heading and use blank lower A3 area. */
+.school-print-page .formal-head{height:auto!important;min-height:103px!important;overflow:visible!important;padding:8px 12px!important;margin-bottom:5px!important;align-items:center!important}
+.school-print-page .formal-center h1{font-size:19pt!important;line-height:1.16!important;margin:0 0 2px!important}
+.school-print-page .formal-center h2{font-size:24pt!important;line-height:1.2!important;margin:0 0 2px!important}
+.school-print-page .formal-center h3{font-size:12pt!important;line-height:1.2!important;margin:0!important}
+.school-print-page .formal-side{font-size:10px!important;line-height:1.4!important}
+.school-print-page table.compact-timetable tbody tr{height:22px!important;max-height:none!important}
+.school-print-page table.compact-timetable tbody td,.school-print-page table.compact-timetable tbody th{height:22px!important;padding:2px 2px!important;line-height:1.12!important}
+.school-print-page table.compact-timetable td.lesson b{font-size:10.5px!important;line-height:1.12!important}
+.school-print-page table.compact-timetable td.lesson small{font-size:9px!important;line-height:1.12!important}
+.school-print-page .print-footer{margin-top:9px!important}
 @media print{*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}html,body{margin:0!important;padding:0!important}.school-print-page{break-after:page!important;page-break-after:always!important}.school-print-page:last-child{break-after:auto!important;page-break-after:auto!important}}
 
 `}
