@@ -652,32 +652,32 @@ table.compact-timetable td.lesson small{display:block!important;font-size:7px!im
 .formal-side{font-size:10px;line-height:1.65;font-weight:600}.formal-side:last-child{text-align:left}.formal-side small{font-size:9px}.formal-center{text-align:center}.formal-center h1{font-size:20pt;margin:0 0 1px;font-weight:900}.formal-center h2{font-size:27pt;margin:0;font-weight:900;line-height:1.15}.formal-center h3{font-size:16pt;margin:2px 0 0;color:#50637a;font-weight:700}.school-logo{display:block;width:44px;height:44px;object-fit:contain;margin:0 auto 2px}
 .print-footer{border-top:1px solid #c4a468!important;margin-top:6px!important;padding:5px!important;font-size:9px!important;white-space:normal!important}.print-reasons p{margin:2px 0}.print-signatures{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;text-align:center;margin-top:8px}.print-signatures b,.print-signatures span{display:block}.print-signatures span{margin-top:5px;color:#526277}
 .hide-teachers td.lesson small{display:none!important}.density-medium table.compact-timetable td,.density-medium table.compact-timetable th{padding:3px!important;line-height:1.2!important}.density-wide table.compact-timetable td,.density-wide table.compact-timetable th{padding:5px!important;line-height:1.35!important}
-/* v0.9.9.3 — single authoritative A3 print geometry; no conflicting historical overrides */
-@page{size:A3 landscape;margin:5mm}
-html,body{width:100%;margin:0!important;padding:0!important}
-.print-sheet.school-print-page{display:block!important;width:100%!important;max-height:none!important;height:auto!important;overflow:visible!important;break-inside:avoid!important;page-break-inside:avoid!important;break-after:page!important;page-break-after:always!important}
+/* v0.9.9.4 — bounded two-sheet A3 layout, Safari-safe */
+@page{size:420mm 297mm;margin:4mm}
+html,body{margin:0!important;padding:0!important;width:100%!important}
+.print-sheet.school-print-page{display:flex!important;flex-direction:column!important;width:100%!important;height:286mm!important;max-height:286mm!important;overflow:hidden!important;break-inside:avoid!important;page-break-inside:avoid!important;break-after:page!important;page-break-after:always!important}
 .print-sheet.school-print-page:last-child{break-after:auto!important;page-break-after:auto!important}
-.school-print-page .formal-head{display:grid!important;grid-template-columns:1fr 2.8fr 1fr!important;align-items:center!important;min-height:25mm!important;height:25mm!important;overflow:visible!important;padding:2mm 4mm!important;margin:0 0 1.5mm!important;background:#102C50!important;color:#fff!important;border-bottom:1mm solid #C8A65A!important}
-.school-print-page .formal-center h1{font-size:17pt!important;line-height:1.2!important;margin:0!important;color:#E7CB8E!important}
-.school-print-page .formal-center h2{font-size:22pt!important;line-height:1.25!important;margin:0!important;color:#fff!important}
-.school-print-page .formal-center h3{font-size:11pt!important;line-height:1.2!important;margin:0!important;color:#fff!important}
-.school-print-page .formal-side,.school-print-page .formal-side small{font-size:9px!important;line-height:1.5!important;color:#fff!important}
-.school-print-page .school-logo{width:10mm!important;height:10mm!important;object-fit:contain!important}
-.school-print-page .tt-wrap{overflow:visible!important;width:100%!important}
-.school-print-page table.compact-timetable{width:100%!important;table-layout:fixed!important;border-collapse:collapse!important;margin:0!important}
-.school-print-page table.compact-timetable thead tr.stage-groups th{height:6mm!important;padding:.5mm!important;background:#102C50!important;color:#fff!important;font-size:10px!important;border:1px solid #C8A65A!important}
-.school-print-page table.compact-timetable thead tr.section-names th{height:5mm!important;padding:.4mm!important;background:#24466D!important;color:#fff!important;font-size:9px!important;border:1px solid #C8A65A!important}
-.school-print-page table.compact-timetable tbody tr{height:5.9mm!important;break-inside:avoid!important;page-break-inside:avoid!important}
-.school-print-page table.compact-timetable tbody td,.school-print-page table.compact-timetable tbody th{height:5.9mm!important;padding:.3mm .35mm!important;line-height:1.12!important;vertical-align:middle!important}
-.school-print-page table.compact-timetable td.lesson b{display:block!important;font-size:9.2px!important;line-height:1.12!important;font-weight:900!important;margin:0!important}
-.school-print-page table.compact-timetable td.lesson small{display:block!important;font-size:7.8px!important;line-height:1.1!important;margin:0!important;color:#45566a!important}
+.school-print-page .formal-head{flex:0 0 19mm!important;min-height:19mm!important;height:19mm!important;display:grid!important;grid-template-columns:1fr 2.8fr 1fr!important;align-items:center!important;overflow:hidden!important;margin:0 0 1mm!important;padding:1mm 4mm!important;background:#102C50!important;color:#fff!important;border-bottom:.7mm solid #C8A65A!important}
+.school-print-page .formal-center h1{font-size:14pt!important;line-height:1.15!important;margin:0!important;color:#E7CB8E!important}
+.school-print-page .formal-center h2{font-size:18pt!important;line-height:1.15!important;margin:0!important;color:#fff!important}
+.school-print-page .formal-center h3{font-size:9pt!important;line-height:1.15!important;margin:0!important;color:#fff!important}
+.school-print-page .formal-side,.school-print-page .formal-side small{font-size:8px!important;line-height:1.35!important;color:#fff!important}
+.school-print-page .school-logo{width:9mm!important;height:9mm!important;object-fit:contain!important}
+.school-print-page .tt-wrap{flex:1 1 auto!important;min-height:0!important;height:auto!important;overflow:hidden!important;width:100%!important}
+.school-print-page table.compact-timetable{height:100%!important;width:100%!important;table-layout:fixed!important;border-collapse:collapse!important;margin:0!important}
+.school-print-page table.compact-timetable thead tr.stage-groups th{height:5mm!important;padding:.2mm!important;background:#102C50!important;color:#fff!important;font-size:9px!important;border:1px solid #C8A65A!important}
+.school-print-page table.compact-timetable thead tr.section-names th{height:4mm!important;padding:.2mm!important;background:#24466D!important;color:#fff!important;font-size:9px!important;border:1px solid #C8A65A!important}
+.school-print-page table.compact-timetable tbody tr{height:auto!important;break-inside:avoid!important;page-break-inside:avoid!important}
+.school-print-page table.compact-timetable tbody td,.school-print-page table.compact-timetable tbody th{height:auto!important;padding:0 .35mm!important;line-height:1.05!important;vertical-align:middle!important}
+.school-print-page table.compact-timetable td.lesson b{display:block!important;font-size:9px!important;line-height:1.07!important;font-weight:900!important;margin:0!important}
+.school-print-page table.compact-timetable td.lesson small{display:block!important;font-size:7.6px!important;line-height:1.05!important;margin:0!important;color:#45566a!important}
 .school-print-page table.compact-timetable th.period-number{font-size:9px!important}
-.school-print-page table.compact-timetable tbody tr:has(.day-label)>td,.school-print-page table.compact-timetable tbody tr:has(.day-label)>th{border-top:2px solid #C8A65A!important}
-.school-print-page .print-footer{margin:2mm 0 0!important;padding:1mm 2mm!important;border-top:2px solid #C8A65A!important;font-size:9px!important;line-height:1.25!important}
-.school-print-page .print-reasons p{margin:1mm 0!important}
-.school-print-page .print-signatures{margin-top:2mm!important;padding-top:2mm!important;gap:5mm!important}
-.school-print-page .print-signatures b{font-size:10px!important}
-.school-print-page .print-signatures span{margin-top:1mm!important;font-size:8px!important}
+.school-print-page table.compact-timetable tbody tr:has(.day-label)>td,.school-print-page table.compact-timetable tbody tr:has(.day-label)>th{border-top:1.5px solid #C8A65A!important}
+.school-print-page .print-footer{flex:0 0 14mm!important;height:14mm!important;overflow:hidden!important;margin:1mm 0 0!important;padding:.7mm 2mm!important;border-top:1.5px solid #C8A65A!important;font-size:8px!important;line-height:1.1!important}
+.school-print-page .print-reasons p{margin:.5mm 0!important}
+.school-print-page .print-signatures{margin-top:1mm!important;padding-top:1mm!important;gap:4mm!important}
+.school-print-page .print-signatures b{font-size:9px!important}
+.school-print-page .print-signatures span{margin-top:.5mm!important;font-size:7px!important}
 .school-print-page.print-bw .formal-head{background:#fff!important;color:#000!important;border:2px solid #222!important}
 .school-print-page.print-bw .formal-center h1,.school-print-page.print-bw .formal-center h2,.school-print-page.print-bw .formal-center h3,.school-print-page.print-bw .formal-side,.school-print-page.print-bw .formal-side small{color:#000!important}
 .school-print-page.print-bw table.compact-timetable thead th{background:#e5e5e5!important;color:#000!important;border-color:#555!important}
