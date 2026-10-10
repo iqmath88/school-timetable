@@ -1,5 +1,1 @@
-الإصدار v0.9.9.5
-- إضافة زر «تنزيل / حفظ PDF» يفتح طباعة Safari لحفظ PDF في الملفات.
-- تقليص الارتفاع المخصص للورقة احترازياً لتقليل انقسام صفحات A3.
-- لا تزال صور PNG تُنشأ بمحرك مستقل؛ لم يُحل اختلافها عن قالب الطباعة بالكامل.
-- لم تُغيّر بيانات الجدول أو خوارزمية التوليد.
+School Timetable v0.9.9.6 — A3 print pagination correction. Removes forced 100% table height and flex stretching; uses fixed 6.1mm lesson rows to avoid a fifth-day spill onto extra pages. PDF via browser print/save. Backup JSON before updating. PNG export remains a separate rendering path and is not yet visually identical to PDF.
