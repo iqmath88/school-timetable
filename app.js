@@ -702,6 +702,28 @@ table.compact-timetable td.lesson small{display:block!important;font-size:7px!im
 .school-print-page.print-bw table.compact-timetable thead tr.section-names th{background:#ededed!important;color:#000!important;border-color:#555!important}
 .school-print-page.print-bw table.compact-timetable tbody tr:has(.day-label) td,.school-print-page.print-bw table.compact-timetable tbody tr:has(.day-label) th{border-top:2px solid #333!important}
 .school-print-page.print-bw .formal-center h1,.school-print-page.print-bw .formal-center h2{color:#000!important}
+/* v0.9.8.9: stronger visual hierarchy without changing timetable data */
+.school-print-page{display:flex!important;flex-direction:column!important;min-height:0!important}
+.school-print-page .formal-head{padding:8px 14px!important;margin-bottom:5px!important;min-height:93px!important}
+.school-print-page .formal-center h1{font-size:20pt!important;line-height:1.13!important}
+.school-print-page .formal-center h2{font-size:27pt!important;line-height:1.14!important;margin:2px 0!important}
+.school-print-page .formal-center h3{font-size:15pt!important;line-height:1.15!important}
+.school-print-page .formal-side{font-size:11px!important;line-height:1.55!important}
+.school-print-page table.compact-timetable{margin:4px 0 5px!important}
+.school-print-page table.compact-timetable thead tr.stage-groups th.stage-group-title{height:27px!important;font-size:13px!important;font-weight:900!important;border-inline-start:3px solid #C8A65A!important}
+.school-print-page table.compact-timetable thead tr.section-names th{height:23px!important;font-size:12px!important;font-weight:900!important}
+.school-print-page table.compact-timetable tbody td,.school-print-page table.compact-timetable tbody th{height:19px!important;padding:2px 2px!important}
+.school-print-page table.compact-timetable td.lesson b{font-size:11px!important;line-height:1.14!important;font-weight:900!important;letter-spacing:0!important}
+.school-print-page table.compact-timetable td.lesson small{font-size:9.4px!important;line-height:1.13!important;margin-top:1px!important;color:#43546A!important}
+.school-print-page table.compact-timetable tbody tr:has(.day-label)>td,.school-print-page table.compact-timetable tbody tr:has(.day-label)>th{border-top:3px solid #C8A65A!important}
+.school-print-page table.compact-timetable th.day-label{border-left:2px solid #C8A65A!important}
+.school-print-page table.compact-timetable th.period-number{font-size:11px!important}
+.school-print-page .print-footer{margin-top:5px!important;padding:5px 7px!important;font-size:10px!important}
+.school-print-page .print-signatures{margin-top:6px!important;padding-top:6px!important;gap:20px!important}
+.school-print-page .print-signatures b{font-size:11px!important}
+.school-print-page .print-signatures span{margin-top:5px!important;font-size:9px!important}
+.school-print-page.print-bw table.compact-timetable tbody tr:has(.day-label)>td,.school-print-page.print-bw table.compact-timetable tbody tr:has(.day-label)>th{border-top:3px solid #444!important}
+.school-print-page.print-bw table.compact-timetable thead tr.stage-groups th.stage-group-title{border-inline-start-color:#555!important}
 @media print{*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}
 
 `}
