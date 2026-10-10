@@ -1,1 +1,1 @@
-v0.9.9.9 iPad pagination correction. Removed forced page-break-after on each sheet and conflicting fixed/min heights, containment and break-inside rules. A single page-break-before is applied to the second stage only. School data and generator unchanged. Browser print verification on iPad still required.
+v0.9.10.0: Increased school print subject font 8.7px to 10px and teacher font 7.2px to 8.6px; reduced horizontal cell padding. Kept print row height 5.85mm, page rules, timetable data and generator unchanged. Verify A3 landscape print on iPad; long labels may wrap.
