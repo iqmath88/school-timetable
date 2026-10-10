@@ -1,8 +1,9 @@
-# School Timetable v0.9.9.0 — print pagination fix
+# School Timetable v0.9.9.1 — A3 print legibility refinement
 
-- Reduced print-only row heights, header and footer spacing to avoid splitting the school timetable over four pages.
-- Retained grouped grade headings, teacher cards, color/BW printing, and scheduling data logic.
-- Print settings: A3 landscape, margins minimal, scale 100%, disable browser headers/footers.
-- Safari may override CSS paper size: choose A3 landscape explicitly in print dialog.
-- Always export a JSON backup before replacing app files.
-- PDF output on the target iPad Safari has not been verified.
+- School-wide timetable cells: increased print row height from 16px to 19px.
+- Subject text increased to 10px, teacher text to 8.5px, with better line spacing.
+- Improved print footer and signature legibility.
+- Only the school-wide print CSS changed. Teacher cards, timetable data, and generator remain unchanged.
+- Retains A3 landscape, grouped stages, color/BW printing and two-sheet page-break rules.
+- Important: verify the actual Safari PDF still has exactly two pages before official use; browser paper settings can override CSS.
+- Back up JSON before deploying.

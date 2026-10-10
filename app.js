@@ -749,6 +749,21 @@ table.compact-timetable td.lesson small{display:block!important;font-size:7px!im
 .school-print-page .print-signatures{margin-top:3px!important;padding-top:2px!important;gap:10px!important}
 .school-print-page .print-signatures b{font-size:9px!important}
 .school-print-page .print-signatures span{margin-top:2px!important;font-size:8px!important}
+/* v0.9.9.1: readable A3 cells without reintroducing four-page overflow.
+   Fixed modest row expansion uses the previously unused bottom whitespace.
+   This block applies ONLY to school-wide print pages, not teacher cards. */
+.school-print-page table.compact-timetable tbody tr{height:19px!important;max-height:none!important}
+.school-print-page table.compact-timetable tbody td,.school-print-page table.compact-timetable tbody th{height:19px!important;padding:1px 2px!important;line-height:1.08!important}
+.school-print-page table.compact-timetable td.lesson{padding:1px 3px!important}
+.school-print-page table.compact-timetable td.lesson b{font-size:10px!important;line-height:1.08!important;font-weight:900!important}
+.school-print-page table.compact-timetable td.lesson small{font-size:8.5px!important;line-height:1.08!important;margin-top:1px!important;color:#34445b!important}
+.school-print-page table.compact-timetable th.period-number{font-size:10px!important}
+.school-print-page table.compact-timetable th.day-label .vertical-day{font-size:13px!important}
+.school-print-page .print-footer{margin-top:6px!important;font-size:9px!important}
+.school-print-page .print-signatures{margin-top:6px!important;padding-top:4px!important}
+.school-print-page .print-signatures b{font-size:10px!important}
+.school-print-page .print-signatures span{font-size:9px!important}
+.school-print-page.print-bw table.compact-timetable td.lesson small{color:#333!important}
 @media print{*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}html,body{margin:0!important;padding:0!important}.school-print-page{break-after:page!important;page-break-after:always!important}.school-print-page:last-child{break-after:auto!important;page-break-after:auto!important}}
 
 `}
