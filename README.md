@@ -1,1 +1,1 @@
-School Timetable v0.9.9.6 — A3 print pagination correction. Removes forced 100% table height and flex stretching; uses fixed 6.1mm lesson rows to avoid a fifth-day spill onto extra pages. PDF via browser print/save. Backup JSON before updating. PNG export remains a separate rendering path and is not yet visually identical to PDF.
+الإصدار v0.9.9.7: توحيد قواعد الطباعة وإزالة التعارضات القديمة؛ A3 أفقي، صفحتان مستقلتان. لم يتم تعديل محرك التوليد أو بيانات الحصص.
