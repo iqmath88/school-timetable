@@ -1,1 +1,1 @@
-v0.9.9.8 iPad print pagination hotfix. A3 landscape. Reduced fixed sheet from 286mm to 275mm and rows from 6.65mm to 5.85mm to accommodate WebKit pagination. No timetable generation changes. Actual iPad print validation pending.
+v0.9.9.9 iPad pagination correction. Removed forced page-break-after on each sheet and conflicting fixed/min heights, containment and break-inside rules. A single page-break-before is applied to the second stage only. School data and generator unchanged. Browser print verification on iPad still required.

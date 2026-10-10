@@ -624,9 +624,9 @@ function printCSS(){return `
 @page{size:420mm 297mm;margin:4mm}
 *{box-sizing:border-box;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
 html,body{margin:0!important;padding:0!important;background:white!important;color:#19334e;font-family:Tahoma,Arial,sans-serif;direction:rtl}
-@media print{html,body{width:412mm!important} .print-sheet.school-print-page{position:relative!important;contain:layout!important}}
-.print-sheet.school-print-page{display:block!important;box-sizing:border-box!important;width:100%!important;height:275mm!important;max-height:275mm!important;min-height:275mm!important;margin:0!important;padding:0!important;overflow:hidden!important;break-after:page!important;page-break-after:always!important;break-inside:avoid!important;page-break-inside:avoid!important}
-.print-sheet.school-print-page:last-child{break-after:auto!important;page-break-after:auto!important}
+@media print{html,body{width:412mm!important;height:auto!important;overflow:visible!important} .print-sheet.school-print-page{position:static!important;contain:none!important}}
+.print-sheet.school-print-page{display:block!important;box-sizing:border-box!important;width:100%!important;height:auto!important;max-height:270mm!important;min-height:0!important;margin:0!important;padding:0!important;overflow:visible!important;break-after:auto!important;page-break-after:auto!important;break-inside:auto!important;page-break-inside:auto!important}
+@media print{.print-sheet.school-print-page + .print-sheet.school-print-page{break-before:page!important;page-break-before:always!important}}
 .school-print-page .formal-head{display:grid!important;grid-template-columns:1fr 2.7fr 1fr!important;align-items:center!important;gap:3mm!important;height:23mm!important;min-height:23mm!important;max-height:23mm!important;margin:0 0 2mm!important;padding:1mm 4mm!important;overflow:hidden!important;background:#102C50!important;color:#fff!important;border-bottom:.65mm solid #C8A65A!important}
 .school-print-page .formal-center{text-align:center!important}
 .school-print-page .formal-center h1{font-size:14pt!important;line-height:1.15!important;margin:0!important;color:#E7CB8E!important}
