@@ -1,5 +1,18 @@
 'use strict';
 self.onmessage=e=>{if(e.data.type!=='start')return;try{self.postMessage({type:'result',result:generate(e.data.db)})}catch(err){self.postMessage({type:'result',result:{ok:false,reason:'exception',message:String(err.stack||err)}})}};
+
+function advancedMatch(r,a,sec,dayId,p){
+ if(r.dayId&&r.dayId!==dayId)return false;
+ if(r.stageId&&r.stageId!==sec.stageId)return false;
+ if(r.sectionId&&r.sectionId!==sec.id)return false;
+ if(r.target==='teacher'&&r.teacherId!==a.teacherId)return false;
+ if(r.target==='subject'&&r.subjectId!==a.subjectId)return false;
+ return true;
+}
+function advancedAllowed(db,a,sec,dayId,p){
+ return !(db.advancedRules||[]).some(r=>r.strict!=='soft'&&advancedMatch(r,a,sec,dayId,p)&&(r.mode==='allow'?(p<r.from||p>r.to):(p>=r.from&&p<=r.to)));
+}
+
 function generate(db){
  const seed=validateExistingSchedule(db);
  // Explain a verified contradictory daily-minimum rule instead of silently searching.
@@ -54,7 +67,7 @@ function generate(db){
  const fixed=new Map(),fixedMax=sections.map(()=>new Int8Array(D)),entries=[];let nodes=0,bestDepth=0,stop='';
  const key=(t,d,p)=>t+'|'+d+'|'+p;
  function subjectRule(i){const r=db.subjectRules?.[assignments[i].subjectId]||{};return r.stageId&&r.stageId!==sections[as[i]].stageId?{}:r.strict==='soft'?{}:r}
- function can(i,d,p,quota){const t=at[i],s=as[i],r=tRules[t],sr=subjectRule(i);if(t===undefined||s===undefined||p>quota[s][d]||p<1||remaining[i]<1)return false;if(busy.has(key(t,d,p))||used[s][d].has(p)||teacherDay[t][d]>=maxDaily[t])return false;if((r.unavailable?.[days[d].id]||[]).includes(p))return false;const pin=fixed.get(s+'|'+d+'|'+p);if(pin!==undefined&&pin!==i)return false;if(sr.noFirst&&p===1||sr.noLast&&p===quota[s][d]||!repeatOK(i,d))return false;return true}
+ function can(i,d,p,quota){const t=at[i],s=as[i],r=tRules[t],sr=subjectRule(i);if(t===undefined||s===undefined||p>quota[s][d]||p<1||remaining[i]<1)return false;if(busy.has(key(t,d,p))||used[s][d].has(p)||teacherDay[t][d]>=maxDaily[t])return false;if((r.unavailable?.[days[d].id]||[]).includes(p))return false;if(!advancedAllowed(db,assignments[i],sections[s],days[d].id,p))return false;const pin=fixed.get(s+'|'+d+'|'+p);if(pin!==undefined&&pin!==i)return false;if(sr.noFirst&&p===1||sr.noLast&&p===quota[s][d]||!repeatOK(i,d))return false;return true}
  function put(i,d,p,locked=false){remaining[i]--;teacherDay[at[i]][d]++;assDay[i][d]++;busy.add(key(at[i],d,p));used[as[i]][d].add(p);entries.push({assignmentId:assignments[i].id,teacherId:assignments[i].teacherId,sectionId:assignments[i].sectionId,subjectId:assignments[i].subjectId,dayId:days[d].id,period:p,locked,_i:i,_d:d,_p:p})}
  function undo(){const x=entries.pop(),i=x._i,d=x._d,p=x._p;remaining[i]++;teacherDay[at[i]][d]--;assDay[i][d]--;busy.delete(key(at[i],d,p));used[as[i]][d].delete(p)}
  for(const f of db.fixedLessons||[]){const i=assignments.findIndex(a=>a.id===f.assignmentId),d=days.findIndex(x=>x.id===f.dayId);if(i<0||d<0)return {ok:false,reason:'fixed-conflict',message:'حصة مثبتة غير صالحة'};const s=as[i],p=+f.period;if(p>cap[s][d])return {ok:false,reason:'fixed-conflict',message:'حصة مثبتة خارج سعة الشعبة'};fixed.set(s+'|'+d+'|'+p,i);fixedMax[s][d]=Math.max(fixedMax[s][d],p)}
@@ -102,7 +115,7 @@ function generate(db){
   }
   if(capacity<demand){deadEndTeacher++;return false;}
  }
- choices.sort((a,b)=>{const score=i=>{const r=tRules[at[i]],p=chosen.p,d=chosen.d;return (remaining[i]?1/remaining[i]:99)+(assDay[i][d]?12:0)-(teacherDay[at[i]][d]>0&&teacherDay[at[i]][d]<minDaily[at[i]]?6:0)+((r.avoid||[]).includes(p)?3:0)-((r.preferred||[]).includes(p)?1:0)};return score(a)-score(b)||((a*37+attempt*53)%101)-((b*37+attempt*53)%101)});
+ choices.sort((a,b)=>{const score=i=>{const r=tRules[at[i]],p=chosen.p,d=chosen.d;return (remaining[i]?1/remaining[i]:99)+(assDay[i][d]?12:0)-(teacherDay[at[i]][d]>0&&teacherDay[at[i]][d]<minDaily[at[i]]?6:0)+((r.avoid||[]).includes(p)?3:0)-((r.preferred||[]).includes(p)?1:0)+((db.advancedRules||[]).some(ar=>ar.strict==='soft'&&advancedMatch(ar,assignments[i],sections[as[i]],days[d].id,p)&&(ar.mode==='allow'?(p>=ar.from&&p<=ar.to):!(p>=ar.from&&p<=ar.to)))?1.5:0)};return score(a)-score(b)||((a*37+attempt*53)%101)-((b*37+attempt*53)%101)});
  for(const i of choices){put(i,chosen.d,chosen.p,fixed.has(chosen.s+'|'+chosen.d+'|'+chosen.p));if(dfs(left-1))return true;undo();if(stop)return false}return false}
  if(quota.some((row,s)=>row.some((v,d)=>v<fixedMax[s][d])))continue;
  if(dfs(total)){return {ok:true,entries:entries.map(({_i,_d,_p,...x})=>x),nodes,bestDepth:total,message:`تم توزيع ${total} حصة دون فراغات داخلية، مع تطبيق قيود المواد الإلزامية.`}}
@@ -130,7 +143,7 @@ function validateExistingSchedule(db){
   if(busyT.has(kt)||busyS.has(ks))return {ok:false,reason:'تعارض في التوقيت'};
   busyT.add(kt);busyS.add(ks);
   const r=db.teacherRules?.[e.teacherId]||{};
-  if((r.unavailable?.[e.dayId]||[]).includes(+e.period))return {ok:false,reason:'مخالفة عدم إتاحة المدرس'};
+  if((r.unavailable?.[e.dayId]||[]).includes(+e.period))return {ok:false,reason:'مخالفة عدم إتاحة المدرس'};if(!advancedAllowed(db,a,section,e.dayId,+e.period))return {ok:false,reason:'مخالفة قيد متقدم'};
   const sr=db.subjectRules?.[e.subjectId]||{},hard=sr.strict!=='soft'&&(!sr.stageId||sr.stageId===section.stageId);
   if(hard&&(sr.noFirst&&+e.period===1||sr.noLast&&+e.period===cap))return {ok:false,reason:'مخالفة قيد المادة'};
   const subKey=e.sectionId+'|'+e.dayId+'|'+e.subjectId;
