@@ -354,7 +354,7 @@ function directGenerationDiagnostics(){
 }
 function advancedDiagnosticMatch(r,a,sec,dayId,p){return (!r.dayId||r.dayId===dayId)&&(!r.stageId||r.stageId===sec.stageId)&&(!r.sectionId||r.sectionId===sec.id)&&(r.target!=='teacher'||r.teacherId===a.teacherId)&&(r.target!=='subject'||r.subjectId===a.subjectId)}
 function showDirectDiagnostics(){
- const issues=directGenerationDiagnostics();window.lastDirectDiagnosis={version:'0.9.11.1',createdAt:new Date().toISOString(),issues,lastGeneration:window.generationReport||null};
+ const issues=directGenerationDiagnostics();window.lastDirectDiagnosis={version:'0.9.11.3',createdAt:new Date().toISOString(),issues,lastGeneration:window.generationReport||null};
  const target=$('#directDiagnosisResult');if(!target)return;
  target.innerHTML=`<div class="notice">تم فحص ${db.sections.length} شعبة و${db.assignments.length} تكليف و${(db.advancedRules||[]).length} قيد متقدم دون تعديل البيانات.</div>`+issues.map(x=>`<div class="issue ${x.level==='block'?'red':'orange'}"><div class="issue-icon">${x.level==='block'?'🔴':x.level==='limitation'?'🟠':'🔵'}</div><div style="flex:1"><b>${esc(x.title)}</b><div class="muted">${esc(x.detail)}</div>${x.ruleIds?.length?`<small>معرفات القيود: ${esc(x.ruleIds.join('، '))}</small><br>`:''}<button type="button" class="secondary direct-diagnostic-jump" data-target="${x.where}">فتح الإعداد المعني</button></div></div>`).join('');
  document.querySelectorAll('.direct-diagnostic-jump').forEach(b=>b.onclick=()=>{page=b.dataset.target;render()});
@@ -459,9 +459,9 @@ function startGeneration(){
  const button=$('#generateBtn'),status=$('#generationProgress');
  button.disabled=true;button.textContent='جاري التوليد...';
  const began=Date.now();let finished=false,lastUpdate=Date.now(),lastProgress={nodes:0,bestDepth:0,total:0,placed:0},phase='تشغيل المحرك';
- let worker;try{worker=new Worker('generator-worker.js?v=09111')}catch(err){button.disabled=false;button.textContent='توليد الجدول تلقائياً';window.generationReport={ok:false,reason:'worker-error',message:'تعذر تشغيل ملف المحرك: '+String(err),seconds:'0'};generator();return}generationWorker=worker;
+ let worker;try{worker=new Worker('generator-worker.js?v=09113')}catch(err){button.disabled=false;button.textContent='توليد الجدول تلقائياً';window.generationReport={ok:false,reason:'worker-error',message:'تعذر تشغيل ملف المحرك: '+String(err),seconds:'0'};generator();return}generationWorker=worker;
  const tick=setInterval(()=>{if(finished)return;const elapsed=Date.now()-began;
-   if(elapsed>195000){finish({ok:false,reason:'time',...lastProgress,message:`أوقف مراقب السلامة المحرك بعد 195 ثانية. آخر مرحلة: ${phase}. لم تتغير البيانات.`});return}
+   if(elapsed>255000){finish({ok:false,reason:'time',...lastProgress,message:`أوقف مراقب السلامة المحرك بعد 255 ثانية. آخر مرحلة: ${phase}. لم تتغير البيانات.`});return}
    if(status)status.textContent=`${phase} — ${Math.round(elapsed/1000)} ثانية — عقد ${lastProgress.nodes} — أفضل عمق ${lastProgress.bestDepth} من ${lastProgress.total||'—'}. ${Date.now()-lastUpdate>7000?'المحرك مشغول بالحساب، يمكن إيقافه.':''}`;
  },500);
  generationCancel=()=>finish({ok:false,reason:'cancelled',...lastProgress,message:'أوقفت التوليد. بقي الجدول السابق محفوظاً.'});

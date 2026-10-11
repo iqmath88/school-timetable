@@ -15,23 +15,12 @@ function advancedAllowed(db,a,sec,dayId,p){
 
 function generate(db){
  const seed=validateExistingSchedule(db);
- // Explain a verified contradictory daily-minimum rule instead of silently searching.
- const conflictTeacher=db.teachers.find(t=>t.name==='وسام نافع');
- if(conflictTeacher && (db.teacherRules?.[conflictTeacher.id]?.minDaily||0)>=3){
-  const items=db.assignments.filter(a=>a.teacherId===conflictTeacher.id);
-  if(items.length===2 && items.every(a=>+a.weeklyPeriods===5) && items.reduce((n,a)=>n+(+a.weeklyPeriods),0)===10){
-   return {ok:false,reason:'teacher-minimum-conflict',total:10,message:'تعارض مؤكد في بيانات هذه المدرسة: وسام نافع لديه 10 حصص، والحد الأدنى اليومي 3 حصص، بينما يتطلب توزيع مادتيه على 4 أيام على الأقل 12 حصة. غيّر الحد الأدنى اليومي إلى 2، ثم أعد التوليد. لم تتغير بياناتك.'};
-  }
- }
-
- // Recover the last verified school schedule only if it satisfies EVERY current hard constraint.
- if(!seed.ok && (!db.timetable || db.timetable.length===0)){
-  const verified=validateExistingSchedule({...db,timetable:VERIFIED_REFERENCE_0961});
-  if(verified.ok)return {ok:true,entries:verified.entries,reused:false,nodes:0,bestDepth:verified.entries.length,total:verified.entries.length,message:'تم تحميل حل موثّق من 692 حصة بعد فحص جميع القيود الحالية. صدّر نسخة احتياطية الآن.'};
- }
+ // Never reject a teacher by name: all infeasibility checks must use actual constraints.
+ // Only reuse the user's own saved timetable after complete validation.
+ // Never inject a bundled timetable from an earlier school dataset.
  if(seed.ok){return {ok:true,entries:seed.entries,reused:true,nodes:0,bestDepth:seed.entries.length,total:seed.entries.length,message:'تم التحقق من الجدول المحفوظ: جميع الحصص والقيود الإلزامية صحيحة. احتفظ المحرك بالحل المثبت بدلاً من إعادة البحث غير الضرورية.'};}
  self.postMessage({type:'phase',phase:'فحص الجدول المحفوظ: '+seed.reason+'؛ بدء البحث عن حل جديد'});
- const began=Date.now(),deadline=began+180000;const days=db.days.filter(d=>d.active&&d.periods>0).sort((a,b)=>a.order-b.order),D=days.length;
+ const began=Date.now(),deadline=began+240000;const days=db.days.filter(d=>d.active&&d.periods>0).sort((a,b)=>a.order-b.order),D=days.length;
  const sections=db.sections,teachers=db.teachers,assignments=db.assignments.filter(a=>+a.weeklyPeriods>0),A=assignments.length;
  const ti=new Map(teachers.map((x,i)=>[x.id,i])),si=new Map(sections.map((x,i)=>[x.id,i]));
  const at=assignments.map(a=>ti.get(a.teacherId)),as=assignments.map(a=>si.get(a.sectionId));
@@ -76,7 +65,7 @@ function generate(db){
  for(let s=0;s<sections.length;s++)if(needed[s]>cap[s].reduce((a,b)=>a+b,0))return {ok:false,reason:'capacity',message:'نصاب إحدى الشعب يتجاوز طاقتها الأسبوعية'};
  self.postMessage({type:'phase',phase:'توزيع الحصص حسب سعة المراحل والقيود'});
  let best=0,attempt=0;let deadEndNoChoices=0,deadEndAssignment=0,deadEndTeacher=0;
- while(Date.now()<deadline&&attempt<900){attempt++;const quota=cap.map((row,s)=>{const q=row.slice(),missing=q.reduce((a,b)=>a+b,0)-needed[s];for(let j=0;j<missing;j++){let opts=q.map((v,d)=>({d,v,locked:fixedMax[s][d]>=v})).filter(x=>x.v>0&&!x.locked);if(!opts.length)break;opts.sort((a,b)=>(b.v-a.v)||(((a.d+attempt+s+j)%D)-((b.d+attempt+s+j)%D)));q[opts[(j+attempt+s)%Math.min(opts.length,3)].d]--;}return q});
+ while(Date.now()<deadline&&attempt<1400){attempt++;const quota=cap.map((row,s)=>{const q=row.slice(),missing=q.reduce((a,b)=>a+b,0)-needed[s];for(let j=0;j<missing;j++){let opts=q.map((v,d)=>({d,v,locked:fixedMax[s][d]>=v})).filter(x=>x.v>0&&!x.locked);if(!opts.length)break;opts.sort((a,b)=>(b.v-a.v)||(((a.d+attempt+s+j)%D)-((b.d+attempt+s+j)%D)));q[opts[(j+attempt+s)%Math.min(opts.length,3)].d]--;}return q});
  if(quota.some((q,s)=>q.reduce((a,b)=>a+b,0)!==needed[s]))continue;
  const slots=[];for(let s=0;s<sections.length;s++)for(let d=0;d<D;d++)for(let p=1;p<=quota[s][d];p++)slots.push({s,d,p});
  const ordered=slots.map((x,i)=>({...x,idx:i})),assignmentBySection=sections.map((_,s)=>assignments.map((a,i)=>as[i]===s?i:-1).filter(i=>i>=0));
@@ -123,7 +112,7 @@ function generate(db){
  // Ensure all search state was undone before trying a different daily distribution.
  while(entries.length)undo();
  }
- return {ok:false,reason:stop||'exhausted',nodes,bestDepth:best,total,diagnostics:{deadEndNoChoices,deadEndAssignment,deadEndTeacher,attempts:attempt},message:`لم يُعثر على جدول متوافق خلال ${attempt} محاولة (مهلة 180 ثانية). فحص المحرك تعارضات الفترات والمواد وسعة المدرسين؛ راجع تقرير التشخيص. لم يتغير جدولك السابق.`};
+ return {ok:false,reason:stop||'exhausted',nodes,bestDepth:best,total,diagnostics:{deadEndNoChoices,deadEndAssignment,deadEndTeacher,attempts:attempt},message:`لم يُعثر على جدول متوافق خلال ${attempt} محاولة (مهلة 240 ثانية). فحص المحرك تعارضات الفترات والمواد وسعة المدرسين؛ راجع تقرير التشخيص. لم يتغير جدولك السابق.`};
 }
 
 // Strict reference-schedule validation. A successful reference is a constructive
