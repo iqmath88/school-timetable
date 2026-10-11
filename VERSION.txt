@@ -1,3 +1,2 @@
-Masar School Timetable
-Release: 0.9.12.7
-All JS and CSS resources versioned 09127.
+Masar school timetable v0.9.12.8
+PNG/PDF parity and teacher card design

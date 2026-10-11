@@ -1,4 +1,4 @@
-const APP_VERSION='0.9.12.7';
+const APP_VERSION='0.9.12.8';
 const KEY='school-timetable-v01';
 const stageDefaults=[['الأول',1,'#587B9B'],['الثاني',2,'#6F8F72'],['الثالث',3,'#9A7B60'],['الرابع',4,'#7D7398'],['الخامس',5,'#A16F78'],['السادس',6,'#557F83']];
 const defaultDays=[['الأحد',7,true],['الاثنين',7,true],['الثلاثاء',6,true],['الأربعاء',7,true],['الخميس',5,true],['الجمعة',0,false],['السبت',0,false]];
@@ -902,7 +902,35 @@ function teacherCard(teacherId){
  return `<article class="teacher-card ${p.printMode==='bw'?'tc-bw':''}" dir="rtl"><div class="tc-head"><div class="tc-side">جمهورية العراق<br>وزارة التربية<br><small>العام الدراسي ${esc(db.school.year||'—')}</small></div><div class="tc-brand">${p.logo?`<img src="${p.logo}" alt="شعار المدرسة">`:''}<div class="tc-school">${esc(db.school.name||'اسم المدرسة')}</div><h1>بطاقة الجدول الأسبوعي للمدرس</h1><div class="tc-subtitle">وثيقة تنظيم الحصص الأسبوعية</div></div><div class="tc-side tc-left">تاريخ بدء التطبيق<br><b>${esc(p.startDate||'غير محدد')}</b></div></div><div class="tc-person"><div><span class="tc-label">اسم المدرس</span><h2>${esc(teacher.name)}</h2><div class="tc-specialty"><b>الاختصاص:</b> ${esc(specialty)}</div></div><div class="tc-stats"><div><b>${lessons.length}</b><span>حصة أسبوعياً</span></div><div><b>${activeDays}</b><span>أيام التدريس</span></div><div class="tc-free"><b>${esc(free)}</b><span>يوم / أيام التفرغ</span></div></div></div><table class="tc-table"><thead><tr><th>الحصة</th>${days.map(d=>`<th>${esc(d.name)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table><div class="tc-reasons"><b>أسباب تغيير الجدول والملاحظات:</b><span>${esc(p.changeReasons||'—')}${p.footer?' — '+esc(p.footer):''}</span></div><div class="tc-signatures">${[p.signature1,p.signature2,p.signature3].map(x=>`<div><b>${esc(x||'—')}</b><span>التوقيع: ______________</span></div>`).join('')}</div><div class="tc-bottom">${esc(db.school.name||'')} · ${esc(db.school.year||'')}</div></article>`;
 }
 function teacherCardCSS(){return `
-@page{size:A4 landscape;margin:7mm}*{box-sizing:border-box}html,body{margin:0;background:#fff;color:#142c46;font-family:Tahoma,Arial,sans-serif;direction:rtl}body{padding:0}.teacher-card{width:100%;height:190mm;max-height:190mm;overflow:hidden;display:flex;flex-direction:column;break-after:page;page-break-after:always;background:white}.teacher-card:last-child{break-after:auto;page-break-after:auto}.tc-head{display:grid;grid-template-columns:1fr 2.5fr 1fr;align-items:center;background:#102C50;color:#fff;border-bottom:3px solid #C8A65A;min-height:34mm;padding:3mm 6mm}.tc-side{font-size:10px;line-height:1.9}.tc-left{text-align:left}.tc-brand{text-align:center}.tc-brand img{width:12mm;height:12mm;object-fit:contain;vertical-align:middle}.tc-school{font-size:17px;color:#E7CB8E;font-weight:800}.tc-brand h1{font-size:22px;line-height:1.4;margin:1mm 0;font-weight:900}.tc-subtitle{font-size:10px;color:#e1e8f1}.tc-person{display:flex;justify-content:space-between;align-items:center;gap:8mm;background:#FAF8F3;border:1px solid #E5D9BE;padding:3mm 5mm;margin:3mm 0;min-height:26mm}.tc-label{font-size:10px;color:#6a7687}.tc-person h2{font-size:21px;margin:1mm 0 2mm}.tc-specialty{font-size:11px}.tc-stats{display:flex;gap:2mm}.tc-stats>div{border:1px solid #D6DCE5;background:white;min-width:26mm;max-width:44mm;padding:2mm;text-align:center;border-radius:3px}.tc-stats b{display:block;font-size:17px;color:#102C50}.tc-stats span{display:block;font-size:9px;color:#64748b}.tc-stats .tc-free b{font-size:11px;min-height:20px}.tc-table{border-collapse:collapse;table-layout:fixed;width:100%;flex:1;min-height:0}.tc-table th,.tc-table td{border:1px solid #c8d0d9;text-align:center;vertical-align:middle;padding:1.5mm 1mm}.tc-table thead th{background:#173c63;color:#fff;font-size:12px;height:12mm;border-color:#C8A65A}.tc-table thead th:first-child{width:19mm}.tc-period{background:#edf1f6;font-size:13px;font-weight:900;width:19mm}.tc-lesson{background:#f3f0fa}.tc-lesson strong{display:block;font-size:13px;line-height:1.35;color:#152e49}.tc-lesson span{display:block;font-size:10px;color:#53647a;margin-top:1mm}.tc-empty{background:#fff}.tc-off{background:#f0f1f3;color:#a1a8b2}.tc-reasons{display:flex;gap:4mm;align-items:center;border-top:2px solid #C8A65A;padding:2mm 3mm;font-size:10px;min-height:10mm}.tc-reasons span{color:#53647a}.tc-signatures{display:grid;grid-template-columns:repeat(3,1fr);text-align:center;padding:2mm 0 1mm;min-height:17mm}.tc-signatures b{display:block;font-size:11px}.tc-signatures span{display:block;font-size:9px;color:#64748b;margin-top:3mm}.tc-bottom{font-size:8px;color:#8994a3;text-align:center;border-top:1px solid #e3e8ee;padding-top:1mm}.tc-bw,.tc-bw *{color:#000!important}.tc-bw .tc-head{background:#e0e0e0!important;border-bottom:3px solid #555!important}.tc-bw .tc-school,.tc-bw .tc-subtitle{color:#000!important}.tc-bw .tc-person{background:#f5f5f5!important;border-color:#888!important}.tc-bw .tc-table thead th{background:#d5d5d5!important;color:#000!important;border-color:#666!important}.tc-bw .tc-lesson{background:#f0f0f0!important}.tc-bw .tc-period{background:#e6e6e6!important}.tc-bw .tc-reasons{border-color:#555!important}@media print{*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}body{margin:0!important}}`}
+@page{size:A4 landscape;margin:7mm}*{box-sizing:border-box}html,body{margin:0;background:#fff;color:#142c46;font-family:Tahoma,Arial,sans-serif;direction:rtl}body{padding:0}.teacher-card{width:100%;height:190mm;max-height:190mm;overflow:hidden;display:flex;flex-direction:column;break-after:page;page-break-after:always;background:white}.teacher-card:last-child{break-after:auto;page-break-after:auto}.tc-head{display:grid;grid-template-columns:1fr 2.5fr 1fr;align-items:center;background:#102C50;color:#fff;border-bottom:3px solid #C8A65A;min-height:34mm;padding:3mm 6mm}.tc-side{font-size:10px;line-height:1.9}.tc-left{text-align:left}.tc-brand{text-align:center}.tc-brand img{width:12mm;height:12mm;object-fit:contain;vertical-align:middle}.tc-school{font-size:17px;color:#E7CB8E;font-weight:800}.tc-brand h1{font-size:22px;line-height:1.4;margin:1mm 0;font-weight:900}.tc-subtitle{font-size:10px;color:#e1e8f1}.tc-person{display:flex;justify-content:space-between;align-items:center;gap:8mm;background:#FAF8F3;border:1px solid #E5D9BE;padding:3mm 5mm;margin:3mm 0;min-height:26mm}.tc-label{font-size:10px;color:#6a7687}.tc-person h2{font-size:21px;margin:1mm 0 2mm}.tc-specialty{font-size:11px}.tc-stats{display:flex;gap:2mm}.tc-stats>div{border:1px solid #D6DCE5;background:white;min-width:26mm;max-width:44mm;padding:2mm;text-align:center;border-radius:3px}.tc-stats b{display:block;font-size:17px;color:#102C50}.tc-stats span{display:block;font-size:9px;color:#64748b}.tc-stats .tc-free b{font-size:11px;min-height:20px}.tc-table{border-collapse:collapse;table-layout:fixed;width:100%;flex:1;min-height:0}.tc-table th,.tc-table td{border:1px solid #c8d0d9;text-align:center;vertical-align:middle;padding:1.5mm 1mm}.tc-table thead th{background:#173c63;color:#fff;font-size:12px;height:12mm;border-color:#C8A65A}.tc-table thead th:first-child{width:19mm}.tc-period{background:#edf1f6;font-size:13px;font-weight:900;width:19mm}.tc-lesson{background:#f3f0fa}.tc-lesson strong{display:block;font-size:13px;line-height:1.35;color:#152e49}.tc-lesson span{display:block;font-size:10px;color:#53647a;margin-top:1mm}.tc-empty{background:#fff}.tc-off{background:#f0f1f3;color:#a1a8b2}.tc-reasons{display:flex;gap:4mm;align-items:center;border-top:2px solid #C8A65A;padding:2mm 3mm;font-size:10px;min-height:10mm}.tc-reasons span{color:#53647a}.tc-signatures{display:grid;grid-template-columns:repeat(3,1fr);text-align:center;padding:2mm 0 1mm;min-height:17mm}.tc-signatures b{display:block;font-size:11px}.tc-signatures span{display:block;font-size:9px;color:#64748b;margin-top:3mm}.tc-bottom{font-size:8px;color:#8994a3;text-align:center;border-top:1px solid #e3e8ee;padding-top:1mm}.tc-bw,.tc-bw *{color:#000!important}.tc-bw .tc-head{background:#e0e0e0!important;border-bottom:3px solid #555!important}.tc-bw .tc-school,.tc-bw .tc-subtitle{color:#000!important}.tc-bw .tc-person{background:#f5f5f5!important;border-color:#888!important}.tc-bw .tc-table thead th{background:#d5d5d5!important;color:#000!important;border-color:#666!important}.tc-bw .tc-lesson{background:#f0f0f0!important}.tc-bw .tc-period{background:#e6e6e6!important}.tc-bw .tc-reasons{border-color:#555!important}
+/* Refined teacher card: formal academic identity, high contrast and controlled A4 fit. */
+.teacher-card{padding:2.2mm 2.5mm 1.5mm!important;gap:1.4mm!important;border:0;background:#fff!important}
+.teacher-card .tc-head{min-height:30mm!important;max-height:30mm!important;border-radius:2mm 2mm .8mm .8mm!important;background:linear-gradient(100deg,#102C50,#173B60)!important;border-bottom:1mm solid #C8A65A!important}
+.teacher-card .tc-school{font-size:16px!important;line-height:1.25!important;letter-spacing:.1px}
+.teacher-card .tc-brand h1{font-size:21px!important;letter-spacing:.1px!important;margin:1mm 0!important}
+.teacher-card .tc-subtitle{font-size:9.5px!important;color:#E2E8F0!important}
+.teacher-card .tc-side{font-size:10px!important;line-height:1.7!important}
+.teacher-card .tc-person{min-height:25mm!important;max-height:25mm!important;margin:0!important;padding:3mm 5mm!important;border-radius:1.5mm!important;border:1px solid #D9CCAC!important;background:linear-gradient(100deg,#F9F7F0,#FFFFFF)!important}
+.teacher-card .tc-label{text-transform:none!important;font-weight:700!important;color:#7E6B45!important}
+.teacher-card .tc-person h2{font-size:23px!important;color:#102C50!important;line-height:1.15!important;margin:1mm 0!important}
+.teacher-card .tc-specialty{font-size:11px!important;color:#48596A!important}
+.teacher-card .tc-stats{gap:2.5mm!important;flex-wrap:nowrap!important}
+.teacher-card .tc-stats>div{min-width:28mm!important;max-width:44mm!important;padding:2mm 2.8mm!important;border-radius:1.4mm!important;background:white!important;border:1px solid #D8DEE8!important;border-top:2px solid #C8A65A!important;box-shadow:none!important}
+.teacher-card .tc-stats b{font-size:17px!important;color:#102C50!important}
+.teacher-card .tc-stats span{font-size:9px!important;color:#65758A!important}
+.teacher-card .tc-table{border:1px solid #A9B7C6!important;border-collapse:collapse!important}
+.teacher-card .tc-table thead th{height:11mm!important;background:#173B60!important;color:white!important;border:1px solid #B39A66!important;font-size:12px!important}
+.teacher-card .tc-table tbody tr{height:12mm!important}
+.teacher-card .tc-table td,.teacher-card .tc-table tbody th{padding:1mm!important;border:1px solid #BDCBD8!important}
+.teacher-card .tc-table .tc-period{background:#E7EDF4!important;color:#183858!important}
+.teacher-card .tc-table .tc-lesson{background:#EDF1F8!important}
+.teacher-card .tc-table tbody td:nth-child(2n).tc-lesson{background:#E8F1F0!important}
+.teacher-card .tc-table .tc-lesson strong{font-size:13px!important;color:#153555!important}
+.teacher-card .tc-table .tc-lesson span{font-size:10px!important;color:#5B6C82!important}
+.teacher-card .tc-reasons{min-height:9mm!important;border:1px solid #D3BE8D!important;border-right:3px solid #C8A65A!important;padding:1.8mm 3mm!important;background:#FCFBF7!important;border-radius:.8mm!important}
+.teacher-card .tc-signatures{min-height:15mm!important;padding:1.3mm 0!important}
+.teacher-card .tc-bottom{color:#7C8796!important;font-size:8px!important;padding-top:1mm!important}
+@media print{*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}body{margin:0!important}}`}
 function printTeacherCards(ids){const html=ids.map(teacherCard).filter(Boolean).join('');if(!html)return alert('لا توجد بطاقات مدرسين للطباعة');const w=window.open('','_blank');if(!w)return alert('اسمح بفتح النوافذ المنبثقة للطباعة');w.document.write(`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>بطاقات الجداول الأسبوعية للمدرسين</title><style>${teacherCardCSS()}</style></head><body>${html}<script>window.onload=()=>setTimeout(()=>window.print(),500)<\/script></body></html>`);w.document.close()}
 function printAllTeacherCards(){const ids=db.teachers.filter(t=>db.timetable.some(e=>e.teacherId===t.id)).sort((a,b)=>a.name.localeCompare(b.name,'ar')).map(t=>t.id);printTeacherCards(ids)}
 function printSelectedTimetable(pick){
@@ -986,7 +1014,7 @@ function openPrintSheets(){
 }
 function printSetup(){
  const p=db.printSettings;
- $('#workspace').innerHTML=`<h2>الطباعة وتصدير الصور</h2><div class="grid"><div class="field"><label>عنوان الجدول</label><input id="prTitle" value="${esc(p.title)}"></div><div class="field"><label>تاريخ بدء تطبيق الجدول</label><input id="prDate" type="date" value="${esc(p.startDate)}"></div></div><div class="field"><label>أسباب تغيير الجدول</label><textarea id="prReasons" rows="2">${esc(p.changeReasons)}</textarea></div><div class="field"><label>ملاحظات إضافية</label><textarea id="prFooter" rows="2">${esc(p.footer)}</textarea></div><div class="field"><label for="prPrintMode">نمط طباعة PDF</label><select id="prPrintMode"><option value="color">ملون — كحلي وذهبي</option><option value="bw">أسود وأبيض — اقتصادي وواضح</option></select></div><label><input id="prColors" type="checkbox" ${p.showColors?'checked':''}> إظهار ألوان المراحل</label><div class="field"><label>أسلوب الألوان</label><select id="prTheme"><option value="soft" ${(p.theme||'soft')==='soft'?'selected':''}>هادئ ومريح للقراءة</option><option value="contrast" ${p.theme==='contrast'?'selected':''}>تباين مرتفع</option></select></div><div class="actions"><button id="prSave">حفظ الإعدادات</button><button id="prPrint">طباعة المتوسطة والإعدادية (صفحتان A3 أفقي)</button><button id="prPDF" class="secondary">تنزيل / حفظ PDF</button></div><div class="notice">زر حفظ PDF يفتح نافذة الطباعة؛ على iPad اختر مشاركة معاينة الطباعة ثم «حفظ في الملفات» لحفظ ملف PDF. لا توجد حاجة لاختيار طابعة.</div><h3>تصدير الصور PNG</h3><div class="grid"><div class="field"><label>نوع الجدول</label><select id="imgType"><option value="all">المدرسة كاملة — صورة واحدة</option><option value="middle">المتوسطة — صورة واحدة</option><option value="high">الإعدادية — صورة واحدة</option><option value="stage">مرحلة واحدة</option><option value="teacher">جدول مدرس</option><option value="section">جدول شعبة</option></select></div><div class="field" id="imgChoiceWrap" hidden><label>الاختيار</label><select id="imgChoice"></select></div></div><div class="actions"><button id="imgSave">حفظ الصورة PNG</button><span id="imgStatus" class="muted" aria-live="polite"></span></div><div class="notice">الصور تشمل جميع الحصص بالألوان مع اسم المدرسة والسنة الدراسية، دون أقفال. للطباعة: صفحة واحدة لجميع شعب المتوسطة، وصفحة واحدة لجميع شعب الإعدادية، بقياس A3 أفقي.</div>${db.timetable.length?'<div class="unified-preview"><p class="muted">معاينة الصفحتين: المتوسطة ثم الإعدادية، باستخدام قالب الطباعة نفسه.</p><iframe id="printPreviewFrame" title="معاينة الطباعة الرسمية"></iframe></div>':'<div class="empty">استورد أو أنشئ الجدول أولاً.</div>'}`;
+ $('#workspace').innerHTML=`<h2>الطباعة وتصدير الصور</h2><div class="grid"><div class="field"><label>عنوان الجدول</label><input id="prTitle" value="${esc(p.title)}"></div><div class="field"><label>تاريخ بدء تطبيق الجدول</label><input id="prDate" type="date" value="${esc(p.startDate)}"></div></div><div class="field"><label>أسباب تغيير الجدول</label><textarea id="prReasons" rows="2">${esc(p.changeReasons)}</textarea></div><div class="field"><label>ملاحظات إضافية</label><textarea id="prFooter" rows="2">${esc(p.footer)}</textarea></div><div class="field"><label for="prPrintMode">نمط طباعة PDF</label><select id="prPrintMode"><option value="color">ملون — كحلي وذهبي</option><option value="bw">أسود وأبيض — اقتصادي وواضح</option></select></div><label><input id="prColors" type="checkbox" ${p.showColors?'checked':''}> إظهار ألوان المراحل</label><div class="field"><label>أسلوب الألوان</label><select id="prTheme"><option value="soft" ${(p.theme||'soft')==='soft'?'selected':''}>هادئ ومريح للقراءة</option><option value="contrast" ${p.theme==='contrast'?'selected':''}>تباين مرتفع</option></select></div><div class="actions"><button id="prSave">حفظ الإعدادات</button><button id="prPrint">طباعة المتوسطة والإعدادية (صفحتان A3 أفقي)</button><button id="prPDF" class="secondary">تنزيل / حفظ PDF</button></div><div class="notice">زر حفظ PDF يفتح نافذة الطباعة؛ على iPad اختر مشاركة معاينة الطباعة ثم «حفظ في الملفات» لحفظ ملف PDF. لا توجد حاجة لاختيار طابعة.</div><h3>تصدير الصور PNG</h3><div class="grid"><div class="field"><label>نوع الجدول</label><select id="imgType"><option value="all">المدرسة كاملة — صورتان A3 (مثل PDF)</option><option value="middle">المتوسطة — صورة واحدة</option><option value="high">الإعدادية — صورة واحدة</option><option value="stage">مرحلة واحدة</option><option value="teacher">جدول مدرس</option><option value="section">جدول شعبة</option></select></div><div class="field" id="imgChoiceWrap" hidden><label>الاختيار</label><select id="imgChoice"></select></div></div><div class="actions"><button id="imgSave">حفظ الصورة PNG</button><span id="imgStatus" class="muted" aria-live="polite"></span></div><div class="notice">الصور تستخدم الهوية الرسمية للطباعة: رأس كحلي وذهبي، مجموعات المراحل والشعب، وأسماء المادة والمدرس في السطر نفسه. اختيار المدرسة كاملة ينتج صورتين A3: المتوسطة والإعدادية. يتم التصدير من الجدول المحفوظ دون تغيير الحصص.</div>${db.timetable.length?'<div class="unified-preview"><p class="muted">معاينة الصفحتين: المتوسطة ثم الإعدادية، باستخدام قالب الطباعة نفسه.</p><iframe id="printPreviewFrame" title="معاينة الطباعة الرسمية"></iframe></div>':'<div class="empty">استورد أو أنشئ الجدول أولاً.</div>'}`;
  const designUI=`<section class="design-options"><h3>الهوية الرسمية وشعار المدرسة</h3><div class="grid"><div class="field"><label>النمط البصري</label><select id="prDesignTheme"><option value="formal">رسمي أكاديمي (كحلي وذهبي)</option><option value="minimal">رسمي مبسط</option><option value="soft">ألوان المراحل</option></select></div><div class="field"><label>موضع الشعار</label><select id="prLogoPosition"><option value="center">منتصف الرأس</option><option value="right">يمين الرأس</option><option value="left">يسار الرأس</option><option value="none">إخفاء الشعار</option></select></div><div class="field"><label>كثافة الخلايا</label><select id="prDensity"><option value="compact">مضغوط</option><option value="medium">متوسط</option><option value="wide">واسع</option></select></div></div><div class="field"><label>رفع شعار المدرسة (PNG أو JPG، بحد أقصى 1 ميغابايت)</label><input id="prLogoFile" type="file" accept="image/png,image/jpeg"><div id="prLogoPreview">${p.logo?`<img class="logo-preview" src="${p.logo}" alt="معاينة شعار المدرسة">`:'لا يوجد شعار مرفوع'}</div><button type="button" class="secondary" id="prRemoveLogo">إزالة الشعار</button></div><div class="design-toggles"><label><input type="checkbox" id="prTeachers"> إظهار أسماء المدرسين</label><label><input type="checkbox" id="prNotes"> إظهار الملاحظات</label><label><input type="checkbox" id="prSignatures"> إظهار التواقيع</label></div><div class="grid"><div class="field"><label>التوقيع الأول</label><input id="prSig1"></div><div class="field"><label>التوقيع الثاني</label><input id="prSig2"></div><div class="field"><label>التوقيع الثالث</label><input id="prSig3"></div></div><div class="notice">الإعدادات تُحفظ ضمن نسخة JSON الاحتياطية، ولا تؤثر في توزيع الحصص أو القيود.</div></section>`;
  $('#workspace').insertAdjacentHTML('afterbegin',designUI);
  const previewFrame=$('#printPreviewFrame');if(previewFrame){previewFrame.srcdoc='<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>'+printCSS()+'</style></head><body>'+printDocument()+'</body></html>';}
@@ -1003,45 +1031,118 @@ function printSetup(){
 // Shared display helper: available to print setup and PNG renderer.
 function exportSectionName(id){const sec=db.sections.find(x=>x.id===id);if(!sec)return '—';const stage=db.stages.find(g=>g.id===sec.stageId);return (stage?stageDisplayName(stage):'مرحلة')+' '+sec.name;}
 const exportPalettes={g1:['#E7F0F9','#244E78','#587B9B'],g2:['#E8F3E9','#315F3B','#6F8F72'],g3:['#F7EEE3','#785332','#9A7B60'],g4:['#EEEAF7','#59477E','#7D7398'],g5:['#FAEBEF','#85445A','#A16F78'],g6:['#E4F2F1','#27616A','#557F83']};
+// The PNG exporter and the A3 print sheets use the same grouped stage/section
+// structure, the same saved timetable, and the same official visual language.
+// No timetable entries are generated or modified during export.
+function pngDrawingHelpers(canvas){
+ const c=canvas.getContext('2d');if(!c)throw new Error('تعذر إنشاء لوحة الرسم');
+ c.direction='rtl';c.textBaseline='middle';
+ const font=(z,b)=>`${b?'700':'400'} ${z}px Tahoma,Arial,sans-serif`;
+ const rect=(x,y,w,h,color,stroke='#becad4',line=1)=>{c.fillStyle=color;c.fillRect(x,y,w,h);if(stroke){c.lineWidth=line;c.strokeStyle=stroke;c.strokeRect(x+.5,y+.5,w-1,h-1)}};
+ const label=(v,x,y,max,z=22,color='#142e48',bold=false,side='center')=>{
+  let t=String(v??'—');c.font=font(z,bold);while(c.measureText(t).width>max&&z>11){z-=.5;c.font=font(z,bold)}
+  if(c.measureText(t).width>max){while(t.length>1&&c.measureText(t+'…').width>max)t=t.slice(0,-1);t+='…'}
+  c.fillStyle=color;c.textAlign=side;c.fillText(t,x,y);
+ };
+ const rule=(x1,y1,x2,y2,color='#C8A65A',th=2)=>{c.strokeStyle=color;c.lineWidth=th;c.beginPath();c.moveTo(x1,y1);c.lineTo(x2,y2);c.stroke()};
+ return {c,rect,label,rule};
+}
+async function pngAddLogo(ctx,w,h){
+ const logo=db.printSettings.logo;if(!logo||db.printSettings.logoPosition==='none')return;
+ try{const img=new Image();img.src=logo;await new Promise((yes,no)=>{if(img.complete&&img.naturalWidth)yes();else{img.onload=yes;img.onerror=no}});ctx.drawImage(img,w/2-33,8,66,Math.min(66,h-10))}catch(e){}
+}
+function pngOfficialHeader(h,title,teacher=false){
+ const {c,rect,label,rule}=h,W=c.canvas.width,p=db.printSettings;
+ rect(25,25,W-50,155,p.printMode==='bw'?'#e3e5e7':'#102C50',null);
+ rect(25,176,W-50,5,p.printMode==='bw'?'#606060':'#C8A65A',null);
+ let ink=p.printMode==='bw'?'#172331':'#ffffff',gold=p.printMode==='bw'?'#172331':'#E7CB8E';
+ label('جمهورية العراق',W-62,64,360,22,ink,true,'right');label('وزارة التربية',W-62,100,360,20,ink);
+ label(`العام الدراسي: ${db.school.year||'—'}`,W-62,136,450,19,ink);
+ label(db.school.name||'اسم المدرسة',W/2,65,W*.50,31,gold,true);
+ label(teacher?'بطاقة الجدول الأسبوعي للمدرس':p.title||'جدول الحصص الأسبوعية',W/2,111,W*.53,36,ink,true);
+ label(title,W/2,150,W*.62,21,ink);
+ label('تاريخ بدء التطبيق',60,75,380,20,ink,true,'left');label(p.startDate||'____ / ____ / ____',60,111,390,19,ink,false,'left');
+}
+function pngFooter(h,fromY){
+ const {c,rect,label,rule}=h,W=c.canvas.width,p=db.printSettings;
+ rule(32,fromY,W-32,fromY,'#C8A65A',3);
+ if(p.showNotes!==false){rect(33,fromY+15,W-66,52,'#FAFBFC','#a8b9c9',1);label(`أسباب تغيير الجدول والملاحظات: ${p.changeReasons||'—'}`,W-55,fromY+42,W-130,19,'#304761',false,'right')}
+ if(p.showSignatures!==false){const names=[p.signature1||'منظّم الجدول',p.signature2||'معاون المدير',p.signature3||'مدير المدرسة'];names.forEach((v,i)=>{const x=W*(i+1)/4;label(v,x,fromY+95,W/4-28,20,'#142e48',true);label('التوقيع: __________________',x,fromY+130,W/4-28,17,'#6b7785')})}
+}
+const officialPngStageColors={g1:'#E7F0F9',g2:'#E8F3E9',g3:'#F7EEE3',g4:'#EEEAF7',g5:'#FAEBEF',g6:'#E4F2F1'};
+function pngSchoolPage(title,sections){
+ // A3 landscape aspect ratio: 420 x 297.
+ const canvas=document.createElement('canvas');canvas.width=2520;canvas.height=1782;
+ const h=pngDrawingHelpers(canvas),{c,rect,label,rule}=h,W=canvas.width;
+ rect(0,0,W,canvas.height,'#ffffff',null);pngOfficialHeader(h,title);
+ const days=db.days.filter(d=>d.active).sort((a,b)=>a.order-b.order);
+ const rows=[];for(const day of days){let last=0;for(let n=1;n<=day.periods;n++)if(sections.some(s=>db.timetable.some(e=>e.sectionId===s.id&&e.dayId===day.id&&e.period===n)))last=n;for(let n=1;n<=Math.max(1,last);n++)rows.push({day,period:n})}
+ const x0=30,xend=W-30,topy=197,tw=xend-x0,dayW=54,periodW=47,colW=(tw-dayW-periodW)/sections.length,groupH=35,colH=36;
+ let groups=[];sections.forEach((sec,i)=>{const g=db.stages.find(x=>x.id===sec.stageId);const last=groups[groups.length-1];if(last&&last.id===sec.stageId)last.count++;else groups.push({id:sec.stageId,name:g?stageDisplayName(g):'مرحلة',count:1})});
+ const pageEnd=canvas.height-185,rowH=Math.min(41,(pageEnd-topy-groupH-colH)/Math.max(rows.length,1));
+ rect(xend-dayW-periodW,topy,dayW+periodW,groupH+colH,'#102C50','#C8A65A');label('اليوم',xend-dayW/2,topy+23,dayW-4,17,'#ffffff',true);label('الحصة',xend-dayW-periodW/2,topy+53,periodW-4,17,'#ffffff',true);
+ let right=xend-dayW-periodW;
+ groups.forEach(g=>{let gw=colW*g.count;right-=gw;rect(right,topy,gw,groupH,'#102C50','#C8A65A');label(g.name,right+gw/2,topy+groupH/2,gw-12,21,'#ffffff',true)});
+ right=xend-dayW-periodW;
+ for(const sec of sections){right-=colW;rect(right,topy+groupH,colW,colH,'#24466D','#C8A65A');label(sec.name,right+colW/2,topy+groupH+colH/2,colW-8,21,'#ffffff',true)}
+ const bySlot=new Map(db.timetable.map(e=>[`${e.sectionId}|${e.dayId}|${e.period}`,e]));
+ const lookupT=new Map(db.teachers.map(t=>[t.id,t]));const lookupS=new Map(db.subjects.map(t=>[t.id,t]));
+ const shortNames=printTeacherLabels();let y=topy+groupH+colH;
+ const daysPalette=['#DCE9F8','#E2F1E5','#FFF0DA','#EEE7F9','#FBE8ED'];
+ rows.forEach((r,ri)=>{
+  let xx=xend;xx-=dayW;if(r.period===1){const dayN=rows.filter(a=>a.day.id===r.day.id).length;rect(xx,y,dayW,dayN*rowH,daysPalette[days.findIndex(d=>d.id===r.day.id)]||'#e6eef8','#C8A65A');c.save();c.translate(xx+dayW/2,y+dayN*rowH/2);c.rotate(-Math.PI/2);label(r.day.name,0,0,dayN*rowH-12,20,'#193b61',true);c.restore()}
+  xx-=periodW;rect(xx,y,periodW,rowH,'#e8eef5','#c1cbd5');label(r.period,xx+periodW/2,y+rowH/2,periodW-5,20,'#19344c',true);
+  sections.forEach(sec=>{xx-=colW;let e=bySlot.get(`${sec.id}|${r.day.id}|${r.period}`);const isOff=r.period>sectionDayPeriods(sec,r.day);const pal=officialPngStageColors[sec.stageId]||'#eff4fa';let bg=db.printSettings.printMode==='bw'?'#fff':(e&&db.printSettings.showColors!==false?pal:ri%2?'#f8fafc':'#fff');if(isOff)bg='#eef0f2';rect(xx,y,colW,rowH,bg,'#bbc7d2');if(e){const s=lookupS.get(e.subjectId)?.name||'—',t=shortNames.get(e.teacherId)||teacherShort(lookupT.get(e.teacherId)?.name);let short=`${s}${db.printSettings.showTeachers!==false?' / '+t:''}`;label(short,xx+colW/2,y+rowH/2,colW-9,20,'#142b43',true)}else if(isOff)label('—',xx+colW/2,y+rowH/2,colW-10,18,'#9ca3af')});
+  if(r.period===1)rule(x0,y,xend,y,'#C8A65A',2);
+  y+=rowH;
+ });
+ pngFooter(h,canvas.height-170);
+ return canvas;
+}
+function pngTeacherPage(teacherId){
+ const teacher=db.teachers.find(t=>t.id===teacherId);if(!teacher)throw Error('لم يتم العثور على المدرس');
+ const canvas=document.createElement('canvas');canvas.width=2520;canvas.height=1782;const h=pngDrawingHelpers(canvas),{c,rect,label,rule}=h;rect(0,0,2520,1782,'#fff',null);
+ pngOfficialHeader(h,'وثيقة تنظيم الحصص الأسبوعية',true);
+ const lessons=db.timetable.filter(e=>e.teacherId===teacherId),days=db.days.filter(d=>d.active).sort((a,b)=>a.order-b.order);
+ const subjects=[...new Set(lessons.map(e=>db.subjects.find(s=>s.id===e.subjectId)?.name).filter(Boolean))];const specialty=teacher.specialization||teacher.specialty||teacher.subject||subjects.join('، ')||'—';
+ rect(35,202,2450,143,'#FAF8F3','#E1D2AE',2);label('اسم المدرس',2450,236,1150,18,'#637187',false,'right');label(teacher.name,2450,288,1330,42,'#122f50',true,'right');label(`الاختصاص: ${specialty}`,2450,326,1330,21,'#51647a',false,'right');
+ const active=new Set(lessons.map(e=>e.dayId)).size,free=days.filter(d=>!lessons.some(e=>e.dayId===d.id)).map(d=>d.name).join('، ')||'لا يوجد';
+ const stats=[[lessons.length,'حصة أسبوعياً'],[active,'أيام التدريس'],[free,'أيام التفرغ']];stats.forEach((st,i)=>{const x=95+i*310;rect(x,232,295,91,'#fff','#d5dee9',2);label(st[0],x+147,264,270,28,'#163858',true);label(st[1],x+147,300,270,18,'#64748b')});
+ const xend=2479,x0=40,top=379,periodW=120,dayW=(xend-x0-periodW)/days.length,head=75;
+ rect(xend-periodW,top,periodW,head,'#102C50','#C8A65A',2);label('الحصة',xend-periodW/2,top+head/2,periodW-15,25,'#fff',true);
+ days.forEach((d,i)=>{const x=xend-periodW-(i+1)*dayW;rect(x,top,dayW,head,'#24466D','#C8A65A',2);label(d.name,x+dayW/2,top+head/2,dayW-16,27,'#fff',true)});
+ const n=Math.max(1,...days.map(d=>d.periods)),rowH=Math.min(132,(1530-top-head)/n);const map=new Map(lessons.map(e=>[`${e.dayId}|${e.period}`,e]));
+ for(let p=1;p<=n;p++){
+  const y=top+head+(p-1)*rowH;rect(xend-periodW,y,periodW,rowH,'#e8eef5','#b7c3d1',2);label(p,xend-periodW/2,y+rowH/2,75,29,'#183654',true);
+  days.forEach((d,i)=>{const x=xend-periodW-(i+1)*dayW;const e=map.get(`${d.id}|${p}`);const off=p>d.periods;rect(x,y,dayW,rowH,off?'#f1f3f5':e?(i%2?'#eaf2f2':'#eeeaf7'):'#fff','#c4cfda',2);if(e){label(db.subjects.find(s=>s.id===e.subjectId)?.name||'—',x+dayW/2,y+rowH*.36,dayW-16,29,'#142e48',true);label(exportSectionName(e.sectionId),x+dayW/2,y+rowH*.68,dayW-18,22,'#51627a')}else if(off)label('—',x+dayW/2,y+rowH/2,dayW-20,25,'#a1aab7')})
+ }
+ pngFooter(h,canvas.height-170);return canvas;
+}
+function pngFocusedSection(sectionId){
+ const sec=db.sections.find(s=>s.id===sectionId);if(!sec)throw Error('الشعبة غير موجودة');
+ // School-page design with one section and the same timetable contents.
+ return pngSchoolPage(exportSectionName(sectionId),[sec]);
+}
+async function deliverPngCanvases(canvases,names){
+ const out=[];
+ for(let i=0;i<canvases.length;i++){
+  const blob=await new Promise((resolve,reject)=>canvases[i].toBlob(b=>b?resolve(b):reject(Error('تعذر حفظ صورة PNG')),'image/png'));
+  out.push(new File([blob],names[i],{type:'image/png'}));
+ }
+ if(navigator.canShare&&navigator.canShare({files:out})){try{await navigator.share({files:out,title:'جداول الحصص الأسبوعية'});return}catch(e){if(e.name==='AbortError')return}}
+ for(let i=0;i<out.length;i++){const url=URL.createObjectURL(out[i]),a=document.createElement('a');a.href=url;a.download=out[i].name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000)}
+}
 async function exportSchedulePNG(mode,id){
- const stages=mode==='all'?db.stages.map(x=>x.id):mode==='middle'?['g1','g2','g3']:mode==='high'?['g4','g5','g6']:mode==='stage'?[id]:null;
- const sec=mode==='section'?db.sections.filter(x=>x.id===id):db.sections.filter(x=>!stages||stages.includes(x.stageId));
- const sections=mode==='teacher'?[]:sec.slice().sort((a,b)=>(db.stages.find(g=>g.id===a.stageId)?.order||0)-(db.stages.find(g=>g.id===b.stageId)?.order||0)||a.order-b.order);
- const focus=mode==='teacher'||mode==='section',days=db.days.filter(d=>d.active).sort((a,b)=>a.order-b.order);
- const headings=focus?days:sections;
- const rows=focus?Array.from({length:Math.max(...days.map(d=>d.periods))},(_,i)=>({period:i+1})):days.flatMap(day=>Array.from({length:day.periods},(_,i)=>({day,period:i+1})));
- const canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');if(!ctx)throw new Error('المتصفح لا يدعم الرسم');ctx.direction='rtl';
- const font=(size,bold=false)=>`${bold?'700':'400'} ${size}px Tahoma,Arial,sans-serif`;
- const measure=(str,size,bold=false)=>{ctx.font=font(size,bold);return ctx.measureText(String(str||'')).width};
- const wrap=(str,max,size,bold=false)=>{let lines=[''];for(const word of String(str||'—').split(/\s+/)){let i=lines.length-1,test=lines[i]?lines[i]+' '+word:word;if(measure(test,size,bold)<=max||!lines[i])lines[i]=test;else lines.push(word)}return lines};
- const focusW=focus?150:0,dayW=focus?0:26,periodW=24,baseFont=focus?17:13,teacherFont=focus?14:11;
- const colWidths=headings.map(item=>{if(focus)return focusW;const entries=db.timetable.filter(e=>e.sectionId===item.id);const widest=Math.max(measure(exportSectionName(item.id),14,true),...entries.map(e=>Math.max(measure(db.subjects.find(s=>s.id===e.subjectId)?.name||'',baseFont,true),measure(teacherShort(db.teachers.find(t=>t.id===e.teacherId)?.name),teacherFont))));return Math.max(66,Math.min(110,Math.ceil(widest+10)))});
- const margin=24,tableW=dayW+periodW+colWidths.reduce((a,b)=>a+b,0),width=tableW+margin*2,headH=52,topH=175,footH=db.printSettings.showSignatures?112:70;
- const rowHeights=rows.map(r=>{let h=31;headings.forEach(item=>{const day=focus?item:r.day,sectionId=mode==='section'?id:item.id;const e=db.timetable.find(e=>e.dayId===day.id&&e.period===r.period&&(mode==='teacher'?e.teacherId===id:e.sectionId===sectionId));if(!e)return;const ci=headings.indexOf(item),w=colWidths[ci]-14;const sub=db.subjects.find(s=>s.id===e.subjectId)?.name||'—',t=db.teachers.find(t=>t.id===e.teacherId)?.name||'—';const subLines=wrap(sub,w,baseFont,true).length,teachLines=db.printSettings.showTeachers===false?0:wrap(mode==='teacher'?exportSectionName(e.sectionId):teacherShort(t),w,teacherFont).length;h=Math.max(h,5+subLines*(baseFont+1)+teachLines*(teacherFont+1))});return h});
- const height=topH+headH+rowHeights.reduce((a,b)=>a+b,0)+footH;
- if(width>9000||height>9000||width*height>50000000)throw new Error('الصورة كبيرة لهذا الجهاز؛ جرّب تصدير مرحلة واحدة.');
- canvas.width=width;canvas.height=height;const c=canvas.getContext('2d');c.direction='rtl';c.fillStyle='#fff';c.fillRect(0,0,width,height);
- const box=(x,y,w,h,bg,border='#B9C8D8')=>{c.fillStyle=bg;c.fillRect(x,y,w,h);c.strokeStyle=border;c.lineWidth=1;c.strokeRect(x+.5,y+.5,w-1,h-1)};
- const text=(str,x,y,size=17,color='#17324D',bold=false)=>{c.direction='rtl';c.font=font(size,bold);c.fillStyle=color;c.textAlign='center';c.textBaseline='middle';c.fillText(String(str||'—'),x,y)};
- const lines=(str,x,y,w,size,bold,color,step)=>{const ls=wrap(str,w,size,bold);ls.forEach((line,i)=>text(line,x,y+i*step,size,color,bold));return ls.length*step};
- const title=mode==='all'?'المدرسة كاملة':mode==='middle'?'المرحلة المتوسطة':mode==='high'?'المرحلة الإعدادية':mode==='stage'?stageDisplayName(db.stages.find(x=>x.id===id)):mode==='teacher'?db.teachers.find(x=>x.id===id)?.name:exportSectionName(id);
- text(db.school.name||'اسم المدرسة',width/2,38,30,'#17324D',true);text(db.printSettings.title||'جدول الحصص الأسبوعية',width/2,80,24,'#274F77',true);text(title,width/2,116,22,'#415A70',true);text(`العام الدراسي: ${db.school.year||'—'} | تاريخ بدء التطبيق: ${db.printSettings.startDate||'غير محدد'}`,width/2,151,15,'#475569');
- if(db.printSettings.logo&&db.printSettings.logoPosition!=='none'){try{const img=new Image();img.src=db.printSettings.logo;await new Promise((resolve,reject)=>{if(img.complete&&img.naturalWidth)return resolve();img.onload=resolve;img.onerror=reject});const x=db.printSettings.logoPosition==='center'?width/2-22:db.printSettings.logoPosition==='right'?width-82:38;c.drawImage(img,x,5,44,44)}catch(e){/* Continue exporting without invalid logo */}}
- c.strokeStyle='#C4A468';c.lineWidth=2;c.beginPath();c.moveTo(margin,topH-6);c.lineTo(width-margin,topH-6);c.stroke();
- const tableTop=topH;let right=width-margin;
- if(!focus){right-=dayW;box(right,tableTop,dayW,headH,'#E8EEF5');c.save();c.translate(right+dayW/2,tableTop+headH/2);c.rotate(-Math.PI/2);text('اليوم',0,0,13,'#17324D',true);c.restore()}
- right-=periodW;box(right,tableTop,periodW,headH,'#E8EEF5');c.save();c.translate(right+periodW/2,tableTop+headH/2);c.rotate(-Math.PI/2);text('الحصة',0,0,13,'#17324D',true);c.restore();
- headings.forEach((item,i)=>{const w=colWidths[i];right-=w;const pal=focus?null:exportPalettes[item.stageId];box(right,tableTop,w,headH,pal?pal[0]:'#E8EEF5',pal?pal[2]:'#B9C8D8');lines(focus?item.name:exportSectionName(item.id),right+w/2,tableTop+headH/2-7,w-10,14,true,pal?pal[1]:'#17324D',17)});
- let yy=tableTop+headH;const dayColors=['#DCE9F8','#E2F1E5','#FFF0DA','#EEE7F9','#FBE8ED'];
- rows.forEach((r,ri)=>{const rh=rowHeights[ri];let xx=width-margin;
- if(!focus){xx-=dayW;if(r.period===1){const start=ri,total=rows.slice(start,start+r.day.periods).reduce((sum,_,j)=>sum+rowHeights[start+j],0);box(xx,yy,dayW,total,dayColors[days.findIndex(d=>d.id===r.day.id)]||'#EAF1F8');c.save();c.translate(xx+dayW/2,yy+total/2);c.rotate(-Math.PI/2);text(r.day.name,0,0,20,'#24466C',true);c.restore()}}
- xx-=periodW;box(xx,yy,periodW,rh,ri%2?'#F2F6FA':'#EAF0F6');text(String(r.period),xx+periodW/2,yy+rh/2,13,'#334155',true);
- headings.forEach((item,i)=>{const w=colWidths[i];xx-=w;const day=focus?item:r.day,secId=mode==='section'?id:item.id;const e=db.timetable.find(e=>e.dayId===day.id&&e.period===r.period&&(mode==='teacher'?e.teacherId===id:e.sectionId===secId));const section=mode==='teacher'?db.sections.find(s=>s.id===e?.sectionId):mode==='section'?db.sections.find(s=>s.id===id):item;const pal=exportPalettes[section?.stageId]||['#F4F7FA','#334155','#64748B'];const off=mode==='teacher'?r.period>day.periods:r.period>sectionDayPeriods(section,day);box(xx,yy,w,rh,off?'#F1F3F6':e?(db.printSettings.theme==='contrast'?'#FFFFFF':pal[0]):ri%2?'#FAFBFC':'#FFFFFF',e?pal[2]:'#D4DCE5');if(e){const sub=db.subjects.find(s=>s.id===e.subjectId)?.name||'—',teacher=db.teachers.find(t=>t.id===e.teacherId)?.name||'—';const t=mode==='teacher'?exportSectionName(e.sectionId):teacherShort(teacher),subLines=wrap(sub,w-8,baseFont,true),tLines=db.printSettings.showTeachers===false?[]:wrap(t,w-8,teacherFont),total=subLines.length*(baseFont+1)+tLines.length*(teacherFont+3),first=yy+(rh-total)/2+baseFont/2+2;subLines.forEach((line,k)=>text(line,xx+w/2,first+k*(baseFont+1),baseFont,'#182D43',true));tLines.forEach((line,k)=>text(line,xx+w/2,first+subLines.length*(baseFont+1)+k*(teacherFont+1),teacherFont,'#475569'))}else if(off)text('—',xx+w/2,yy+rh/2,15,'#9AA5B1')});yy+=rh});
- if(db.printSettings.showNotes!==false){text(`أسباب تغيير الجدول: ${db.printSettings.changeReasons||'—'}`,width/2,height-footH+20,14,'#475569');if(db.printSettings.footer)text(db.printSettings.footer,width/2,height-footH+42,12,'#475569')}
- if(db.printSettings.showSignatures!==false){const labels=[db.printSettings.signature1||'منظّم الجدول',db.printSettings.signature2||'معاون المدير',db.printSettings.signature3||'مدير المدرسة'];labels.forEach((label,i)=>{const x=width*(i+1)/4;text(label,x,height-37,13,'#17324D',true);text('التوقيع: __________',x,height-17,11,'#475569')})}
- const blob=await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('فشل إنشاء PNG')),'image/png'));const filename='masar-timetable-'+mode+(id?'-'+id:'')+'.png';const file=typeof File==='function'?new File([blob],filename,{type:'image/png'}):null;
- if(file&&navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:'جدول الحصص'});return}catch(e){if(e.name==='AbortError')return}}
- const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),15000);
+ const groups=stageGroups(),sortSec=(a,b)=>{let ga=db.stages.find(g=>g.id===a.stageId)?.order||0,gb=db.stages.find(g=>g.id===b.stageId)?.order||0;return ga-gb||a.order-b.order};
+ const groupCanvas=g=>pngSchoolPage(g.title,db.sections.filter(s=>g.ids.includes(s.stageId)).sort(sortSec));
+ let sheets=[],names=[];
+ if(mode==='all'){sheets=groups.map(groupCanvas);names=['masar-middle-school-A3.png','masar-high-school-A3.png']}
+ else if(mode==='middle'||mode==='high'){const n=mode==='middle'?0:1;sheets=[groupCanvas(groups[n])];names=[mode==='middle'?'masar-middle-school-A3.png':'masar-high-school-A3.png']}
+ else if(mode==='stage'){const st=db.stages.find(g=>g.id===id);sheets=[pngSchoolPage(stageDisplayName(st),db.sections.filter(s=>s.stageId===id).sort(sortSec))];names=['masar-stage-'+id+'.png']}
+ else if(mode==='teacher'){sheets=[pngTeacherPage(id)];names=['masar-teacher-'+id+'.png']}
+ else if(mode==='section'){sheets=[pngFocusedSection(id)];names=['masar-section-'+id+'.png']}
+ else throw Error('نوع التصدير غير معروف');
+ await deliverPngCanvases(sheets,names);
 }
 
 $('#exportBtn').onclick=()=>{let blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='masar-backup-v'+APP_VERSION+'.json';a.click();URL.revokeObjectURL(a.href)};
