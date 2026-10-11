@@ -1,2 +1,2 @@
-Masar School Timetable v0.9.13.0
+Masar School Timetable v0.9.13.1
 Premium Academic print theme; scheduling logic unchanged.
