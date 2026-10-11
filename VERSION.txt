@@ -1,0 +1,3 @@
+Masar School Timetable
+Release: 0.9.12.7
+All JS and CSS resources versioned 09127.
