@@ -1,2 +1,2 @@
-Masar school timetable v0.9.12.8
-PNG/PDF parity and teacher card design
+Masar School Timetable v0.9.13.0
+Premium Academic print theme; scheduling logic unchanged.
