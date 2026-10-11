@@ -1,4 +1,4 @@
-const APP_VERSION='0.9.12.5';
+const APP_VERSION='0.9.12.6';
 const KEY='school-timetable-v01';
 const stageDefaults=[['الأول',1,'#587B9B'],['الثاني',2,'#6F8F72'],['الثالث',3,'#9A7B60'],['الرابع',4,'#7D7398'],['الخامس',5,'#A16F78'],['السادس',6,'#557F83']];
 const defaultDays=[['الأحد',7,true],['الاثنين',7,true],['الثلاثاء',6,true],['الأربعاء',7,true],['الخميس',5,true],['الجمعة',0,false],['السبت',0,false]];
@@ -311,10 +311,52 @@ function analyzeFeasibility(){
 }
 // Diagnostic checks are advisory unless a hard mathematical contradiction is proven.
 // Read-only direct diagnostics. Never mutates timetable, assignments or rules.
+
+// Exact maximum-flow necessary-condition test for each teacher. Unlike summing
+// per-assignment openings, it counts every real time slot only once and respects
+// the teacher's daily maximum. A deficit is a mathematically proven blocker.
+function teacherCombinedCapacityDiagnostics(){
+ const out=[],days=db.days.filter(d=>d.active&&d.periods>0).sort((a,b)=>a.order-b.order);
+ const hardRules=(db.advancedRules||[]).filter(r=>r.strict!=='soft');
+ for(const t of db.teachers){
+  const aa=db.assignments.filter(a=>a.teacherId===t.id&&+a.weeklyPeriods>0);
+  const demand=aa.reduce((v,a)=>v+(+a.weeklyPeriods),0);if(!demand)continue;
+  const tr=db.teacherRules?.[t.id]||{};
+  const slots=[];for(const d of days)for(let p=1;p<=d.periods;p++)if(!(tr.unavailable?.[d.id]||[]).includes(p))slots.push({day:d,period:p});
+  const n=2+aa.length+slots.length+days.length,source=0,sink=n-1;
+  const g=Array.from({length:n},()=>[]);
+  function edge(a,b,c){const f={to:b,cap:c,rev:g[b].length},r={to:a,cap:0,rev:g[a].length};g[a].push(f);g[b].push(r)}
+  const baseA=1,baseS=baseA+aa.length,baseD=baseS+slots.length;
+  aa.forEach((a,i)=>edge(source,baseA+i,+a.weeklyPeriods));
+  slots.forEach((sl,j)=>{const di=days.findIndex(d=>d.id===sl.day.id);edge(baseS+j,baseD+di,1)});
+  days.forEach((d,i)=>edge(baseD+i,sink,+tr.maxDaily>0?+tr.maxDaily:d.periods));
+  aa.forEach((a,i)=>{
+   const sec=db.sections.find(x=>x.id===a.sectionId);if(!sec)return;
+   const sr=db.subjectRules?.[a.subjectId]||{},hard=sr.strict!=='soft'&&(!sr.stageId||sr.stageId===sec.stageId);
+   slots.forEach((sl,j)=>{
+    const cap=sectionDayPeriods(sec,sl.day),p=sl.period;if(p>cap) return;
+    if(hard&&(sr.noFirst&&p===1||sr.noLast&&p===cap))return;
+    if(hardRules.some(r=>advancedDiagnosticMatch(r,a,sec,sl.day.id,p)&&((r.mode==='allow'&&(p<+r.from||p>+r.to))||(r.mode!=='allow'&&p>=+r.from&&p<=+r.to))))return;
+    edge(baseA+i,baseS+j,1);
+   });
+  });
+  let flow=0;while(true){const parent=Array(n).fill(null),queue=[source];parent[source]=[-1,-1];
+   for(let h=0;h<queue.length&&parent[sink]===null;h++){const u=queue[h];for(let k=0;k<g[u].length;k++){const e=g[u][k];if(e.cap>0&&parent[e.to]===null){parent[e.to]=[u,k];queue.push(e.to)}}}
+   if(parent[sink]===null)break;let v=sink;while(v!==source){const [u,k]=parent[v];g[u][k].cap--;g[v][g[u][k].rev].cap++;v=u}flow++;
+  }
+  if(flow<demand){const reachable=new Set([source]),queue=[source];for(let h=0;h<queue.length;h++){const u=queue[h];for(const e of g[u])if(e.cap>0&&!reachable.has(e.to)){reachable.add(e.to);queue.push(e.to)}}
+   const affected=aa.filter((a,i)=>reachable.has(baseA+i));
+   out.push({teacher:t.name,teacherId:t.id,required:demand,available:flow,deficit:demand-flow,assignments:affected.map(a=>({assignmentId:a.id,sectionId:a.sectionId,subjectId:a.subjectId,weeklyPeriods:+a.weeklyPeriods}))});
+  }
+ }
+ return out;
+}
+
 function directGenerationDiagnostics(){
  const issues=[],active=db.days.filter(d=>d.active&&d.periods>0);
  const add=(level,title,detail,where,ruleIds=[],fix='')=>issues.push({level,title,detail,where,ruleIds:Array.isArray(ruleIds)?ruleIds:[],fix:fix||(typeof ruleIds==='string'?ruleIds:'')});
  const rules=(db.advancedRules||[]).filter(r=>r.strict!=='soft');
+ for(const x of teacherCombinedCapacityDiagnostics())add('block',`تعارض مركب مؤكد — ${x.teacher}`,`مطلوب ${x.required} حصة، لكن توزيع التكليفات معاً على الفترات المختلفة والحد اليومي لا يسمح إلا بـ ${x.available}؛ العجز ${x.deficit} حصة.`, 'teachers',[],`راجع أيام وفترات عدم الإتاحة أو القيود المتقدمة لتكليفات المدرس ${x.teacher}، أو أعد توزيع بعض التكليفات. لا يُعدّل التطبيق أي قيد تلقائياً.`);
  const stageName=id=>db.stages.find(g=>g.id===id)?.name||'مرحلة غير معروفة';
  for(const sec of db.sections){
   const assigned=db.assignments.filter(a=>a.sectionId===sec.id&&+a.weeklyPeriods>0);
@@ -485,7 +527,7 @@ function showDirectDiagnostics(){
  document.querySelectorAll('.direct-diagnostic-jump').forEach(b=>b.onclick=()=>{page=b.dataset.target;render()});
 }
 function exportDirectDiagnostics(){if(!window.lastDirectDiagnosis)showDirectDiagnostics();const data=JSON.stringify(window.lastDirectDiagnosis,null,2),url=URL.createObjectURL(new Blob([data],{type:'application/json;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download='masar-diagnosis.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
-function diagnosticControls(){return `<section class="generation-report"><h3>تشخيص أسباب عدم توليد الجدول</h3><p class="muted">يفحص القيود والتكليفات والسعة ويكشف تعارض نمط الحصص 4–6 مع محرك الدوام المتصل. لا يغير الجدول المحفوظ.</p><div class="actions"><button type="button" id="directDiagnosisBtn">تشخيص الآن</button><button type="button" class="secondary" id="directDiagnosisExport">تنزيل تقرير التشخيص JSON</button></div><div class="notice">إذا انتهى وقت التوليد دون حل، يمكنك تشغيل اختبارات تخفيف القيود. نجاح نسخة مخففة يحدد قيوداً مؤثرة لكنه لا يثبت أن النسخة الأصلية مستحيلة؛ ولن تُعدّل بياناتك.</div><div class="actions"><button type="button" id="probeBtn">🔎 تشخيص دقيق بالاختبار التجريبي</button></div><div id="probeResult"></div><div id="directDiagnosisResult"></div></section>`}
+function diagnosticControls(){return `<section class="generation-report"><h3>تشخيص أسباب عدم توليد الجدول</h3><p class="muted">يفحص القيود والتكليفات والسعة، ويستخدم تدفقاً رياضياً للكشف عن التعارضات المركبة في حصص المدرس. لا يغير الجدول المحفوظ.</p><div class="actions"><button type="button" id="directDiagnosisBtn">تشخيص الآن</button><button type="button" class="secondary" id="directDiagnosisExport">تنزيل تقرير التشخيص JSON</button></div><div class="notice">إذا انتهى وقت التوليد دون حل، يمكنك تشغيل اختبارات تخفيف القيود. نجاح نسخة مخففة يحدد قيوداً مؤثرة لكنه لا يثبت أن النسخة الأصلية مستحيلة؛ ولن تُعدّل بياناتك.</div><div class="actions"><button type="button" id="probeBtn">🔎 تشخيص دقيق بالاختبار التجريبي</button></div><div id="probeResult"></div><div id="directDiagnosisResult"></div></section>`}
 function wireDirectDiagnostics(){if($('#directDiagnosisBtn'))$('#directDiagnosisBtn').onclick=showDirectDiagnostics;if($('#probeBtn'))$('#probeBtn').onclick=runProbeDiagnosis;if($('#directDiagnosisExport'))$('#directDiagnosisExport').onclick=exportDirectDiagnostics}
 function generationDiagnostics(result){
  const found=[];const add=(severity,title,detail,where)=>found.push({severity,title,detail,where});

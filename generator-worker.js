@@ -61,10 +61,11 @@ function generate(db,limitMs){
   }
   return Math.max(0,+a.weeklyPeriods-availableDays);
  });
+ for(let i=0;i<A;i++){const sr=subjectRule(i);if(sr.noRepeat&&+assignments[i].weeklyPeriods>days.length)return {ok:false,reason:'subject-no-repeat',message:`قيد منع تكرار المادة يمنع توزيع ${assignments[i].weeklyPeriods} حصة في ${days.length} أيام للتكليف ${assignments[i].id}.`};}
  function repeatOK(i,d){
   const sr=subjectRule(i);
   const extra=assDay[i].reduce((n,v)=>n+Math.max(0,v-1),0);
-  return assDay[i][d]===0||extra<allowedRepeat[i];
+  return assDay[i][d]===0||(!sr.noRepeat&&extra<allowedRepeat[i]);
  }
  const fixed=new Map(),fixedMax=sections.map(()=>new Int8Array(D)),entries=[];let nodes=0,bestDepth=0,stop='';
  const key=(t,d,p)=>t+'|'+d+'|'+p;
@@ -165,7 +166,7 @@ function validateExistingSchedule(db){
    if(Array.from({length:cap},(_,j)=>j+1).some(p=>!(rule.unavailable?.[d.id]||[]).includes(p)))availableDays++;
   }
   const actual=[...(assignmentDays.get(a.id)||new Map()).values()].reduce((n,v)=>n+Math.max(0,v-1),0);
-  if(actual>Math.max(0,+a.weeklyPeriods-availableDays))return {ok:false,reason:'تكرار المادة يتجاوز الضرورة'};
+  if((sr.noRepeat&&actual>0)||(actual>Math.max(0,+a.weeklyPeriods-availableDays)))return {ok:false,reason:'تكرار المادة يتجاوز الضرورة'};
  }
  for(const [k,n] of perDay){const teacherId=k.split('|')[0],r=db.teacherRules?.[teacherId]||{};
   if(+r.maxDaily>0&&n>+r.maxDaily)return {ok:false,reason:'تجاوز الحد الأقصى اليومي'};
