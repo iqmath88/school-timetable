@@ -1,4 +1,4 @@
-const APP_VERSION='0.9.12.6';
+const APP_VERSION='0.9.12.7';
 const KEY='school-timetable-v01';
 const stageDefaults=[['الأول',1,'#587B9B'],['الثاني',2,'#6F8F72'],['الثالث',3,'#9A7B60'],['الرابع',4,'#7D7398'],['الخامس',5,'#A16F78'],['السادس',6,'#557F83']];
 const defaultDays=[['الأحد',7,true],['الاثنين',7,true],['الثلاثاء',6,true],['الأربعاء',7,true],['الخميس',5,true],['الجمعة',0,false],['السبت',0,false]];
@@ -352,8 +352,42 @@ function teacherCombinedCapacityDiagnostics(){
  return out;
 }
 
+
+// Hall's theorem diagnostic: each section at a given period requires a DISTINCT teacher.
+// Maximum matching exposes a concrete group of sections with fewer eligible teachers.
+// This is a proven blocker independent of the backtracking generator.
+function concurrentSectionDiagnostics(){
+ const issues=[],days=db.days.filter(d=>d.active&&d.periods>0).sort((a,b)=>a.order-b.order);
+ const hardRules=(db.advancedRules||[]).filter(r=>r.strict!=='soft');
+ const sectionName=sec=>(db.stages.find(g=>g.id===sec.stageId)?.name||sec.stageId)+' '+sec.name;
+ function eligible(a,sec,day,p){
+  const tr=db.teacherRules?.[a.teacherId]||{},sr=db.subjectRules?.[a.subjectId]||{};
+  if((tr.unavailable?.[day.id]||[]).includes(p))return false;
+  const hard=sr.strict!=='soft'&&(!sr.stageId||sr.stageId===sec.stageId),cap=sectionDayPeriods(sec,day);
+  if(hard&&(sr.noFirst&&p===1||sr.noLast&&p===cap))return false;
+  return !hardRules.some(r=>advancedDiagnosticMatch(r,a,sec,day.id,p)&&((r.mode==='allow'&&(p<+r.from||p>+r.to))||(r.mode!=='allow'&&p>=+r.from&&p<=+r.to)));
+ }
+ for(const day of days)for(let p=1;p<=day.periods;p++){
+  const sections=db.sections.filter(sec=>sectionDayPeriods(sec,day)>=p);
+  const choices=sections.map(sec=>[...new Set(db.assignments.filter(a=>a.sectionId===sec.id&&+a.weeklyPeriods>0&&eligible(a,sec,day,p)).map(a=>a.teacherId))]);
+  const owner=new Map();function match(i,seen){for(const tid of choices[i]){if(seen.has(tid))continue;seen.add(tid);const j=owner.get(tid);if(j===undefined||match(j,seen)){owner.set(tid,i);return true}}return false}
+  const unmatched=[];for(let i=0;i<sections.length;i++)if(!match(i,new Set()))unmatched.push(i);
+  if(!unmatched.length)continue;
+  // Alternating reachable sections form a Hall-deficient witness.
+  const affected=new Set(unmatched),queue=[...unmatched];for(let h=0;h<queue.length;h++)for(const tid of choices[queue[h]]){const j=owner.get(tid);if(j!==undefined&&!affected.has(j)){affected.add(j);queue.push(j)}}
+  const group=[...affected],eligibleTeachers=[...new Set(group.flatMap(i=>choices[i]))];
+  const alternatives=[];for(const i of group)for(const a of db.assignments){if(a.sectionId!==sections[i].id||+a.weeklyPeriods<=0||eligibleTeachers.includes(a.teacherId))continue;
+   const tr=db.teacherRules?.[a.teacherId]||{};
+   if((tr.unavailable?.[day.id]||[]).includes(p)&&!alternatives.some(x=>x.teacherId===a.teacherId))alternatives.push({teacherId:a.teacherId,teacher:db.teachers.find(t=>t.id===a.teacherId)?.name||a.teacherId,section:sectionName(sections[i]),subject:db.subjects.find(x=>x.id===a.subjectId)?.name||a.subjectId});
+  }
+  const names=eligibleTeachers.map(id=>db.teachers.find(t=>t.id===id)?.name||id);
+  issues.push({level:'block',title:`تعارض توقيت مثبت — ${day.name}، الحصة ${p}`,detail:`تحتاج ${group.length} شعب (${group.map(i=>sectionName(sections[i])).join('، ')}) إلى ${group.length} مدرسين مختلفين في الوقت نفسه، لكن المسموح لهم وفق القيود ${eligibleTeachers.length} فقط: ${names.join('، ')}. العجز ${group.length-eligibleTeachers.length} مدرس/حصة.`,where:'teachers',ruleIds:[],fix:alternatives.length?`افتح الحصة ${p} يوم ${day.name} لأحد المدرسين المكلفين بالشعب المتأثرة، مثل ${alternatives.slice(0,5).map(a=>`${a.teacher} (${a.subject}، ${a.section})`).join(' أو ')}. ثم أعد الفحص والتوليد. هذا تعديل مقترح يحتاج موافقتك ولا يضمن وحده حل جميع التعارضات.`:'راجع تكليفات الشعب المتأثرة أو قيود المواد/المدرسين لهذه الحصة؛ يلزم إضافة مدرس متاح واحد على الأقل.',witness:{dayId:day.id,period:p,sectionIds:group.map(i=>sections[i].id),teacherIds:eligibleTeachers,alternatives}});
+ }
+ return issues;
+}
+
 function directGenerationDiagnostics(){
- const issues=[],active=db.days.filter(d=>d.active&&d.periods>0);
+ const issues=concurrentSectionDiagnostics(),active=db.days.filter(d=>d.active&&d.periods>0);
  const add=(level,title,detail,where,ruleIds=[],fix='')=>issues.push({level,title,detail,where,ruleIds:Array.isArray(ruleIds)?ruleIds:[],fix:fix||(typeof ruleIds==='string'?ruleIds:'')});
  const rules=(db.advancedRules||[]).filter(r=>r.strict!=='soft');
  for(const x of teacherCombinedCapacityDiagnostics())add('block',`تعارض مركب مؤكد — ${x.teacher}`,`مطلوب ${x.required} حصة، لكن توزيع التكليفات معاً على الفترات المختلفة والحد اليومي لا يسمح إلا بـ ${x.available}؛ العجز ${x.deficit} حصة.`, 'teachers',[],`راجع أيام وفترات عدم الإتاحة أو القيود المتقدمة لتكليفات المدرس ${x.teacher}، أو أعد توزيع بعض التكليفات. لا يُعدّل التطبيق أي قيد تلقائياً.`);
@@ -527,7 +561,7 @@ function showDirectDiagnostics(){
  document.querySelectorAll('.direct-diagnostic-jump').forEach(b=>b.onclick=()=>{page=b.dataset.target;render()});
 }
 function exportDirectDiagnostics(){if(!window.lastDirectDiagnosis)showDirectDiagnostics();const data=JSON.stringify(window.lastDirectDiagnosis,null,2),url=URL.createObjectURL(new Blob([data],{type:'application/json;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download='masar-diagnosis.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
-function diagnosticControls(){return `<section class="generation-report"><h3>تشخيص أسباب عدم توليد الجدول</h3><p class="muted">يفحص القيود والتكليفات والسعة، ويستخدم تدفقاً رياضياً للكشف عن التعارضات المركبة في حصص المدرس. لا يغير الجدول المحفوظ.</p><div class="actions"><button type="button" id="directDiagnosisBtn">تشخيص الآن</button><button type="button" class="secondary" id="directDiagnosisExport">تنزيل تقرير التشخيص JSON</button></div><div class="notice">إذا انتهى وقت التوليد دون حل، يمكنك تشغيل اختبارات تخفيف القيود. نجاح نسخة مخففة يحدد قيوداً مؤثرة لكنه لا يثبت أن النسخة الأصلية مستحيلة؛ ولن تُعدّل بياناتك.</div><div class="actions"><button type="button" id="probeBtn">🔎 تشخيص دقيق بالاختبار التجريبي</button></div><div id="probeResult"></div><div id="directDiagnosisResult"></div></section>`}
+function diagnosticControls(){return `<section class="generation-report"><h3>تشخيص أسباب عدم توليد الجدول</h3><p class="muted">يفحص التزامن الإجباري للشعب في كل حصة بنظرية المطابقة الرياضية، ثم يتحقق من القيود والتكليفات وسعة المدرسين. ويعرض موقع التعارض والأسماء وخيارات الإصلاح دون تغيير البيانات. لا يغير الجدول المحفوظ.</p><div class="actions"><button type="button" id="directDiagnosisBtn">تشخيص الآن</button><button type="button" class="secondary" id="directDiagnosisExport">تنزيل تقرير التشخيص JSON</button></div><div class="notice">إذا انتهى وقت التوليد دون حل، يمكنك تشغيل اختبارات تخفيف القيود. نجاح نسخة مخففة يحدد قيوداً مؤثرة لكنه لا يثبت أن النسخة الأصلية مستحيلة؛ ولن تُعدّل بياناتك.</div><div class="actions"><button type="button" id="probeBtn">🔎 تشخيص دقيق بالاختبار التجريبي</button></div><div id="probeResult"></div><div id="directDiagnosisResult"></div></section>`}
 function wireDirectDiagnostics(){if($('#directDiagnosisBtn'))$('#directDiagnosisBtn').onclick=showDirectDiagnostics;if($('#probeBtn'))$('#probeBtn').onclick=runProbeDiagnosis;if($('#directDiagnosisExport'))$('#directDiagnosisExport').onclick=exportDirectDiagnostics}
 function generationDiagnostics(result){
  const found=[];const add=(severity,title,detail,where)=>found.push({severity,title,detail,where});
