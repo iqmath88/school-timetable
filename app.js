@@ -1,4 +1,4 @@
-const APP_VERSION='0.9.13.8';
+const APP_VERSION='0.9.13.9';
 const KEY='school-timetable-v01';
 const stageDefaults=[['الأول',1,'#587B9B'],['الثاني',2,'#6F8F72'],['الثالث',3,'#9A7B60'],['الرابع',4,'#7D7398'],['الخامس',5,'#A16F78'],['السادس',6,'#557F83']];
 const defaultDays=[['الأحد',7,true],['الاثنين',7,true],['الثلاثاء',6,true],['الأربعاء',7,true],['الخميس',5,true],['الجمعة',0,false],['السبت',0,false]];
@@ -645,43 +645,15 @@ function slotKey(dayId,period){return dayId+'|'+period}
 // Generation runs in generator-worker.js; do not run backtracking on the UI thread.
 let generationWorker=null;
 let generationCancel=null;
-const CP_ENDPOINT_KEY='masar_cp_sat_endpoint';
-let remoteAbort=null;
-function validateRemoteCandidate(entries){return new Promise(resolve=>{
- let w=new Worker('candidate-validator.js?v='+APP_VERSION),timer=setTimeout(()=>{w.terminate();resolve({ok:false,reason:'انتهت مهلة التحقق المستقل'})},15000);
- w.onmessage=e=>{clearTimeout(timer);w.terminate();resolve(e.data)};
- w.onerror=()=>{clearTimeout(timer);w.terminate();resolve({ok:false,reason:'تعذر تشغيل المدقق المستقل'})};
+// All timetable generation runs locally in a dedicated Web Worker.
+// No school data is sent to a remote solver service.
+function validateLocalCandidate(entries){return new Promise(resolve=>{
+ let w=new Worker('candidate-validator.js?v='+APP_VERSION),done=false;
+ const timer=setTimeout(()=>{if(!done){done=true;w.terminate();resolve({ok:false,reason:'انتهت مهلة التدقيق المستقل'})}},30000);
+ w.onmessage=e=>{if(done)return;done=true;clearTimeout(timer);w.terminate();resolve(e.data)};
+ w.onerror=()=>{if(done)return;done=true;clearTimeout(timer);w.terminate();resolve({ok:false,reason:'تعذر تشغيل المدقق المستقل'})};
  w.postMessage({db:structuredClone(db),entries});
 })}
-async function startRemoteGeneration(){
- if(remoteAbort)return;
- const endpoint=(localStorage.getItem(CP_ENDPOINT_KEY)||'').trim();
- if(!/^https:\/\/[^\s]+\/solve\/?$/.test(endpoint)&&!/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/solve\/?$/.test(endpoint)){
-  alert('أدخل رابط HTTPS لخدمة CP-SAT وينتهي بـ /solve (أو localhost للتجربة المحلية).');return;
- }
- const blockers=analyzeFeasibility().filter(x=>x.level==='red');
- const direct=directGenerationDiagnostics().filter(x=>x.level==='block');
- if(blockers.length||direct.length){alert('عالج الأخطاء المانعة التي كشفها فحص الجدوى قبل التوليد.');showDirectDiagnostics();return}
- if(db.timetable.length&&!confirm('سيُحفظ الجدول الحالي حتى يثبت نجاح الجدول الجديد. متابعة؟'))return;
- const controller=new AbortController();remoteAbort=controller;let started=Date.now();
- const btn=$('#remoteGenerateBtn');if(btn){btn.disabled=true;btn.textContent='جارٍ حل القيود...'}
- const status=$('#generationProgress');if(status)status.textContent='اتصال آمن بخدمة CP-SAT؛ لن تتغير بياناتك قبل التحقق.';
- const stop=$('#stopRemoteGenerate');if(stop){stop.hidden=false;stop.onclick=()=>controller.abort()}
- try{
-  const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({db:structuredClone(db),seconds:180}),signal:controller.signal});
-  if(!response.ok){let detail='';try{const problem=await response.json();detail=problem.message||''}catch(_){}throw Error('الخدمة أعادت HTTP '+response.status+(detail?' — '+detail:''));}
-  const result=await response.json();
-  if(result.ok){
-   if(!Array.isArray(result.entries))throw Error('لم تُعد الخدمة قائمة الحصص');
-   const verification=await validateRemoteCandidate(result.entries);
-   if(!verification.ok)throw Error('رفض المدقق المستقل الجدول: '+(verification.reason||'مخالفة للقيود'));
-   preserveTimetable('قبل اعتماد جدول CP-SAT');db.manualHistory=[];
-   db.timetable=result.entries.map((e,i)=>({...e,id:'cp_'+Date.now().toString(36)+'_'+i}));save();
-  }
-  window.generationReport={...result,reason:result.ok?'cp-sat-success':(result.status||'unknown'),message:result.message||('حالة CP-SAT: '+result.status),seconds:((Date.now()-started)/1000).toFixed(1)};
- }catch(e){window.generationReport={ok:false,reason:controller.signal.aborted?'cancelled':'remote-error',message:controller.signal.aborted?'أُلغي الطلب؛ الجدول السابق محفوظ.':'تعذر تشغيل CP-SAT: '+e.message,seconds:((Date.now()-started)/1000).toFixed(1)}}
- finally{remoteAbort=null;if(page==='generator')generator()}
-}
 function startGeneration(){
  if(generationWorker)return;
  {const pre=directGenerationDiagnostics().filter(x=>x.level==='block');if(pre.length){showDirectDiagnostics();$('#directDiagnosisResult')?.scrollIntoView?.({behavior:'smooth'});alert('لن يبدأ التوليد: وُجد '+pre.length+' سبب مانع مؤكد. راجع التشخيص أدناه وعالجها أولاً.');return}}
@@ -698,8 +670,12 @@ function startGeneration(){
  },500);
  generationCancel=()=>finish({ok:false,reason:'cancelled',...lastProgress,message:'أوقفت التوليد. بقي الجدول السابق محفوظاً.'});
  const stop=$('#stopGenerate');if(stop){stop.hidden=false;stop.onclick=()=>generationCancel()}
- const finish=result=>{if(finished)return;finished=true;clearInterval(tick);worker.terminate();generationWorker=null;generationCancel=null;
-   if(result.ok&&!result.reused){preserveTimetable('قبل استبدال الجدول بجدول جديد');db.manualHistory=[];db.timetable=result.entries.map((e,i)=>({...e,id:'ent_'+Date.now().toString(36)+'_'+i}));save();}
+ const finish=async result=>{if(finished)return;finished=true;clearInterval(tick);worker.terminate();generationWorker=null;generationCancel=null;
+   if(result.ok&&!result.reused){
+     const verification=await validateLocalCandidate(result.entries);
+     if(!verification.ok)result={ok:false,reason:'validation-failed',message:'رفض المدقق المستقل الجدول: '+(verification.reason||'مخالفة للقيود'),nodes:result.nodes,bestDepth:result.bestDepth,total:result.total};
+     else{preserveTimetable('قبل استبدال الجدول بجدول جديد');db.manualHistory=[];db.timetable=result.entries.map((e,i)=>({...e,id:'ent_'+Date.now().toString(36)+'_'+i}));save()}
+   }
    window.generationReport={...result,seconds:((Date.now()-began)/1000).toFixed(1)};
    if(page==='generator')generator();
  };
@@ -765,18 +741,15 @@ function generator(){
   const warnings=timetableIssues(),q=scheduleQuality();
   $('#workspace').innerHTML=`<h2>التوليد الآلي للجدول</h2>
   ${reds?`<div class="notice error">يوجد ${reds} خطأ مانع في فحص الجدوى. لن يبدأ المحرك قبل معالجتها.</div>`:`<div class="notice">المحرك يطبق الحصص المثبتة أولاً، ثم يستخدم MRV + Backtracking مع تقييم للتفضيلات وتوزيع المواد.</div>`}
-  <div class="notice"><b>محرك CP-SAT الجديد (خدمة خارجية اختيارية)</b><p>للتجربة: شغّل خدمة solver-service على خادم HTTPS، ثم أدخل عنوانها. ستُرسل بيانات المدرسة إلى الخدمة فقط عند الضغط على توليد CP-SAT. لا ترسل بيانات حساسة إلى خدمة غير موثوقة. يجب نشر الخدمة بشكل مستقل قبل أن يعمل الزر.</p><label>رابط الخدمة <input id="cpEndpoint" type="url" dir="ltr" placeholder="https://your-server.example/solve" value="${esc(localStorage.getItem(CP_ENDPOINT_KEY)||'')}"></label><div class="actions"><button id="saveCpEndpoint" class="secondary">حفظ رابط الخدمة</button><button id="remoteGenerateBtn" ${reds?'disabled':''}>توليد بواسطة CP-SAT</button><button id="stopRemoteGenerate" class="danger" ${remoteAbort?'':'hidden'}>إلغاء طلب CP-SAT</button></div><small>إن تعذّر الاتصال، يبقى المحرك المحلي متاحاً. عدم انتهاء البحث لا يعني استحالة الجدول.</small></div>
+  <div class="notice"><b>محرك مسار المحلي — مجاني ويعمل داخل المتصفح</b><p>لا يحتاج إلى رابط خدمة ولا يرسل بيانات المدرسة إلى خادم خارجي. يفحص القيود، ويبحث عن جدول، ويتحقق من الناتج باستخدام مدقق مستقل قبل اعتماده. انتهاء وقت البحث لا يعني استحالة الجدول.</p></div>
   <div class="actions"><button id="generateBtn" ${reds?'disabled':''}>${db.timetable.length?'إعادة توليد الجدول':'توليد الجدول تلقائياً'}</button><button class="secondary" id="checkBtn">فتح فحص الجدوى</button>${db.timetable.length?'<button class="danger" id="clearTT">مسح الجدول</button>':''}</div>
   ${db.timetable.length?`<div class="quality-grid"><div><b>${q.score}/100</b><span>جودة الجدول</span></div><div><b>${q.repeats}</b><span>تكرار يومي</span></div><div><b>${q.gaps}</b><span>فراغات المدرسين</span></div><div><b>${q.avoid}</b><span>حصص غير مفضلة</span></div></div><div class="generation-status"><b>الجدول الحالي:</b> ${db.timetable.length} حصة — ${warnings} تحذيرات توزيع.</div>`:''}
   <div id="generationProgress" class="notice" aria-live="polite">${generationWorker?'التوليد جارٍ...':'جاهز للتوليد'}</div><button id="stopGenerate" class="danger" ${generationWorker?'':'hidden'}>إيقاف التوليد</button>
-  ${window.generationReport?`<div class="generation-report"><b>نتيجة آخر محاولة:</b> ${esc(window.generationReport.message)}<br>السبب: ${esc(({nodes:'بلوغ حد المحاولات',time:'انتهاء الوقت المحدد',exhausted:'استنفاد البحث',cancelled:'إيقاف يدوي',exception:'خطأ برمجي','worker-error':'خطأ تشغيل العامل','teacher-capacity':'نصاب مدرس يتجاوز المتاح','capacity':'سعة الشعبة غير كافية','fixed-conflict':'تعارض في حصة مثبتة'})[window.generationReport.reason]||(window.generationReport.ok?'نجاح':'سبب غير محدد'))} — الزمن: ${window.generationReport.seconds} ثانية — العقد: ${window.generationReport.nodes||0} — أفضل عمق: ${window.generationReport.bestDepth||0} من ${window.generationReport.total||'—'}</div>`:''}
+  ${window.generationReport?`<div class="generation-report"><b>نتيجة آخر محاولة:</b> ${esc(window.generationReport.message)}<br>السبب: ${esc(({nodes:'بلوغ حد المحاولات',time:'انتهاء الوقت المحدد',exhausted:'استنفاد البحث',cancelled:'إيقاف يدوي',exception:'خطأ برمجي','worker-error':'خطأ تشغيل العامل','validation-failed':'فشل التحقق المستقل','teacher-capacity':'نصاب مدرس يتجاوز المتاح','capacity':'سعة الشعبة غير كافية','fixed-conflict':'تعارض في حصة مثبتة'})[window.generationReport.reason]||(window.generationReport.ok?'نجاح':'سبب غير محدد'))} — الزمن: ${window.generationReport.seconds} ثانية — العقد: ${window.generationReport.nodes||0} — أفضل عمق: ${window.generationReport.bestDepth||0} من ${window.generationReport.total||'—'}</div>`:''}
   ${diagnosticControls()}
   ${diagnosticHtml(window.generationReport)}
   ${timetableTable()}`;
   wireDiagnostics();wireDirectDiagnostics();if(window.generationReport&&!window.generationReport.ok&&!window.generationReport.reused)showDirectDiagnostics();
-  $('#saveCpEndpoint').onclick=()=>{localStorage.setItem(CP_ENDPOINT_KEY,$('#cpEndpoint').value.trim());alert('تم حفظ الرابط في هذا المتصفح')};
-  $('#remoteGenerateBtn').onclick=()=>{localStorage.setItem(CP_ENDPOINT_KEY,$('#cpEndpoint').value.trim());startRemoteGeneration()};
-  if(remoteAbort)$('#stopRemoteGenerate').onclick=()=>remoteAbort.abort();
   $('#checkBtn').onclick=()=>{page='feasibility';render()};
   if($('#generateBtn')){$('#generateBtn').disabled=!!generationWorker||!!reds;$('#generateBtn').onclick=startGeneration;}
   if(generationWorker&&$('#stopGenerate'))$('#stopGenerate').onclick=()=>generationCancel?.();
