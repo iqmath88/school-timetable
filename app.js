@@ -1,4 +1,4 @@
-const APP_VERSION='0.9.13.7';
+const APP_VERSION='0.9.13.8';
 const KEY='school-timetable-v01';
 const stageDefaults=[['الأول',1,'#587B9B'],['الثاني',2,'#6F8F72'],['الثالث',3,'#9A7B60'],['الرابع',4,'#7D7398'],['الخامس',5,'#A16F78'],['السادس',6,'#557F83']];
 const defaultDays=[['الأحد',7,true],['الاثنين',7,true],['الثلاثاء',6,true],['الأربعاء',7,true],['الخميس',5,true],['الجمعة',0,false],['السبت',0,false]];
@@ -669,7 +669,7 @@ async function startRemoteGeneration(){
  const stop=$('#stopRemoteGenerate');if(stop){stop.hidden=false;stop.onclick=()=>controller.abort()}
  try{
   const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({db:structuredClone(db),seconds:180}),signal:controller.signal});
-  if(!response.ok)throw Error('الخدمة أعادت HTTP '+response.status);
+  if(!response.ok){let detail='';try{const problem=await response.json();detail=problem.message||''}catch(_){}throw Error('الخدمة أعادت HTTP '+response.status+(detail?' — '+detail:''));}
   const result=await response.json();
   if(result.ok){
    if(!Array.isArray(result.entries))throw Error('لم تُعد الخدمة قائمة الحصص');
@@ -765,7 +765,7 @@ function generator(){
   const warnings=timetableIssues(),q=scheduleQuality();
   $('#workspace').innerHTML=`<h2>التوليد الآلي للجدول</h2>
   ${reds?`<div class="notice error">يوجد ${reds} خطأ مانع في فحص الجدوى. لن يبدأ المحرك قبل معالجتها.</div>`:`<div class="notice">المحرك يطبق الحصص المثبتة أولاً، ثم يستخدم MRV + Backtracking مع تقييم للتفضيلات وتوزيع المواد.</div>`}
-  <div class="notice"><b>محرك CP-SAT الجديد (خدمة خارجية اختيارية)</b><p>للتجربة: شغّل خدمة solver-service على خادم HTTPS، ثم أدخل عنوانها. ستُرسل بيانات المدرسة إلى الخدمة فقط عند الضغط على توليد CP-SAT. لا ترسل بيانات حساسة إلى خدمة غير موثوقة.</p><label>رابط الخدمة <input id="cpEndpoint" type="url" dir="ltr" placeholder="https://your-server.example/solve" value="${esc(localStorage.getItem(CP_ENDPOINT_KEY)||'')}"></label><div class="actions"><button id="saveCpEndpoint" class="secondary">حفظ رابط الخدمة</button><button id="remoteGenerateBtn" ${reds?'disabled':''}>توليد بواسطة CP-SAT</button><button id="stopRemoteGenerate" class="danger" ${remoteAbort?'':'hidden'}>إلغاء طلب CP-SAT</button></div><small>إن تعذّر الاتصال، يبقى المحرك المحلي متاحاً. عدم انتهاء البحث لا يعني استحالة الجدول.</small></div>
+  <div class="notice"><b>محرك CP-SAT الجديد (خدمة خارجية اختيارية)</b><p>للتجربة: شغّل خدمة solver-service على خادم HTTPS، ثم أدخل عنوانها. ستُرسل بيانات المدرسة إلى الخدمة فقط عند الضغط على توليد CP-SAT. لا ترسل بيانات حساسة إلى خدمة غير موثوقة. يجب نشر الخدمة بشكل مستقل قبل أن يعمل الزر.</p><label>رابط الخدمة <input id="cpEndpoint" type="url" dir="ltr" placeholder="https://your-server.example/solve" value="${esc(localStorage.getItem(CP_ENDPOINT_KEY)||'')}"></label><div class="actions"><button id="saveCpEndpoint" class="secondary">حفظ رابط الخدمة</button><button id="remoteGenerateBtn" ${reds?'disabled':''}>توليد بواسطة CP-SAT</button><button id="stopRemoteGenerate" class="danger" ${remoteAbort?'':'hidden'}>إلغاء طلب CP-SAT</button></div><small>إن تعذّر الاتصال، يبقى المحرك المحلي متاحاً. عدم انتهاء البحث لا يعني استحالة الجدول.</small></div>
   <div class="actions"><button id="generateBtn" ${reds?'disabled':''}>${db.timetable.length?'إعادة توليد الجدول':'توليد الجدول تلقائياً'}</button><button class="secondary" id="checkBtn">فتح فحص الجدوى</button>${db.timetable.length?'<button class="danger" id="clearTT">مسح الجدول</button>':''}</div>
   ${db.timetable.length?`<div class="quality-grid"><div><b>${q.score}/100</b><span>جودة الجدول</span></div><div><b>${q.repeats}</b><span>تكرار يومي</span></div><div><b>${q.gaps}</b><span>فراغات المدرسين</span></div><div><b>${q.avoid}</b><span>حصص غير مفضلة</span></div></div><div class="generation-status"><b>الجدول الحالي:</b> ${db.timetable.length} حصة — ${warnings} تحذيرات توزيع.</div>`:''}
   <div id="generationProgress" class="notice" aria-live="polite">${generationWorker?'التوليد جارٍ...':'جاهز للتوليد'}</div><button id="stopGenerate" class="danger" ${generationWorker?'':'hidden'}>إيقاف التوليد</button>

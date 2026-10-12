@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: masar-solver
+    runtime: docker
+    dockerfilePath: ./solver-service/Dockerfile
+    dockerContext: ./solver-service
+    plan: starter
+    envVars:
+      - key: MASAR_ALLOWED_ORIGIN
+        value: https://iqmath88.github.io
