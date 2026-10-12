@@ -1,2 +1,1 @@
-Masar School Timetable v0.9.13.2
-PNG export stability, version/cache synchronization; timetable generation unchanged.
+Masar v0.9.13.6 — CP-SAT prototype service included; browser engine unchanged.

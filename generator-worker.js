@@ -52,6 +52,39 @@ function generate(db,limitMs){
   if(open<+a.weeklyPeriods)assignmentDiagnostics.push({teacher:teachers[t]?.name,section:sections[sec]?.name,stage:sections[sec]?.stageId,subject:a.subjectId,required:+a.weeklyPeriods,available:open,assignmentId:a.id});
  }
  if(assignmentDiagnostics.length)return {ok:false,reason:'assignment-capacity',total,diagnostics:{assignmentDiagnostics},message:'تكليفات لا تمتلك عدداً كافياً من الخانات المسموحة وفق القيود الإلزامية. راجع التفاصيل واقتراحات الحل.'};
+ // Teacher-level time-slot max-flow: detects joint assignment bottlenecks that
+ // individual load and availability checks cannot see. This is a necessary
+ // feasibility check, not a complete proof of schedule feasibility.
+ function teacherFlow(t){
+  const jobs=[];for(let i=0;i<A;i++)if(at[i]===t)jobs.push(i);
+  if(!jobs.length)return null;
+  const slots=[];for(let d=0;d<D;d++)for(let p=1;p<=days[d].periods;p++){
+   if(!(tRules[t].unavailable?.[days[d].id]||[]).includes(p))slots.push({d,p});
+  }
+  const source=0,jobBase=1,slotBase=jobBase+jobs.length,dayBase=slotBase+slots.length,sink=dayBase+D,N=sink+1;
+  const graph=Array.from({length:N},()=>[]);
+  function edge(u,v,c){const a={v,c,rev:graph[v].length},b={v:u,c:0,rev:graph[u].length};graph[u].push(a);graph[v].push(b)}
+  let demand=0;
+  jobs.forEach((i,j)=>{const a=assignments[i],sec=as[i],sr=db.subjectRules?.[a.subjectId]||{},hard=sr.strict!=='soft'&&(!sr.stageId||sr.stageId===sections[sec].stageId);
+   demand+=+a.weeklyPeriods;edge(source,jobBase+j,+a.weeklyPeriods);
+   slots.forEach((sl,k)=>{const {d,p}=sl;if(p>cap[sec][d]||!advancedAllowed(db,a,sections[sec],days[d].id,p))return;
+    if(hard&&((sr.noFirst&&p===1)||(sr.noLast&&p===cap[sec][d])))return;
+    edge(jobBase+j,slotBase+k,1);
+   });
+  });
+  slots.forEach((sl,k)=>edge(slotBase+k,dayBase+sl.d,1));
+  for(let d=0;d<D;d++)edge(dayBase+d,sink,maxDaily[t]);
+  let flow=0;
+  while(flow<demand){const prev=Array(N).fill(null),q=[source];prev[source]=[-1,-1];
+   for(let h=0;h<q.length&&prev[sink]===null;h++){const u=q[h];for(let k=0;k<graph[u].length;k++){const e=graph[u][k];if(e.c>0&&prev[e.v]===null){prev[e.v]=[u,k];q.push(e.v);if(e.v===sink)break}}}
+   if(prev[sink]===null)break;
+   let aug=demand-flow;for(let v=sink;v!==source;){const [u,k]=prev[v];aug=Math.min(aug,graph[u][k].c);v=u}
+   for(let v=sink;v!==source;){const [u,k]=prev[v],e=graph[u][k];e.c-=aug;graph[v][e.rev].c+=aug;v=u}flow+=aug;
+  }
+  return flow<demand?{teacherId:teachers[t].id,teacher:teachers[t].name,required:demand,maximumFlow:flow,shortfall:demand-flow,assignmentIds:jobs.map(i=>assignments[i].id)}:null;
+ }
+ const flowFailures=[];for(let t=0;t<teachers.length;t++){const x=teacherFlow(t);if(x)flowFailures.push(x)}
+ if(flowFailures.length)return {ok:false,reason:'teacher-time-flow',total,diagnostics:{flowFailures},message:`فشل فحص الإتاحة المشتركة لدى ${flowFailures.length} مدرس: بعض تكليفاتهم تتنافس على خانات زمنية لا تكفي للجميع. لم تُعدّل أي قيود.`};
  // Minimum repetition is based on days actually available to both teacher and section.
  const allowedRepeat=assignments.map((a,i)=>{
   let availableDays=0;const t=at[i],sec=as[i],r=tRules[t];
@@ -78,15 +111,44 @@ function generate(db,limitMs){
  const needed=sections.map((_,s)=>assignments.reduce((n,a,i)=>n+(as[i]===s?+a.weeklyPeriods:0),0));
  for(let s=0;s<sections.length;s++)if(needed[s]>cap[s].reduce((a,b)=>a+b,0))return {ok:false,reason:'capacity',message:'نصاب إحدى الشعب يتجاوز طاقتها الأسبوعية'};
  self.postMessage({type:'phase',phase:'توزيع الحصص حسب سعة المراحل والقيود'});
- let best=0,attempt=0;let deadEndNoChoices=0,deadEndAssignment=0,deadEndTeacher=0;
- while(Date.now()<deadline&&attempt<900){attempt++;const quota=cap.map((row,s)=>{const q=row.slice(),missing=q.reduce((a,b)=>a+b,0)-needed[s];for(let j=0;j<missing;j++){let opts=q.map((v,d)=>({d,v,locked:fixedMax[s][d]>=v})).filter(x=>x.v>0&&!x.locked);if(!opts.length)break;opts.sort((a,b)=>(b.v-a.v)||(((a.d+attempt+s+j)%D)-((b.d+attempt+s+j)%D)));q[opts[(j+attempt+s)%Math.min(opts.length,3)].d]--;}return q});
+ let best=0,attempt=0;let deadEndNoChoices=0,deadEndAssignment=0,deadEndTeacher=0;let lastValidationReason='';
+ while(Date.now()<deadline&&attempt<2400){attempt++;
+ // Daily quotas are selected using the teacher/assignment availability of each
+ // section. Avoid cutting a period that is scarce for its assigned teachers.
+ const quota=cap.map((row,s)=>{
+  const q=row.slice(),missing=q.reduce((a,b)=>a+b,0)-needed[s];
+  for(let j=0;j<missing;j++){
+   const opts=[];
+   for(let d=0;d<D;d++){
+    const p=q[d];if(p<=fixedMax[s][d]||p<1)continue;
+    let scarcity=0;
+    for(let i=0;i<A;i++)if(as[i]===s){
+     const t=at[i],r=tRules[t],a=assignments[i],sr=db.subjectRules?.[a.subjectId]||{};
+     if((r.unavailable?.[days[d].id]||[]).includes(p)||!advancedAllowed(db,a,sections[s],days[d].id,p))continue;
+     if(sr.strict!=='soft'&&(!sr.stageId||sr.stageId===sections[s].stageId)&&((sr.noFirst&&p===1)||(sr.noLast&&p===cap[s][d])))continue;
+     let alternatives=0;
+     for(let dd=0;dd<D;dd++)for(let pp=1;pp<=q[dd];pp++)if(!(r.unavailable?.[days[dd].id]||[]).includes(pp)&&advancedAllowed(db,a,sections[s],days[dd].id,pp))alternatives++;
+     scarcity+=(+a.weeklyPeriods)/Math.max(1,alternatives);
+    }
+    // Mix an availability-first strategy with rotating alternatives so the
+    // solver can recover when a heuristic quota proves unworkable.
+    const rotate=((d*17+attempt*13+s*7+j*11)%19)/19;
+    const score=(attempt%5===0?0:scarcity)+(attempt%3===0?-q[d]*0.2:q[d]*0.04)+rotate*(attempt%7===0?2:0.08);
+    opts.push({d,score});
+   }
+   if(!opts.length)break;
+   opts.sort((a,b)=>a.score-b.score||a.d-b.d);
+   q[opts[0].d]--;
+  }
+  return q;
+ });
  if(quota.some((q,s)=>q.reduce((a,b)=>a+b,0)!==needed[s]))continue;
  const slots=[];for(let s=0;s<sections.length;s++)for(let d=0;d<D;d++)for(let p=1;p<=quota[s][d];p++)slots.push({s,d,p});
  const ordered=slots.map((x,i)=>({...x,idx:i})),assignmentBySection=sections.map((_,s)=>assignments.map((a,i)=>as[i]===s?i:-1).filter(i=>i>=0));
  let failed=false;
- function dfs(left){if(!left)return teacherDay.every((row,t)=>row.every(n=>!n||n>=minDaily[t]));if((++nodes&511)===0){if(Date.now()>deadline){stop='time';return false}if(nodes%4096===0)self.postMessage({type:'progress',nodes,bestDepth:best,placed:entries.length,total})}if(entries.length>best)best=entries.length;
+ function dfs(left){if(!left)return teacherDay.every((row,t)=>row.every(n=>!n||n>=minDaily[t]));if((++nodes&31)===0){if(Date.now()>deadline){stop='time';return false}if(nodes%2048===0)self.postMessage({type:'progress',nodes,bestDepth:best,placed:entries.length,total})}if(entries.length>best)best=entries.length;
  let chosen=null,choices=null;
- for(const sl of ordered){if(used[sl.s][sl.d].has(sl.p))continue;const prior=sl.p===1||used[sl.s][sl.d].has(sl.p-1);if(!prior)continue;
+ for(const sl of ordered){if(used[sl.s][sl.d].has(sl.p))continue;// MRV across all remaining slots: quota already guarantees a contiguous final day.
  const pinned=fixed.get(sl.s+'|'+sl.d+'|'+sl.p);const choicesHere=(pinned!==undefined?[pinned]:assignmentBySection[sl.s]).filter(i=>can(i,sl.d,sl.p,quota));
  if(!choicesHere.length){deadEndNoChoices++;return false;}
  if(!choices||choicesHere.length<choices.length||(choicesHere.length===choices.length&&((sl.idx+attempt*17)%31)<((chosen.idx+attempt*17)%31))){chosen=sl;choices=choicesHere;if(choices.length===1)break}}
@@ -123,12 +185,12 @@ function generate(db,limitMs){
  if(quota.some((row,s)=>row.some((v,d)=>v<fixedMax[s][d])))continue;
  let pre=0,preBad=null;for(const [k,i] of fixed){const parts=k.split('|').map(Number),d=parts[1],p=parts[2];if(can(i,d,p,quota)){put(i,d,p,true);pre++}else{preBad={i,d,p};break}}
 if(preBad){while(entries.length)undo();return {ok:false,reason:'fixed-conflict',message:'لا يمكن تنفيذ حصة مثبتة مع بقية القيود.',fixedConflict:{assignmentId:assignments[preBad.i].id,dayId:days[preBad.d].id,period:preBad.p}}}
-if(dfs(total-pre)){return {ok:true,entries:entries.map(({_i,_d,_p,...x})=>x),nodes,bestDepth:total,message:`تم توزيع ${total} حصة دون فراغات داخلية، مع تطبيق قيود المواد الإلزامية.`}}
+if(dfs(total-pre)){const resultEntries=entries.map(({_i,_d,_p,...x})=>x);const checked=validateExistingSchedule({...db,timetable:resultEntries});if(checked.ok)return {ok:true,entries:resultEntries,nodes,bestDepth:total,message:`تم توزيع ${total} حصة واجتاز الجدول فحصاً مستقلاً لجميع القيود.`};lastValidationReason=checked.reason;stop='validation-mismatch';self.postMessage({type:'phase',phase:'رفض نتيجة البحث: '+checked.reason});}
  while(entries.length)undo();if(stop)break;
  // Ensure all search state was undone before trying a different daily distribution.
  while(entries.length)undo();
  }
- return {ok:false,reason:stop||'exhausted',nodes,bestDepth:best,total,diagnostics:{deadEndNoChoices,deadEndAssignment,deadEndTeacher,attempts:attempt},message:`لم يُعثر على جدول متوافق خلال ${attempt} محاولة (${Math.round((Date.now()-began)/1000)} ثانية). انتهاء المهلة ليس دليلاً على استحالة الجدول. جرّب التشخيص التفصيلي أو توسيع وقت البحث. لم يتغير جدولك السابق.`};
+ return {ok:false,reason:stop||'exhausted',nodes,bestDepth:best,total,diagnostics:{deadEndNoChoices,deadEndAssignment,deadEndTeacher,attempts:attempt,lastValidationReason},message:`لم يُعثر على جدول متوافق خلال ${attempt} محاولة (${Math.round((Date.now()-began)/1000)} ثانية). انتهاء المهلة ليس دليلاً على استحالة الجدول. جرّب التشخيص التفصيلي أو توسيع وقت البحث. لم يتغير جدولك السابق.`};
 }
 
 // Strict reference-schedule validation. A successful reference is a constructive
@@ -163,10 +225,10 @@ function validateExistingSchedule(db){
   if(sr.stageId&&sr.stageId!==section.stageId)continue;
   const rule=db.teacherRules?.[a.teacherId]||{};let availableDays=0;
   for(const d of days){const cap=Math.min(d.periods,Math.max(0,+(db.stageDayPeriods?.[section.stageId]?.[d.id]??d.periods)));
-   if(Array.from({length:cap},(_,j)=>j+1).some(p=>!(rule.unavailable?.[d.id]||[]).includes(p)))availableDays++;
+   if(Array.from({length:cap},(_,j)=>j+1).some(p=>!(rule.unavailable?.[d.id]||[]).includes(p)&&advancedAllowed(db,a,section,d.id,p)))availableDays++;
   }
   const actual=[...(assignmentDays.get(a.id)||new Map()).values()].reduce((n,v)=>n+Math.max(0,v-1),0);
-  if((sr.noRepeat&&actual>0)||(actual>Math.max(0,+a.weeklyPeriods-availableDays)))return {ok:false,reason:'تكرار المادة يتجاوز الضرورة'};
+  if(((sr.strict!=='soft'&&sr.noRepeat)&&actual>0)||(actual>Math.max(0,+a.weeklyPeriods-availableDays)))return {ok:false,reason:'تكرار المادة يتجاوز الضرورة'};
  }
  for(const [k,n] of perDay){const teacherId=k.split('|')[0],r=db.teacherRules?.[teacherId]||{};
   if(+r.maxDaily>0&&n>+r.maxDaily)return {ok:false,reason:'تجاوز الحد الأقصى اليومي'};
