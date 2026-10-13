@@ -1,4 +1,4 @@
-const APP_VERSION='0.9.14.1';
+const APP_VERSION='0.9.14.4';
 const KEY='school-timetable-v01';
 const stageDefaults=[['الأول',1,'#587B9B'],['الثاني',2,'#6F8F72'],['الثالث',3,'#9A7B60'],['الرابع',4,'#7D7398'],['الخامس',5,'#A16F78'],['السادس',6,'#557F83']];
 const defaultDays=[['الأحد',7,true],['الاثنين',7,true],['الثلاثاء',6,true],['الأربعاء',7,true],['الخميس',5,true],['الجمعة',0,false],['السبت',0,false]];
@@ -561,8 +561,8 @@ function showDirectDiagnostics(){
  document.querySelectorAll('.direct-diagnostic-jump').forEach(b=>b.onclick=()=>{page=b.dataset.target;render()});
 }
 function exportDirectDiagnostics(){if(!window.lastDirectDiagnosis)showDirectDiagnostics();const data=JSON.stringify(window.lastDirectDiagnosis,null,2),url=URL.createObjectURL(new Blob([data],{type:'application/json;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download='masar-diagnosis.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
-function diagnosticControls(){return `<section class="generation-report"><h3>تشخيص أسباب عدم توليد الجدول</h3><p class="muted">يفحص التزامن الإجباري للشعب في كل حصة بنظرية المطابقة الرياضية، ثم يتحقق من القيود والتكليفات وسعة المدرسين. ويعرض موقع التعارض والأسماء وخيارات الإصلاح دون تغيير البيانات. لا يغير الجدول المحفوظ.</p><div class="actions"><button type="button" id="directDiagnosisBtn">تشخيص الآن</button><button type="button" class="secondary" id="directDiagnosisExport">تنزيل تقرير التشخيص JSON</button></div><div class="notice">إذا انتهى وقت التوليد دون حل، يمكنك تشغيل اختبارات تخفيف القيود. نجاح نسخة مخففة يحدد قيوداً مؤثرة لكنه لا يثبت أن النسخة الأصلية مستحيلة؛ ولن تُعدّل بياناتك.</div><div class="actions"><button type="button" id="probeBtn">🔎 تشخيص دقيق بالاختبار التجريبي</button></div><div id="probeResult"></div><div id="directDiagnosisResult"></div></section>`}
-function wireDirectDiagnostics(){if($('#directDiagnosisBtn'))$('#directDiagnosisBtn').onclick=showDirectDiagnostics;if($('#probeBtn'))$('#probeBtn').onclick=runProbeDiagnosis;if($('#directDiagnosisExport'))$('#directDiagnosisExport').onclick=exportDirectDiagnostics}
+function diagnosticControls(){return `<section class="generation-report"><h3>تشخيص أسباب عدم توليد الجدول</h3><p class="muted">يفحص التزامن الإجباري للشعب في كل حصة بنظرية المطابقة الرياضية، ثم يتحقق من القيود والتكليفات وسعة المدرسين. ويعرض موقع التعارض والأسماء وخيارات الإصلاح دون تغيير البيانات. لا يغير الجدول المحفوظ.</p><div class="actions"><button type="button" id="directDiagnosisBtn">تشخيص الآن</button><button type="button" class="secondary" id="directDiagnosisExport">تنزيل تقرير التشخيص JSON</button></div><div class="notice">إذا انتهى وقت التوليد دون حل، يمكنك تشغيل اختبارات تخفيف القيود. نجاح نسخة مخففة يحدد قيوداً مؤثرة لكنه لا يثبت أن النسخة الأصلية مستحيلة؛ ولن تُعدّل بياناتك.</div><div class="actions"><button type="button" id="probeBtn">🔎 تشخيص دقيق بالاختبار التجريبي</button></div><div class="actions"><button type="button" id="smartCapacityBtn">🧠 فحص ذكي لسعة الشعب والمدرسين</button></div><div id="smartCapacityResult"></div><div id="probeResult"></div><div id="directDiagnosisResult"></div></section>`}
+function wireDirectDiagnostics(){if($('#smartCapacityBtn'))$('#smartCapacityBtn').onclick=runSmartCapacityDiagnosis;if($('#directDiagnosisBtn'))$('#directDiagnosisBtn').onclick=showDirectDiagnostics;if($('#probeBtn'))$('#probeBtn').onclick=runProbeDiagnosis;if($('#directDiagnosisExport'))$('#directDiagnosisExport').onclick=exportDirectDiagnostics}
 function generationDiagnostics(result){
  const found=[];const add=(severity,title,detail,where)=>found.push({severity,title,detail,where});
  const active=db.days.filter(d=>d.active&&d.periods>0).sort((a,b)=>a.order-b.order);
@@ -595,12 +595,72 @@ function generationDiagnostics(result){
  if(result&&!result.ok&&['time','nodes','exhausted'].includes(result.reason))add('warning','لم يثبت استحالة الجدول',`المحرك توقف بعد ${result.nodes||0} عقدة، وأفضل عمق ${result.bestDepth||0} من ${result.total||'—'}. انتهاء البحث لا يثبت أن البيانات مستحيلة. راجع التنبيهات ثم أعد المحاولة.`,'feasibility');
  return found;
 }
+function smartCapacityHtml(result){
+ const d=result?.diagnostics||{}, sf=d.sectionFlowFailures||[], tf=d.flowFailures||[], af=d.assignmentDiagnostics||[];
+ const aname=id=>{const a=db.assignments.find(x=>x.id===id);if(!a)return 'تكليف غير معروف';const t=db.teachers.find(x=>x.id===a.teacherId),sub=db.subjects.find(x=>x.id===a.subjectId);return `${sub?.name||'مادة'} — ${t?.name||'مدرس'} (${a.weeklyPeriods} حصص)`};
+ const secname=id=>{const s=db.sections.find(x=>x.id===id),g=db.stages.find(x=>x.id===s?.stageId);return `${g?.name||''} ${s?.name||''}`};
+ let html='';
+ for(const x of sf){const jobs=x.assignmentIds||[];html+=`<div class="issue red"><div class="issue-icon">🔴</div><div style="flex:1"><b>عجز مثبت في سعة ${esc(secname(x.sectionId))}</b><p>المطلوب ${x.required} حصة؛ أقصى ما تسمح به شبكة الخانات الحالية ${x.maximumFlow}؛ العجز ${x.shortfall}. هذا الحد ناتج عن قيود التكليفات وليس سعة الصف العامة.</p><details><summary>عرض المواد والمدرسين المرتبطين بالفحص (${jobs.length})</summary><ul>${jobs.map(id=>`<li>${esc(aname(id))}</li>`).join('')}</ul><p>هذه قائمة التكليفات الداخلة في الحساب، وليست إثباتاً بأن جميعها سبب التعارض.</p></details><div class="diag-fix"><b>مقترح الفحص:</b> راجع إتاحة المدرسين لهذه الشعبة وقواعد منع التكرار والقيود المتقدمة. لا يمكن تحديد أقل تغيير مضمون من نتيجة التدفق وحدها؛ يجب اختبار كل تعديل افتراضياً ثم إعادة الفحص.</div><button class="secondary diagnostic-jump" data-target="assignments">فتح التكليفات</button> <button class="secondary diagnostic-jump" data-target="constraints">فتح قيود المدرسين</button></div></div>`}
+ for(const x of tf){html+=`<div class="issue red"><div class="issue-icon">🔴</div><div style="flex:1"><b>عجز سعة المدرس ${esc(x.teacher)}</b><p>مطلوب ${x.required}؛ أقصى توزيع ${x.maximumFlow}؛ العجز ${x.shortfall}.</p><details><summary>التكليفات (${(x.assignmentIds||[]).length})</summary><ul>${(x.assignmentIds||[]).map(id=>`<li>${esc(aname(id))}</li>`).join('')}</ul></details><div class="diag-fix">راجع أيام وحصص عدم الإتاحة والحد اليومي، ثم اختبر أي تعديل قبل اعتماده.</div><button class="secondary diagnostic-jump" data-target="constraints">فتح القيود</button></div></div>`}
+ for(const x of af){html+=`<div class="issue red"><div class="issue-icon">🔴</div><div><b>تكليف لا يمتلك خانات كافية</b><p>${esc(x.teacher||'')} — ${esc(x.section||'')}؛ مطلوب ${x.required}، متاح ${x.available}.</p></div></div>`}
+ return html;
+}
+function runSmartCapacityDiagnosis(){
+ const targets=['smartCapacityResult','smartCapacityFeasResult'].map(id=>document.getElementById(id)).filter(Boolean);
+ if(!targets.length)return;targets.forEach(t=>t.innerHTML='<div class="notice">جارٍ تحليل سعة المدرسين والشعب دون تعديل البيانات...</div>');
+ let worker;try{worker=new Worker('generator-worker.js?v='+APP_VERSION)}catch(e){targets.forEach(t=>t.textContent='تعذر تشغيل محرك التشخيص: '+e);return}
+ let done=false;const finish=r=>{if(done)return;done=true;clearTimeout(timer);worker.terminate();window.smartCapacityReport={version:APP_VERSION,checkedAt:new Date().toISOString(),result:r};const body=smartCapacityHtml(r);targets.forEach(t=>t.innerHTML=`<div class="generation-report"><b>${r.ok?'🟢 لم يُكتشف عجز في فحوص السعة الضرورية':'🔴 نتيجة فحص السعة'}</b><p>${esc(r.message||r.reason||'')}</p>${body||'<p>لا يثبت اجتياز هذه الفحوص أن الجدول الكامل قابل للتوليد.</p>'}<button class="secondary" type="button" id="exportSmartCapacity">تصدير التقرير JSON</button> <button class="secondary" type="button" id="smartRepairBtn">اختبار بدائل يوم التفرغ</button><div id="smartRepairResult"></div></div>`);document.querySelectorAll('#exportSmartCapacity').forEach(b=>b.onclick=()=>{const blob=new Blob([JSON.stringify(window.smartCapacityReport,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='masar-capacity-diagnosis.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1500)});wireDiagnostics();document.querySelectorAll('#smartRepairBtn').forEach(b=>b.onclick=runSmartRepairSuggestions)};
+ const timer=setTimeout(()=>finish({ok:false,reason:'timeout',message:'انتهت مهلة فحص السعة دون نتيجة حاسمة؛ لا يعني ذلك وجود تعارض.'}),12000);
+ worker.onmessage=e=>{if(e.data?.type==='result')finish(e.data.result)};worker.onerror=()=>finish({ok:false,reason:'worker-error',message:'خطأ أثناء تشغيل فحص السعة.'});worker.postMessage({type:'start',db:structuredClone(db),deadlineMs:10000,diagnosticOnly:true});
+}
+// Counterfactual diagnosis: evaluate moving a whole-day teacher absence without editing school data.
+function smartCandidateCheck(data){return new Promise(resolve=>{
+ let w,done=false;try{w=new Worker('generator-worker.js?v='+APP_VERSION)}catch(e){resolve({ok:false,reason:'worker-error'});return}
+ const finish=r=>{if(done)return;done=true;clearTimeout(timer);w.terminate();resolve(r)};
+ const timer=setTimeout(()=>finish({ok:false,reason:'timeout'}),12000);
+ w.onmessage=e=>{if(e.data?.type==='result')finish(e.data.result)};
+ w.onerror=()=>finish({ok:false,reason:'worker-error'});
+ w.postMessage({type:'start',db:data,deadlineMs:10000,diagnosticOnly:true});
+})}
+async function runSmartRepairSuggestions(){
+ const host=document.getElementById('smartRepairResult');if(!host)return;
+ const baseline=window.smartCapacityReport?.result;
+ if(!baseline||baseline.ok){host.innerHTML='<div class="notice">شغّل فحص السعة أولاً. لا توجد مشكلة مثبتة للاختبار في النتيجة الحالية.</div>';return}
+ const ids=new Set();for(const f of baseline.diagnostics?.sectionFlowFailures||[])for(const id of f.assignmentIds||[]){const a=db.assignments.find(x=>x.id===id);if(a)ids.add(a.teacherId)}
+ for(const f of baseline.diagnostics?.flowFailures||[])for(const id of f.assignmentIds||[]){const a=db.assignments.find(x=>x.id===id);if(a)ids.add(a.teacherId)}
+ for(const f of baseline.diagnostics?.assignmentDiagnostics||[]){const a=db.assignments.find(x=>x.id===f.assignmentId);if(a)ids.add(a.teacherId)}
+ const candidates=[];for(const tid of ids){const rule=db.teacherRules?.[tid];if(!rule)continue;
+ for(const oldDay of db.days.filter(d=>d.active&&d.periods>0)){
+ const absent=rule.unavailable?.[oldDay.id]||[];if(absent.length!==oldDay.periods||!Array.from({length:oldDay.periods},(_,i)=>i+1).every(p=>absent.includes(p)))continue;
+ for(const newDay of db.days.filter(d=>d.active&&d.periods>0&&d.id!==oldDay.id)){
+ const newAbsent=rule.unavailable?.[newDay.id]||[];if(newAbsent.length===newDay.periods)continue;
+ candidates.push({tid,oldDay,newDay});
+ }
+ }}
+ if(!candidates.length){host.innerHTML='<div class="notice">لم يُعثر على يوم تفرغ كامل قابل للنقل بين تكليفات الشعبة. راجع القيود الجزئية يدوياً.</div>';return}
+ host.innerHTML='<div class="notice">جارٍ اختبار '+candidates.length+' بديلاً افتراضياً دون تغيير البيانات. قد يستغرق ذلك بعض الوقت...</div>';
+ const findings=[];for(let i=0;i<candidates.length;i++){
+ const c=candidates[i],copy=structuredClone(db),r=copy.teacherRules[c.tid];
+ // Preserve existing partial unavailability on the old day? A day-off move means restore the old day entirely.
+ r.unavailable[c.oldDay.id]=[];r.unavailable[c.newDay.id]=Array.from({length:c.newDay.periods},(_,j)=>j+1);
+ const result=await smartCandidateCheck(copy);
+ const oldShortfall=(baseline.diagnostics?.sectionFlowFailures||[]).reduce((v,f)=>v+(f.shortfall||0),0);
+ const newShortfall=(result.diagnostics?.sectionFlowFailures||[]).reduce((v,f)=>v+(f.shortfall||0),0);
+ const cleared=!!result.ok;findings.push({teacherId:c.tid,teacher:db.teachers.find(t=>t.id===c.tid)?.name||'',from:c.oldDay.name,to:c.newDay.name,passedNecessaryChecks:cleared,reason:result.reason||'',shortfall:newShortfall,originalShortfall:oldShortfall});
+ host.innerHTML='<div class="notice">اختُبر '+(i+1)+' من '+candidates.length+' بدائل...</div>';
+ }
+ findings.sort((a,b)=>Number(b.passedNecessaryChecks)-Number(a.passedNecessaryChecks)||a.shortfall-b.shortfall);
+ window.smartRepairReport={version:APP_VERSION,checkedAt:new Date().toISOString(),baseline,findings};
+ host.innerHTML='<div class="generation-report"><b>نتائج اختبار نقل يوم التفرغ (دون تعديل البيانات)</b><p>اجتياز الفحص يعني زوال العجز في اختبارات السعة الضرورية فقط، ولا يثبت إمكانية توليد جدول كامل.</p>'+findings.map(f=>`<div class="issue ${f.passedNecessaryChecks?'green':'orange'}"><div><b>${esc(f.teacher)}: ${esc(f.from)} ← ${esc(f.to)}</b><p>${f.passedNecessaryChecks?'اجتاز فحوص السعة الضرورية':'ما زالت توجد موانع أو لم يحسم الاختبار ('+esc(f.reason)+')'}</p></div></div>`).join('')+'<button id="exportSmartRepairs" class="secondary">تصدير المقترحات JSON</button></div>';
+ document.getElementById('exportSmartRepairs').onclick=()=>{const url=URL.createObjectURL(new Blob([JSON.stringify(window.smartRepairReport,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='masar-repair-scenarios.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),2000)};
+}
 function diagnosticHtml(result){if(!result||result.ok)return '';
  const ac=result.diagnostics?.assignmentDiagnostics||[];
  const capacityHtml=ac.length?`<div class="notice warning"><b>تكليفات مستحيلة حسابياً ضمن الخانات المسموحة:</b>${ac.map(x=>`<div>المدرس ${esc(x.teacher||'—')} — الشعبة ${esc(x.section||'—')}: مطلوب ${x.required}، المتاح ${x.available}. <b>الحل:</b> افتح حصصاً إضافية لهذا المدرس أو خفف قيد المادة/القيد المتقدم أو أعد توزيع التكليف.</div>`).join('')}</div>`:'';
  const issues=generationDiagnostics(result);
+ const capacityDetails=smartCapacityHtml(result);
  const colors={block:'🔴',warning:'🟠',info:'🔵'};
- return `<section class="generation-report"><h3>مساعد تشخيص فشل التوليد — إجراءات مقترحة</h3>${capacityHtml}<p class="muted">لا يغير المساعد أي تكليف أو قيد دون موافقتك. الفحص يميز بين الخطأ المانع، واختلاف الإعدادات، والملاحظات. لا يعتبر انتهاء المهلة دليلاً على استحالة الجدول.</p>${issues.length?issues.map(x=>`<div class="issue ${x.severity==='block'?'red':'orange'}"><div class="issue-icon">${colors[x.severity]}</div><div style="flex:1"><b>${esc(x.title)}</b><div class="muted">${esc(x.detail)}</div><button type="button" class="secondary diagnostic-jump" data-target="${x.where}">فتح الإعداد المعني</button></div></div>`).join(''):'<div class="notice">لم يكشف الفحص السريع سبباً حاسماً. قد يكون التعارض مركباً أو خوارزمية البحث لم تصل إلى حل.</div>'}</section>`;
+ return `<section class="generation-report"><h3>مساعد تشخيص فشل التوليد — إجراءات مقترحة</h3>${capacityHtml}${capacityDetails}<p class="muted">لا يغير المساعد أي تكليف أو قيد دون موافقتك. الفحص يميز بين الخطأ المانع، واختلاف الإعدادات، والملاحظات. لا يعتبر انتهاء المهلة دليلاً على استحالة الجدول.</p>${issues.length?issues.map(x=>`<div class="issue ${x.severity==='block'?'red':'orange'}"><div class="issue-icon">${colors[x.severity]}</div><div style="flex:1"><b>${esc(x.title)}</b><div class="muted">${esc(x.detail)}</div><button type="button" class="secondary diagnostic-jump" data-target="${x.where}">فتح الإعداد المعني</button></div></div>`).join(''):'<div class="notice">لم يكشف الفحص السريع سبباً حاسماً. قد يكون التعارض مركباً أو خوارزمية البحث لم تصل إلى حل.</div>'}</section>`;
 }
 function wireDiagnostics(){document.querySelectorAll('.diagnostic-jump').forEach(b=>b.onclick=()=>{page=b.dataset.target;render()})}
 function feasibility(){
@@ -611,8 +671,8 @@ function feasibility(){
   <div class="feas-head ${green?'ok':'bad'}"><div class="feas-score">${green?'✓':'!'}</div><div><h3>${green?'يمكن الانتقال إلى التوليد':'توجد مشاكل يجب معالجتها'}</h3><div>${reds} أخطاء مانعة — ${oranges} تحذيرات</div></div></div>
   ${green&&oranges===0?'<div class="issue green"><div class="issue-icon">🟢</div><div><b>البيانات سليمة</b><div class="muted">لم يكتشف الفحص الحالي مشكلة تمنع إنشاء جدول صالح.</div></div></div>':''}
   ${issues.map(item).join('')}
-  <div class="actions"><button id="rerun">إعادة الفحص</button>${green?'<button class="secondary" id="goGenerate">الانتقال إلى التوليد الآلي</button>':''}</div>`;
-  $('#rerun').onclick=feasibility;
+  <div class="actions"><button id="smartCapacityFeasBtn" class="secondary">🧠 فحص سعة الشعب والمدرسين</button></div><div id="smartCapacityFeasResult"></div><div class="actions"><button id="rerun">إعادة الفحص</button>${green?'<button class="secondary" id="goGenerate">الانتقال إلى التوليد الآلي</button>':''}</div>`;
+  $('#rerun').onclick=feasibility;$('#smartCapacityFeasBtn').onclick=runSmartCapacityDiagnosis;
   if($('#goGenerate')) $('#goGenerate').onclick=()=>{page='generator';render()};
 }
 

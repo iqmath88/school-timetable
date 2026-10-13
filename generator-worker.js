@@ -1,5 +1,5 @@
 'use strict';
-self.onmessage=e=>{if(e.data.type!=='start')return;try{self.postMessage({type:'result',result:generate(e.data.db,e.data.deadlineMs)})}catch(err){self.postMessage({type:'result',result:{ok:false,reason:'exception',message:String(err.stack||err)}})}};
+self.onmessage=e=>{if(e.data.type!=='start')return;try{self.postMessage({type:'result',result:generate(e.data.db,e.data.deadlineMs,!!e.data.diagnosticOnly)})}catch(err){self.postMessage({type:'result',result:{ok:false,reason:'exception',message:String(err.stack||err)}})}};
 
 function advancedMatch(r,a,sec,dayId,p){
  if(r.dayId&&r.dayId!==dayId)return false;
@@ -13,8 +13,8 @@ function advancedAllowed(db,a,sec,dayId,p){
  return !(db.advancedRules||[]).some(r=>r.strict!=='soft'&&advancedMatch(r,a,sec,dayId,p)&&(r.mode==='allow'?(p<r.from||p>r.to):(p>=r.from&&p<=r.to)));
 }
 
-function generate(db,limitMs){
- const seed=validateExistingSchedule(db);
+function generate(db,limitMs,diagnosticOnly=false){
+ const seed=diagnosticOnly?{ok:false,reason:"وضع التشخيص"}:validateExistingSchedule(db);
  if(seed.ok){return {ok:true,entries:seed.entries,reused:true,nodes:0,bestDepth:seed.entries.length,total:seed.entries.length,message:'تم التحقق من الجدول المحفوظ: جميع الحصص والقيود الإلزامية صحيحة. احتفظ المحرك بالحل المثبت بدلاً من إعادة البحث غير الضرورية.'};}
  self.postMessage({type:'phase',phase:'فحص الجدول المحفوظ: '+seed.reason+'؛ بدء البحث عن حل جديد'});
  const began=Date.now(),deadline=began+(+limitMs||240000);const days=db.days.filter(d=>d.active&&d.periods>0).sort((a,b)=>a.order-b.order),D=days.length;
@@ -92,6 +92,43 @@ function generate(db,limitMs){
  }
  const flowFailures=[];for(let t=0;t<teachers.length;t++){const x=teacherFlow(t);if(x)flowFailures.push(x)}
  if(flowFailures.length)return {ok:false,reason:'teacher-time-flow',total,diagnostics:{flowFailures},message:`تعارض مؤكد في سعة التكليفات والأيام لدى ${flowFailures.length} مدرس: بعض تكليفاتهم تتنافس على خانات زمنية لا تكفي للجميع. لم تُعدّل أي قيود.`};
+ // Independent per-section max-flow necessary-condition check. Unlike the teacher
+ // flow, this detects competition among different teachers for the SAME section slots.
+ // It deliberately relaxes cross-section teacher conflicts, so a failure is a
+ // mathematically sound capacity conflict, not a search timeout.
+ function sectionFlow(sectionIndex){
+  const jobs=[];for(let i=0;i<A;i++)if(as[i]===sectionIndex)jobs.push(i);
+  if(!jobs.length)return null;
+  const slots=[];for(let d=0;d<D;d++)for(let p=1;p<=cap[sectionIndex][d];p++)slots.push({d,p});
+  const source=0,jobBase=1,jobDayBase=jobBase+jobs.length,slotBase=jobDayBase+jobs.length*D,sink=slotBase+slots.length;
+  const graph=Array.from({length:sink+1},()=>[]);
+  function edge(u,v,c){graph[u].push({v,c,rev:graph[v].length});graph[v].push({v:u,c:0,rev:graph[u].length-1})}
+  let demand=0;
+  jobs.forEach((i,j)=>{
+   const a=assignments[i],t=at[i],r=tRules[t],sr=db.subjectRules?.[a.subjectId]||{};
+   const hard=sr.strict!=='soft'&&(!sr.stageId||sr.stageId===sections[sectionIndex].stageId);
+   demand+=+a.weeklyPeriods;edge(source,jobBase+j,+a.weeklyPeriods);
+   let openDays=0;
+   for(let d=0;d<D;d++)if(slots.some(sl=>sl.d===d&&!(r.unavailable?.[days[d].id]||[]).includes(sl.p)&&advancedAllowed(db,a,sections[sectionIndex],days[d].id,sl.p)&&!(hard&&((sr.noFirst&&sl.p===1)||(sr.noLast&&sl.p===cap[sectionIndex][d])))))openDays++;
+   const repeatAllowance=hard&&sr.noRepeat?0:Math.max(0,+a.weeklyPeriods-openDays);
+   for(let d=0;d<D;d++){
+    const jd=jobDayBase+j*D+d;edge(jobBase+j,jd,1+repeatAllowance);
+    slots.forEach((sl,k)=>{if(sl.d!==d||(r.unavailable?.[days[d].id]||[]).includes(sl.p)||!advancedAllowed(db,a,sections[sectionIndex],days[d].id,sl.p)||(hard&&((sr.noFirst&&sl.p===1)||(sr.noLast&&sl.p===cap[sectionIndex][d]))))return;edge(jd,slotBase+k,1)});
+   }
+  });
+  slots.forEach((sl,k)=>edge(slotBase+k,sink,1));
+  let flow=0;
+  while(flow<demand){const prev=Array(sink+1).fill(null),q=[source];prev[source]=[-1,-1];
+   for(let h=0;h<q.length&&prev[sink]===null;h++){const u=q[h];for(let k=0;k<graph[u].length;k++){const e=graph[u][k];if(e.c>0&&prev[e.v]===null){prev[e.v]=[u,k];q.push(e.v);if(e.v===sink)break}}}
+   if(prev[sink]===null)break;
+   let aug=demand-flow;for(let v=sink;v!==source;){const [u,k]=prev[v];aug=Math.min(aug,graph[u][k].c);v=u}
+   for(let v=sink;v!==source;){const [u,k]=prev[v],e=graph[u][k];e.c-=aug;graph[v][e.rev].c+=aug;v=u}flow+=aug;
+  }
+  return flow<demand?{sectionId:sections[sectionIndex].id,stageId:sections[sectionIndex].stageId,section:sections[sectionIndex].name,required:demand,maximumFlow:flow,shortfall:demand-flow,assignmentIds:jobs.map(i=>assignments[i].id),suggestion:'راجع أوقات المدرسين المسموحة لهذه الشعبة وقواعد عدم التكرار؛ لا تُعدّل أي قيد دون موافقة الإدارة.'}:null;
+ }
+ const sectionFlowFailures=[];for(let s=0;s<sections.length;s++){const f=sectionFlow(s);if(f)sectionFlowFailures.push(f)}
+ if(sectionFlowFailures.length)return {ok:false,reason:'section-time-flow',total,diagnostics:{sectionFlowFailures},message:`تعارض سعة مثبت في ${sectionFlowFailures.length} شعبة: تكليفاتها لا يمكن توزيعها على الخانات المسموحة حتى قبل احتساب تعارض المدرسين مع الشعب الأخرى.`};
+ if(diagnosticOnly)return {ok:true,diagnosticOnly:true,total,diagnostics:{},message:'اجتازت البيانات اختبارات السعة الضرورية؛ هذا لا يثبت إمكانية إنشاء الجدول الكامل.'};
  // Minimum repetition is based on days actually available to both teacher and section.
  const allowedRepeat=assignments.map((a,i)=>{
   let availableDays=0;const t=at[i],sec=as[i],r=tRules[t];
