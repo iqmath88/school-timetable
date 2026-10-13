@@ -58,19 +58,26 @@ function generate(db,limitMs){
  function teacherFlow(t){
   const jobs=[];for(let i=0;i<A;i++)if(at[i]===t)jobs.push(i);
   if(!jobs.length)return null;
-  const slots=[];for(let d=0;d<D;d++)for(let p=1;p<=days[d].periods;p++){
-   if(!(tRules[t].unavailable?.[days[d].id]||[]).includes(p))slots.push({d,p});
-  }
-  const source=0,jobBase=1,slotBase=jobBase+jobs.length,dayBase=slotBase+slots.length,sink=dayBase+D,N=sink+1;
+  const slots=[];for(let d=0;d<D;d++)for(let p=1;p<=days[d].periods;p++)if(!(tRules[t].unavailable?.[days[d].id]||[]).includes(p))slots.push({d,p});
+  const source=0,jobBase=1,jobDayBase=jobBase+jobs.length,slotBase=jobDayBase+jobs.length*D,dayBase=slotBase+slots.length,sink=dayBase+D,N=sink+1;
   const graph=Array.from({length:N},()=>[]);
   function edge(u,v,c){const a={v,c,rev:graph[v].length},b={v:u,c:0,rev:graph[u].length};graph[u].push(a);graph[v].push(b)}
   let demand=0;
-  jobs.forEach((i,j)=>{const a=assignments[i],sec=as[i],sr=db.subjectRules?.[a.subjectId]||{},hard=sr.strict!=='soft'&&(!sr.stageId||sr.stageId===sections[sec].stageId);
+  jobs.forEach((i,j)=>{
+   const a=assignments[i],sec=as[i],sr=db.subjectRules?.[a.subjectId]||{},hard=sr.strict!=='soft'&&(!sr.stageId||sr.stageId===sections[sec].stageId);
    demand+=+a.weeklyPeriods;edge(source,jobBase+j,+a.weeklyPeriods);
-   slots.forEach((sl,k)=>{const {d,p}=sl;if(p>cap[sec][d]||!advancedAllowed(db,a,sections[sec],days[d].id,p))return;
-    if(hard&&((sr.noFirst&&p===1)||(sr.noLast&&p===cap[sec][d])))return;
-    edge(jobBase+j,slotBase+k,1);
-   });
+   let availableDays=0;
+   for(let d=0;d<D;d++)if(slots.some(sl=>sl.d===d&&sl.p<=cap[sec][d]&&advancedAllowed(db,a,sections[sec],days[d].id,sl.p)&&!(hard&&((sr.noFirst&&sl.p===1)||(sr.noLast&&sl.p===cap[sec][d])))))availableDays++;
+   const unavoidable=Math.max(0,+a.weeklyPeriods-availableDays);
+   for(let d=0;d<D;d++){
+    const jd=jobDayBase+j*D+d;
+    edge(jobBase+j,jd,hard&&sr.noRepeat?1:1+unavoidable);
+    slots.forEach((sl,k)=>{
+     if(sl.d!==d||sl.p>cap[sec][d]||!advancedAllowed(db,a,sections[sec],days[d].id,sl.p))return;
+     if(hard&&((sr.noFirst&&sl.p===1)||(sr.noLast&&sl.p===cap[sec][d])))return;
+     edge(jd,slotBase+k,1);
+    });
+   }
   });
   slots.forEach((sl,k)=>edge(slotBase+k,dayBase+sl.d,1));
   for(let d=0;d<D;d++)edge(dayBase+d,sink,maxDaily[t]);
@@ -81,10 +88,10 @@ function generate(db,limitMs){
    let aug=demand-flow;for(let v=sink;v!==source;){const [u,k]=prev[v];aug=Math.min(aug,graph[u][k].c);v=u}
    for(let v=sink;v!==source;){const [u,k]=prev[v],e=graph[u][k];e.c-=aug;graph[v][e.rev].c+=aug;v=u}flow+=aug;
   }
-  return flow<demand?{teacherId:teachers[t].id,teacher:teachers[t].name,required:demand,maximumFlow:flow,shortfall:demand-flow,assignmentIds:jobs.map(i=>assignments[i].id)}:null;
+  return flow<demand?{teacherId:teachers[t].id,teacher:teachers[t].name,required:demand,maximumFlow:flow,shortfall:demand-flow,assignmentIds:jobs.map(i=>assignments[i].id),suggestion:'راجع أيام عدم الإتاحة، والحد اليومي، وتكرار الحصص لكل تكليف. جرّب إتاحة يوم إضافي أو نقل تكليف بعد موافقة الإدارة.'}:null;
  }
  const flowFailures=[];for(let t=0;t<teachers.length;t++){const x=teacherFlow(t);if(x)flowFailures.push(x)}
- if(flowFailures.length)return {ok:false,reason:'teacher-time-flow',total,diagnostics:{flowFailures},message:`فشل فحص الإتاحة المشتركة لدى ${flowFailures.length} مدرس: بعض تكليفاتهم تتنافس على خانات زمنية لا تكفي للجميع. لم تُعدّل أي قيود.`};
+ if(flowFailures.length)return {ok:false,reason:'teacher-time-flow',total,diagnostics:{flowFailures},message:`تعارض مؤكد في سعة التكليفات والأيام لدى ${flowFailures.length} مدرس: بعض تكليفاتهم تتنافس على خانات زمنية لا تكفي للجميع. لم تُعدّل أي قيود.`};
  // Minimum repetition is based on days actually available to both teacher and section.
  const allowedRepeat=assignments.map((a,i)=>{
   let availableDays=0;const t=at[i],sec=as[i],r=tRules[t];
