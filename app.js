@@ -1,4 +1,4 @@
-const APP_VERSION='0.9.14.6';
+const APP_VERSION='0.9.14.7';
 const KEY='school-timetable-v01';
 const stageDefaults=[['الأول',1,'#587B9B'],['الثاني',2,'#6F8F72'],['الثالث',3,'#9A7B60'],['الرابع',4,'#7D7398'],['الخامس',5,'#A16F78'],['السادس',6,'#557F83']];
 const defaultDays=[['الأحد',7,true],['الاثنين',7,true],['الثلاثاء',6,true],['الأربعاء',7,true],['الخميس',5,true],['الجمعة',0,false],['السبت',0,false]];
@@ -31,7 +31,15 @@ const navigationGroups=[
  ['التوليد والتشخيص',['feasibility','generator','gapDiagnosis']],
  ['الجداول والطباعة',['workspaceTT','printSetup']]
 ];
+const glassIcons={school:'⌂',days:'◷',sections:'▦',subjects:'◈',loads:'▤',teachers:'♙',assignments:'⇄',matrix:'▦',audit:'✓',constraints:'⛭',advanced:'◇',fixed:'♧',feasibility:'◎',generator:'✦',gapDiagnosis:'⌕',workspaceTT:'▦',printSetup:'▧'};
+function closeMobileMenu(){document.body.classList.remove('sidebar-open');const toggle=document.getElementById('menuToggle'),shade=document.getElementById('sidebarBackdrop');if(toggle)toggle.setAttribute('aria-expanded','false');if(shade)shade.hidden=true}
+function glassSidebar(){const side=document.getElementById('sideNavigation');if(!side)return;
+side.innerHTML=navigationGroups.map((group,i)=>`<div class="side-group"><div class="side-group-title">${group[0]}</div>${group[1].map(id=>{const item=pages.find(p=>p[0]===id);return `<button type="button" class="side-link ${page===id?'selected':''}" data-side-page="${id}" ${page===id?'aria-current="page"':''}><span class="glass-icon side-icon" aria-hidden="true">${glassIcons[id]||'◇'}</span><span>${item[1].replace(/^\d+\.\s*/, '')}</span>${page===id?'<span class="side-active-dot"></span>':''}</button>`}).join('')}</div>`).join('');
+side.querySelectorAll('[data-side-page]').forEach(btn=>btn.onclick=()=>{page=btn.dataset.sidePage;closeMobileMenu();render();window.scrollTo({top:0,behavior:'smooth'})});
+const toggle=document.getElementById('menuToggle'),shade=document.getElementById('sidebarBackdrop');if(toggle&&!toggle.dataset.bound){toggle.dataset.bound='1';toggle.onclick=()=>{const open=!document.body.classList.contains('sidebar-open');document.body.classList.toggle('sidebar-open',open);toggle.setAttribute('aria-expanded',String(open));if(shade)shade.hidden=!open}}if(shade&&!shade.dataset.bound){shade.dataset.bound='1';shade.onclick=closeMobileMenu}
+}
 function nav(){
+ glassSidebar();
  const group=navigationGroups.find(g=>g[1].includes(page))||navigationGroups[0];
  const selector=document.getElementById('sectionSelector');
  if(selector){selector.innerHTML=navigationGroups.map((g,i)=>`<option value="${i}" ${g===group?'selected':''}>${g[0]}</option>`).join('');selector.onchange=()=>{page=navigationGroups[+selector.value][1][0];render()}}
