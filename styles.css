@@ -167,3 +167,49 @@ input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-vis
 @media(max-width:780px){.app-shell{display:block;padding:12px}.menu-toggle{display:inline-flex}.glass-sidebar{position:fixed;top:72px;right:10px;bottom:12px;width:min(310px,86vw);max-height:none;z-index:60;transform:translateX(calc(100% + 30px));transition:transform .2s ease;box-shadow:0 20px 60px #102a4560}.sidebar-open .glass-sidebar{transform:translateX(0)}.sidebar-backdrop:not([hidden]){display:block;position:fixed;inset:0;background:#122a4066;z-index:55}.topbar{gap:10px}.topbar .brand h1{font-size:16px}.topbar #exportBtn{font-size:11px;padding:9px}.workspace-top{padding:12px}.workspace-top h2{font-size:19px}}
 @media(prefers-reduced-motion:reduce){.side-link,.glass-sidebar,button{transition:none!important}}
 @media print{.glass-sidebar,.sidebar-backdrop,.menu-toggle,.topbar{display:none!important}.app-shell{display:block;padding:0}.panel{background:white;box-shadow:none;backdrop-filter:none}}
+
+/* v0.9.14.8 — readable compact glass UI; screen only so print layout remains untouched */
+@media screen {
+:root{--accent:#165b70;--ink:#183449;--muted:#647b8c}
+.topbar{padding:9px clamp(12px,2vw,28px)!important;min-height:64px}
+.topbar .brand h1{font-size:18px!important}.topbar .logo{width:34px!important;height:34px!important}
+.sidebar-compact-toggle{background:#ffffff18!important;border:1px solid #ffffff66!important;color:#fff!important;padding:8px 12px!important;font-size:12px!important;margin-inline-start:auto}
+.app-shell{grid-template-columns:206px minmax(0,1fr)!important;gap:12px!important;padding:12px clamp(10px,1.5vw,22px)!important;max-width:1920px!important}
+.glass-sidebar{top:76px!important;max-height:calc(100vh - 88px)!important;padding:10px 7px!important;border-radius:16px!important;background:rgba(250,253,255,.91)!important}
+.side-group{padding:2px 0 6px!important}.side-group-title{padding:8px 10px 4px!important;font-size:10px!important;color:#667e8d!important}
+.side-link{min-height:36px!important;padding:5px 8px!important;gap:8px!important;border-radius:10px!important;background:transparent!important;color:#28485b!important;font-size:12px!important;box-shadow:none!important;border:1px solid transparent!important}
+.side-link:hover{background:#eaf3f6!important}.side-link.selected{background:#e0f0f1!important;border-color:#b8d9dd!important;color:#114e5c!important;font-weight:800!important}
+.side-icon{width:27px!important;height:27px!important;min-width:27px!important;border-radius:9px!important;background:linear-gradient(145deg,#fff,#e2edf1)!important;color:#1a6274!important;border:1px solid #d5e6ec!important;box-shadow:0 2px 5px #1c4e6512!important;font-size:14px!important}
+.side-link.selected .side-icon{background:#19687b!important;color:#fff!important;border-color:#19687b!important}
+.sidebar-head{padding:5px 8px 9px!important;margin-bottom:4px!important}
+.workspace-top{padding:9px 14px!important;margin:0 0 8px!important;min-height:56px!important;border-radius:14px!important}
+.workspace-top h2{font-size:19px!important;margin:1px 0!important}.eyebrow{font-size:10px!important}
+#steps{padding:2px 0 6px!important}#steps .step{padding:7px 12px!important;font-size:12px!important}
+.panel{border-radius:15px!important}.stat{border-radius:11px!important;padding:8px!important}.stat b{font-size:20px!important}
+#summary{margin-bottom:9px!important}#workspace{padding:clamp(10px,1.3vw,18px)!important}
+#workspace h2,#workspace h3{margin-top:8px!important;margin-bottom:10px!important}
+.table-focus-toggle{padding:7px 11px!important;font-size:12px!important;background:#e7f1f5!important;border:1px solid #c6dce6!important;color:#1b5267!important;margin-inline-start:8px!important}
+/* School timetable: improved contrast, clear teacher labels and scroll affordance */
+#workspace .tt-wrap{max-width:100%;overflow:auto!important;border-radius:12px;border:1px solid #cbdce5;background:#fff;scrollbar-color:#8eafbe #eff4f6}
+#workspace table.compact-timetable{border-collapse:separate!important;border-spacing:0!important;font-variant-numeric:tabular-nums}
+#workspace table.compact-timetable thead th{background:#1d4765!important;color:#fff!important;border-color:#aec6d3!important;font-weight:800!important;position:sticky;top:0;z-index:3}
+#workspace table.compact-timetable thead tr.section-names th{background:#285a75!important}
+#workspace table.compact-timetable td.lesson{background:#f9fcfd;color:#18384d;min-height:49px;transition:background .14s ease}
+#workspace table.compact-timetable td.lesson:hover{background:#e8f3f5!important;box-shadow:inset 0 0 0 2px #60a2ad}
+#workspace table.compact-timetable td.lesson b{color:#173c51!important;font-weight:800!important}
+#workspace table.compact-timetable td.lesson small{color:#536b7d!important;font-weight:600!important}
+#workspace table.compact-timetable .period-number{background:#e9f1f7!important;color:#254c69!important;font-weight:800!important}
+#workspace table.compact-timetable .day-label{background:#dce9f4!important;color:#17435f!important;font-weight:800!important}
+body.sidebar-compact .app-shell{grid-template-columns:64px minmax(0,1fr)!important}
+body.sidebar-compact .glass-sidebar{padding:9px 5px!important}
+body.sidebar-compact .sidebar-head div,body.sidebar-compact .side-group-title,body.sidebar-compact .sidebar-foot,body.sidebar-compact .side-link .side-active-dot{display:none!important}
+body.sidebar-compact .sidebar-head{justify-content:center;padding:5px 0 8px!important}
+body.sidebar-compact .side-link{justify-content:center;font-size:0!important;gap:0!important;padding:6px!important;overflow:hidden!important}
+body.sidebar-compact .side-link .side-icon{font-size:15px!important}
+body.table-focus .app-shell{display:block!important;max-width:none!important}
+body.table-focus .glass-sidebar,body.table-focus #summary,body.table-focus #steps{display:none!important}
+body.table-focus #workspace{width:100%!important}
+body.table-focus .workspace-top{margin-bottom:7px!important}
+}
+@media screen and (max-width:950px){.app-shell{grid-template-columns:170px minmax(0,1fr)!important}.side-link{font-size:11px!important}}
+@media screen and (max-width:780px){.app-shell,body.sidebar-compact .app-shell{display:block!important}.sidebar-compact-toggle{display:none!important}.glass-sidebar{position:fixed!important;top:70px!important;right:10px!important;bottom:10px!important;width:min(310px,85vw)!important;max-height:none!important;transform:translateX(calc(100% + 30px));z-index:60!important}.sidebar-open .glass-sidebar{transform:translateX(0)!important}body.sidebar-compact .sidebar-head div,body.sidebar-compact .side-group-title,body.sidebar-compact .sidebar-foot{display:initial!important}body.sidebar-compact .side-link{font-size:12px!important;justify-content:flex-start!important}.workspace-top{flex-wrap:wrap}.table-focus-toggle{margin-inline-start:0!important}}
