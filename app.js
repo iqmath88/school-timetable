@@ -1,4 +1,4 @@
-const APP_VERSION='0.9.15.1';
+const APP_VERSION='0.9.15.2';
 const KEY='school-timetable-v01';
 const stageDefaults=[['الأول',1,'#587B9B'],['الثاني',2,'#6F8F72'],['الثالث',3,'#9A7B60'],['الرابع',4,'#7D7398'],['الخامس',5,'#A16F78'],['السادس',6,'#557F83']];
 const defaultDays=[['الأحد',7,true],['الاثنين',7,true],['الثلاثاء',6,true],['الأربعاء',7,true],['الخميس',5,true],['الجمعة',0,false],['السبت',0,false]];
@@ -942,6 +942,50 @@ function moveTimetableEntry(id){
  const close=()=>o.remove();o.querySelector('.icon-close').onclick=close;o.querySelector('#mvCancel').onclick=close;
  saveBtn.onclick=()=>{const changes=proposal();if(changes&&commitManual(changes,type.value==='swap'?'تبديل حصتين':'نقل حصة'))close()};
 }
+
+// Batch editor: all proposed moves are validated against the same final timetable.
+function batchManualEditor(){
+ if(!db.timetable.length)return alert('أنشئ الجدول أولاً.');
+ const o=document.createElement('div');o.className='edit-overlay batch-overlay';
+ const days=db.days.filter(d=>d.active).sort((a,b)=>a.order-b.order);
+ const teacherOpts=db.teachers.slice().sort((a,b)=>a.name.localeCompare(b.name,'ar')).map(t=>`<option value="${esc(t.id)}">${esc(t.name)}</option>`).join('');
+ o.innerHTML=`<div class="edit-card batch-card"><div class="edit-head"><h3>محرر التعديلات المتعددة</h3><button type="button" class="icon-close">×</button></div>
+ <p class="muted">اختر مدرساً وحصته، وأضف عدة حصص إلى قائمة التعديل. حدد موعداً جديداً لكل حصة، ثم افحص النتيجة النهائية قبل الحفظ. لا تتغير البيانات حتى تضغط «اعتماد جميع التعديلات».</p>
+ <div class="batch-pick"><div class="field"><label>المدرس</label><select id="batchTeacher">${teacherOpts}</select></div><div class="field"><label>الحصة الحالية</label><select id="batchEntry"></select></div><button type="button" id="batchAdd" class="secondary">إضافة الحصة</button></div>
+ <div id="batchRows" class="batch-rows"></div><div id="batchStatus" aria-live="polite"></div>
+ <div class="actions"><button id="batchCheck" type="button" class="secondary">فحص جميع التعديلات</button><button id="batchSave" type="button" disabled>اعتماد جميع التعديلات</button><button id="batchCancel" type="button" class="secondary">إلغاء</button></div></div>`;
+ document.body.appendChild(o);
+ const $b=q=>o.querySelector(q),picked=new Map(),teacher=$b('#batchTeacher'),entry=$b('#batchEntry'),rows=$b('#batchRows'),status=$b('#batchStatus'),saveBtn=$b('#batchSave');
+ const close=()=>o.remove();$b('.icon-close').onclick=close;$b('#batchCancel').onclick=close;
+ function entries(){const list=db.timetable.filter(e=>e.teacherId===teacher.value).sort((a,b)=>days.findIndex(d=>d.id===a.dayId)-days.findIndex(d=>d.id===b.dayId)||a.period-b.period);
+ entry.innerHTML=list.map(e=>`<option value="${esc(e.id)}">${esc(manualLabel(e))}</option>`).join('');$b('#batchAdd').disabled=!list.length}
+ teacher.onchange=entries;entries();
+ function invalidate(){saveBtn.disabled=true;status.textContent='عدّلت الخيارات؛ أعد الفحص قبل الاعتماد.'}
+ function proposal(){return [...picked.values()].map(x=>({id:x.id,dayId:x.dayId,period:+x.period}))}
+ function renderRows(){
+  rows.innerHTML=[...picked.values()].map((x,i)=>{const original=db.timetable.find(e=>e.id===x.id);
+   const d=db.days.find(y=>y.id===x.dayId),sec=db.sections.find(y=>y.id===original.sectionId);
+   const max=d?sectionDayPeriods(sec,d):0;
+   return `<div class="batch-row" data-batch-id="${esc(x.id)}"><div class="batch-row-title"><b>${i+1}. ${esc(manualLabel(original))}</b><button type="button" class="secondary batch-remove">إزالة</button></div><div class="batch-fields"><label>اليوم الجديد<select class="batch-day">${days.map(day=>`<option value="${esc(day.id)}" ${day.id===x.dayId?'selected':''}>${esc(day.name)}</option>`).join('')}</select></label><label>الحصة الجديدة<select class="batch-period">${Array.from({length:max},(_,j)=>`<option value="${j+1}" ${j+1===+x.period?'selected':''}>${j+1}</option>`).join('')}</select></label></div></div>`
+  }).join('')||'<div class="notice">لم تُضف أي حصة بعد.</div>';
+  rows.querySelectorAll('.batch-row').forEach(r=>{const x=picked.get(r.dataset.batchId),day=r.querySelector('.batch-day'),period=r.querySelector('.batch-period');
+   day.onchange=()=>{x.dayId=day.value;const d=db.days.find(y=>y.id===x.dayId),original=db.timetable.find(e=>e.id===x.id),sec=db.sections.find(y=>y.id===original.sectionId);x.period=Math.min(+x.period,sectionDayPeriods(sec,d));renderRows();invalidate()};
+   period.onchange=()=>{x.period=+period.value;invalidate()};
+   r.querySelector('.batch-remove').onclick=()=>{picked.delete(x.id);renderRows();invalidate()};
+  });
+ }
+ $b('#batchAdd').onclick=()=>{const e=db.timetable.find(x=>x.id===entry.value);if(!e)return;if(e.locked||db.fixedLessons.some(f=>f.assignmentId===e.assignmentId&&f.dayId===e.dayId&&f.period===e.period))return alert('هذه الحصة مثبتة ولا يمكن تعديلها.');
+ if(picked.has(e.id))return alert('الحصة موجودة بالفعل في القائمة.');
+ picked.set(e.id,{id:e.id,dayId:e.dayId,period:e.period});renderRows();invalidate()};
+ function check(){if(!picked.size){status.innerHTML='<div class="move-check red">أضف حصة واحدة على الأقل.</div>';saveBtn.disabled=true;return false}
+  const changes=proposal(),v=manualValidate(changes);
+  status.innerHTML=`<div class="move-check ${v.errors.length?'red':v.warnings.length?'orange':'green'}">${esc(v.errors.length?'⛔ '+v.errors.join('، '):v.warnings.length?'⚠️ '+v.warnings.join('، '):'✓ التعديلات متوافقة في الفحص الحالي')}</div>`;
+  saveBtn.disabled=!!v.errors.length;return !v.errors.length}
+ $b('#batchCheck').onclick=check;
+ saveBtn.onclick=()=>{if(!check())return;const changes=proposal();if(commitManual(changes,'تعديل متعدد ('+changes.length+' حصص)'))close()};
+ renderRows();
+}
+
 function toggleTimetableLock(id){
   const e=db.timetable.find(x=>x.id===id);if(!e)return;e.locked=!e.locked;
   const i=db.fixedLessons.findIndex(f=>f.assignmentId===e.assignmentId&&f.dayId===e.dayId&&f.period===e.period);
@@ -1002,7 +1046,7 @@ function daysForGaps(){return db.days.filter(d=>d.active).sort((a,b)=>a.order-b.
 function workspaceTT(){
  if(!db.timetable.length){$('#workspace').innerHTML='<h2>مساحة عمل الجدول</h2><div class="empty">أنشئ الجدول أولاً.</div>';return}
  const pref=window.ttPreferred||{mode:'school'},counts=timetableIssueCounts();
- $('#workspace').innerHTML=`<h2>مساحة عمل الجدول</h2><div class="workspace-toolbar"><div class="field"><label>نوع العرض</label><select id="ttMode"><option value="school">المدرسة كاملة</option><option value="teacher">جدول مدرس</option><option value="section">جدول شعبة</option></select></div><div class="field" id="ttEntityWrap"></div><button class="secondary" id="manualUndo">تراجع عن آخر تعديل</button><button class="secondary" id="manualLog">سجل التعديلات</button><button class="secondary" id="gapGo">تشخيص الفراغات</button><button class="problems-btn" id="ttProblems">${counts.errors} أخطاء — ${counts.warnings} تحذيرات</button><button class="secondary" id="ttPrint">طباعة العرض الحالي</button><button class="secondary" id="ttPrintAllTeachers">طباعة بطاقات جميع المدرسين</button></div><div class="notice">اختر المدرس أو الشعبة. اضغط على الحصة لنقلها أو تبديلها أو تثبيتها. الطباعة تتبع العرض المختار.</div><div id="ttWorkspaceView"></div>`;
+ $('#workspace').innerHTML=`<h2>مساحة عمل الجدول</h2><div class="workspace-toolbar"><div class="field"><label>نوع العرض</label><select id="ttMode"><option value="school">المدرسة كاملة</option><option value="teacher">جدول مدرس</option><option value="section">جدول شعبة</option></select></div><div class="field" id="ttEntityWrap"></div><button class="secondary" id="manualBatch">تعديل متعدد بين المدرسين</button><button class="secondary" id="manualUndo">تراجع عن آخر تعديل</button><button class="secondary" id="manualLog">سجل التعديلات</button><button class="secondary" id="gapGo">تشخيص الفراغات</button><button class="problems-btn" id="ttProblems">${counts.errors} أخطاء — ${counts.warnings} تحذيرات</button><button class="secondary" id="ttPrint">طباعة العرض الحالي</button><button class="secondary" id="ttPrintAllTeachers">طباعة بطاقات جميع المدرسين</button></div><div class="notice">اختر المدرس أو الشعبة. اضغط على الحصة لنقلها أو تبديلها أو تثبيتها. الطباعة تتبع العرض المختار.</div><div id="ttWorkspaceView"></div>`;
  const mode=$('#ttMode'),wrap=$('#ttEntityWrap'),view=$('#ttWorkspaceView');mode.value=pref.mode;
  function bindCells(){document.querySelectorAll('#ttWorkspaceView [data-entry]').forEach(td=>td.onclick=()=>{const e=db.timetable.find(x=>x.id===td.dataset.entry),l=ttEntryInfo(e);if(confirm(`${l.subject} — ${l.teacher}\nموافق = نقل الحصة\nإلغاء = خيارات القفل`))moveTimetableEntry(e.id);else if(confirm(e.locked?'فتح القفل؟':'تثبيت الحصة؟'))toggleTimetableLock(e.id)})}
  function draw(){const m=mode.value;window.ttPreferred={mode:m};if(m==='school'){wrap.innerHTML='';view.innerHTML=timetableTable();return}
@@ -1011,7 +1055,7 @@ function workspaceTT(){
  const sel=$('#ttEntity');if(pref.mode===m&&list.some(x=>x.id===pref.id))sel.value=pref.id;
  const redraw=()=>{window.ttPreferred={mode:m,id:sel.value};view.innerHTML=focusedTimetable(m,sel.value);bindCells()};sel.onchange=redraw;redraw()}
  mode.onchange=draw;draw();$('#gapGo').onclick=()=>{page='gapDiagnosis';render()};$('#ttProblems').onclick=()=>alert(`${counts.errors} أخطاء — ${counts.warnings} تحذيرات`);
- $('#manualUndo').onclick=undoManual;$('#manualLog').onclick=()=>alert((db.manualHistory||[]).slice(-15).reverse().map(h=>`${new Date(h.at).toLocaleString('ar-IQ')} — ${h.type} (${h.before.length} حصة)`).join('\n')||'لا توجد تعديلات بعد');$('#ttPrint').onclick=()=>printSelectedTimetable(window.ttPreferred);$('#ttPrintAllTeachers').onclick=printAllTeacherCards;
+ $('#manualBatch').onclick=batchManualEditor;$('#manualUndo').onclick=undoManual;$('#manualLog').onclick=()=>alert((db.manualHistory||[]).slice(-15).reverse().map(h=>`${new Date(h.at).toLocaleString('ar-IQ')} — ${h.type} (${h.before.length} حصة)`).join('\n')||'لا توجد تعديلات بعد');$('#ttPrint').onclick=()=>printSelectedTimetable(window.ttPreferred);$('#ttPrintAllTeachers').onclick=printAllTeacherCards;
 }
 function formalHeader(label){const p=db.printSettings;return `<div class="formal-head"><div class="formal-side">جمهورية العراق<br>وزارة التربية<br><small>العام الدراسي: ${esc(db.school.year||'—')}</small></div><div class="formal-center">${p.logo&&p.logoPosition==='center'?`<img class="school-logo" src="${p.logo}" alt="شعار المدرسة">`:''}<h1>${esc(db.school.name||'اسم المدرسة')}</h1><h2>${esc(p.title||'جدول الحصص الأسبوعية')}</h2><h3>${esc(label)}</h3></div><div class="formal-side">${p.logo&&p.logoPosition==='left'?`<img class="school-logo" src="${p.logo}" alt="شعار المدرسة">`:''}تاريخ بدء التطبيق<br><b>${esc(p.startDate||'____ / ____ / ____')}</b>${p.logo&&p.logoPosition==='right'?`<img class="school-logo" src="${p.logo}" alt="شعار المدرسة">`:''}</div></div>`}
 function formalFooter(){const p=db.printSettings;return `<footer class="print-footer">${p.showNotes?`<div class="print-reasons"><strong>أسباب تغيير الجدول والملاحظات:</strong><p>${esc(p.changeReasons||'—')}</p>${p.footer?`<p>${esc(p.footer)}</p>`:''}</div>`:''}${p.showSignatures?`<div class="print-signatures">${[p.signature1,p.signature2,p.signature3].map(x=>`<div><b>${esc(x)}</b><span>التوقيع: ______________</span></div>`).join('')}</div>`:''}</footer>`}
