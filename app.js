@@ -1,4 +1,4 @@
-const APP_VERSION='0.9.14.5';
+const APP_VERSION='0.9.14.6';
 const KEY='school-timetable-v01';
 const stageDefaults=[['الأول',1,'#587B9B'],['الثاني',2,'#6F8F72'],['الثالث',3,'#9A7B60'],['الرابع',4,'#7D7398'],['الخامس',5,'#A16F78'],['السادس',6,'#557F83']];
 const defaultDays=[['الأحد',7,true],['الاثنين',7,true],['الثلاثاء',6,true],['الأربعاء',7,true],['الخميس',5,true],['الجمعة',0,false],['السبت',0,false]];
@@ -23,10 +23,10 @@ function downloadRecovery(){
  a.href=URL.createObjectURL(blob);a.download='masar-recovery-'+(obj.savedAt||'').slice(0,10)+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
 }
 
-const pages=[['school','1. المدرسة'],['days','2. الأيام والحصص'],['sections','3. المراحل والشعب'],['subjects','4. المواد'],['teachers','5. المدرسون'],['loads','6. حصص المراحل'],['assignments','7. إدارة التكليفات'],['audit','8. تدقيق التكليفات'],['constraints','9. قيود المدرسين'],['advanced','10. القيود المتقدمة'],['fixed','11. الحصص المثبتة'],['feasibility','12. فحص الجدوى'],['generator','13. توليد الجدول'],['workspaceTT','14. مساحة عمل الجدول'],['gapDiagnosis','15. تشخيص الفراغات'],['printSetup','16. التصميم والطباعة']];
+const pages=[['school','1. المدرسة'],['days','2. الأيام والحصص'],['sections','3. المراحل والشعب'],['subjects','4. المواد'],['teachers','5. المدرسون'],['loads','6. حصص المراحل'],['assignments','7. إدارة التكليفات'],['audit','8. تدقيق التكليفات'],['matrix','مصفوفة الحصص'],['constraints','9. قيود المدرسين'],['advanced','10. القيود المتقدمة'],['fixed','11. الحصص المثبتة'],['feasibility','12. فحص الجدوى'],['generator','13. توليد الجدول'],['workspaceTT','14. مساحة عمل الجدول'],['gapDiagnosis','15. تشخيص الفراغات'],['printSetup','16. التصميم والطباعة']];
 const navigationGroups=[
  ['الإعداد الأساسي',['school','days','sections','subjects','loads']],
- ['المدرسون والتكليفات',['teachers','assignments','audit']],
+ ['المدرسون والتكليفات',['teachers','assignments','matrix','audit']],
  ['القيود',['constraints','advanced','fixed']],
  ['التوليد والتشخيص',['feasibility','generator','gapDiagnosis']],
  ['الجداول والطباعة',['workspaceTT','printSetup']]
@@ -42,7 +42,7 @@ function nav(){
 
 function completeness(){let c=[!!db.school.name,db.days.some(d=>d.active&&d.periods>0),db.sections.length,db.subjects.length,db.teachers.length,db.assignments.length];return Math.round(c.filter(Boolean).length/c.length*100)}
 function renderSummary(){if(!$('#summary'))return;let configured=db.teachers.filter(t=>db.teacherRules[t.id]).length;$('#summary').innerHTML=`<div class="cards"><div class="stat">اكتمال البيانات<b>${completeness()}%</b></div><div class="stat">الشعب<b>${db.sections.length}</b></div><div class="stat">المواد<b>${db.subjects.length}</b></div><div class="stat">المدرسون<b>${db.teachers.length}</b></div><div class="stat">قيود مضبوطة<b>${configured}</b></div><div class="stat">حصص مثبتة<b>${db.fixedLessons.length}</b></div></div><div class="progress" style="margin-top:12px"><i style="width:${completeness()}%"></i></div>`}
-function render(){nav();renderSummary();({school,days,sections,subjects,teachers,loads,assignments,audit,constraints,advanced,fixed,feasibility,generator,workspaceTT,gapDiagnosis,printSetup}[page])()}
+function render(){nav();renderSummary();({school,days,sections,subjects,teachers,loads,assignments,audit,matrix,constraints,advanced,fixed,feasibility,generator,workspaceTT,gapDiagnosis,printSetup}[page])()}
 function school(){$('#workspace').innerHTML=`<h2>إعداد المدرسة</h2><div class="grid"><div class="field"><label>اسم المدرسة</label><input id="schoolName" value="${esc(db.school.name)}"></div><div class="field"><label>العام الدراسي</label><input id="schoolYear" value="${esc(db.school.year)}"></div></div><div class="actions"><button id="saveSchool">حفظ الإعدادات</button><button class="secondary" id="importBtn">استيراد نسخة احتياطية</button><button class="secondary" id="recoveryBtn">تنزيل نسخة الاسترجاع المحلية</button><button class="danger" id="resetBtn">إعادة ضبط المشروع</button></div>`;$('#saveSchool').onclick=()=>{db.school.name=$('#schoolName').value.trim();db.school.year=$('#schoolYear').value.trim();save()};$('#importBtn').onclick=()=>$('#importFile').click();$('#recoveryBtn').onclick=downloadRecovery;$('#resetBtn').onclick=()=>{if(confirm('سيتم حذف جميع البيانات المحلية. هل أنت متأكد؟')){if(!preserveTimetable('إعادة ضبط المشروع'))return;db=seed();save();render()}}}
 function sectionDayPeriods(sec,day){const x=db.stageDayPeriods?.[sec.stageId]?.[day.id];return day.active?Math.max(0,Math.min(day.periods,Number.isFinite(+x)&&x!==undefined?+x:day.periods)):0}
 function dayCapacity(sec){return db.days.reduce((n,d)=>n+sectionDayPeriods(sec,d),0)}
@@ -179,6 +179,15 @@ function auditRows(){
   });
  });
  return result;
+}
+// Read-only Lumia-inspired section x subject assignment matrix; no changes to school data.
+function matrix(){
+ const stages=[...db.stages].sort((a,b)=>a.order-b.order),secs=[...db.sections].sort((a,b)=>{const x=stages.findIndex(g=>g.id===a.stageId),y=stages.findIndex(g=>g.id===b.stageId);return x-y||(a.order||0)-(b.order||0)});
+ const subs=db.subjects;const expected=db.assignments.reduce((n,a)=>n+Math.max(0,+a.weeklyPeriods||0),0);
+ const cols=secs.map(sec=>{const as=db.assignments.filter(a=>a.sectionId===sec.id);return {sec,as,total:as.reduce((n,a)=>n+(+a.weeklyPeriods||0),0),capacity:dayCapacity(sec)}});
+ const mismatch=cols.filter(c=>c.total>c.capacity).length;
+ $('#workspace').innerHTML=`<div class="matrix-head"><div><h2>مصفوفة توزيع الحصص</h2><p class="muted">جميع الشعب والمواد في شاشة واحدة. الأرقام من التكليفات الفعلية؛ الخانات الفارغة تعني عدم وجود تكليف.</p></div><div class="actions"><button id="matrixAudit" class="secondary">تدقيق التكليفات</button><button id="matrixDiagnose">فحص الجدوى</button></div></div><div class="matrix-kpis"><div>الشعب <b>${secs.length}</b></div><div>المواد <b>${subs.length}</b></div><div>الحصص المكلفة <b>${expected}</b></div><div>تجاوز السعة <b>${mismatch}</b></div></div><div class="tt-wrap matrix-scroll"><table class="matrix-table"><thead><tr><th>المادة / الشعبة</th>${cols.map(c=>`<th style="border-top:4px solid ${esc(stages.find(g=>g.id===c.sec.stageId)?.color||'#496e87')}">${esc(stages.find(g=>g.id===c.sec.stageId)?.name||'')}<small>${esc(c.sec.name)}</small></th>`).join('')}</tr></thead><tbody>${subs.map(sub=>`<tr><th>${esc(sub.name)}</th>${cols.map(c=>{const a=c.as.filter(x=>x.subjectId===sub.id),n=a.reduce((v,x)=>v+(+x.weeklyPeriods||0),0),planned=loadFor(c.sec.stageId,sub.id),bad=planned>0&&n!==planned;return `<td class="${bad?'matrix-alert':n?'matrix-set':''}" title="المخطط ${planned} / المكلف ${n}">${n||'—'}${bad?'<span class="matrix-mark">!</span>':''}</td>`}).join('')}</tr>`).join('')}<tr class="matrix-total"><th>المجموع / السعة</th>${cols.map(c=>`<td class="${c.total>c.capacity?'matrix-alert':''}">${c.total} / ${c.capacity}</td>`).join('')}</tr></tbody></table></div><div class="notice">تنبيه: مطابقة العدد لا تثبت إمكان التوليد؛ القيود الزمنية وتعارضات المدرسين تحتاج فحص الجدوى والتوليد.</div>`;
+ $('#matrixAudit').onclick=()=>{page='audit';render()};$('#matrixDiagnose').onclick=()=>{page='feasibility';render()};
 }
 function audit(){
  const all=auditRows(),stages=[...db.stages].sort((a,b)=>a.order-b.order);
@@ -664,9 +673,9 @@ async function runSmartRepairSuggestions(){
  const cleared=!!result.ok;findings.push({teacherId:c.tid,teacher:db.teachers.find(t=>t.id===c.tid)?.name||'',from:c.oldDay.name,to:c.newDay.name,passedNecessaryChecks:cleared,reason:result.reason||'',shortfall:newShortfall,originalShortfall:oldShortfall});
  host.innerHTML='<div class="notice">اختُبر '+(i+1)+' من '+candidates.length+' بدائل...</div>';
  }
- findings.sort((a,b)=>Number(b.passedNecessaryChecks)-Number(a.passedNecessaryChecks)||a.shortfall-b.shortfall);
+ findings.sort((a,b)=>Number(b.passedNecessaryChecks)-Number(a.passedNecessaryChecks)||a.shortfall-b.shortfall||a.teacher.localeCompare(b.teacher,'ar'));findings.forEach((f,i)=>{f.rank=i+1;f.evidence=f.passedNecessaryChecks?'اجتاز فحص السعة فقط؛ يحتاج اختبار التوليد الكامل':'لم يثبت إزالة العجز';f.changeCount=1});
  window.smartRepairReport={version:APP_VERSION,checkedAt:new Date().toISOString(),baseline,findings};
- host.innerHTML='<div class="generation-report"><b>نتائج اختبار نقل يوم التفرغ (دون تعديل البيانات)</b><p>اجتياز الفحص يعني زوال العجز في اختبارات السعة الضرورية فقط، ولا يثبت إمكانية توليد جدول كامل.</p>'+findings.map(f=>`<div class="issue ${f.passedNecessaryChecks?'green':'orange'}"><div><b>${esc(f.teacher)}: ${esc(f.from)} ← ${esc(f.to)}</b><p>${f.passedNecessaryChecks?'اجتاز فحوص السعة الضرورية':'ما زالت توجد موانع أو لم يحسم الاختبار ('+esc(f.reason)+')'}</p></div></div>`).join('')+'<button id="exportSmartRepairs" class="secondary">تصدير المقترحات JSON</button></div>';
+ host.innerHTML='<div class="generation-report"><b>نتائج اختبار نقل يوم التفرغ (دون تعديل البيانات)</b><p>الترتيب وفق اجتياز فحوص السعة، ثم أقل عجز متبقٍ. جميع البدائل تغير قيداً واحداً. لا يُعتبر أي بديل حلاً معتمداً قبل توليد الجدول الكامل والتحقق المستقل منه.</p>'+findings.map(f=>`<div class="issue ${f.passedNecessaryChecks?'green':'orange'}"><div><b>الترتيب ${f.rank} — ${esc(f.teacher)}: ${esc(f.from)} ← ${esc(f.to)}</b><p>${f.passedNecessaryChecks?'اجتاز فحوص السعة الضرورية':'ما زالت توجد موانع أو لم يحسم الاختبار ('+esc(f.reason)+')'}</p></div></div>`).join('')+'<button id="exportSmartRepairs" class="secondary">تصدير المقترحات JSON</button></div>';
  document.getElementById('exportSmartRepairs').onclick=()=>{const url=URL.createObjectURL(new Blob([JSON.stringify(window.smartRepairReport,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='masar-repair-scenarios.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),2000)};
 }
 function diagnosticHtml(result){if(!result||result.ok)return '';
