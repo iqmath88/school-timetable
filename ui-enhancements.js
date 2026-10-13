@@ -1,4 +1,4 @@
-/* Masar 0.9.14.8 — independent progressive interface enhancement. */
+/* Masar 0.9.14.9 — independent progressive interface enhancement. */
 (()=>{'use strict';
 const toggle=document.getElementById('sidebarCompactToggle');
 const setCompact=(compact)=>{document.body.classList.toggle('sidebar-compact',compact);if(toggle){toggle.setAttribute('aria-pressed',String(compact));toggle.textContent=compact?'☷ توسيع القائمة':'☷ طي القائمة';toggle.title=compact?'توسيع القائمة':'طي القائمة';}};
