@@ -122,3 +122,25 @@ body>header{background:#102C50!important;border-bottom:4px solid #C8A65A!importa
 button:not(.danger):not(.secondary):not(.warn){background:#102C50}
 .step.active{background:#102C50!important;border-bottom:2px solid #C8A65A!important}
 .design-options h3{color:#102C50!important;border-bottom-color:#C8A65A!important}
+
+/* Masar compact workspace v0.9.14.5 */
+:root{--accent:#193b59;--bg:#f5f7f6;--line:#e3e9e7;--good:#397e77}
+body{background:var(--bg);font-family:Tajawal,Tahoma,Arial,sans-serif}
+header{background:#19314e;padding:12px max(16px,3vw);min-height:70px}
+header h1{font-size:19px;margin:0 0 3px}header p{font-size:12px}
+header .logo{width:37px;height:37px}header button{background:#ffffff1c;border:1px solid #ffffff50;padding:9px 13px}
+main{max-width:1500px;padding:15px 22px}
+.workspace-top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:4px 0 12px}
+.workspace-top h2{font-size:21px;margin:3px 0 0}.eyebrow{font-size:12px;color:#62717b}
+.section-picker{font-size:12px;color:#53636c;display:flex;align-items:center;gap:10px}
+.section-picker select{min-width:215px;background:#fff;border:1px solid var(--line);border-radius:9px;padding:10px;color:#19314e;font:inherit;font-size:15px}
+#steps{flex-wrap:wrap;overflow:visible;gap:6px;margin-bottom:12px}
+.step{padding:8px 12px;font-size:13px;border-radius:9px}.step.active{background:#193b59}
+.panel{border-radius:12px;padding:16px;margin-bottom:12px;box-shadow:0 2px 10px #17203307}
+#summary{padding:10px 12px}.cards{grid-template-columns:repeat(6,minmax(0,1fr));gap:7px}
+.stat{padding:9px 11px;font-size:12px;background:#fbfcfc}.stat b{font-size:21px;margin-top:2px}
+#summary .progress{height:5px;margin-top:7px!important}
+button{transition:background .15s,transform .15s}button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid #b5d6d0;outline-offset:2px}
+@media(max-width:900px){.cards{grid-template-columns:repeat(3,minmax(0,1fr))}main{padding:12px}.workspace-top{align-items:flex-start}.section-picker select{min-width:160px}}
+@media(max-width:540px){header{flex-direction:row;align-items:center;flex-wrap:wrap}header button{font-size:12px}.workspace-top{flex-direction:column;align-items:stretch}.section-picker{justify-content:space-between}.section-picker select{flex:1;min-width:0}.cards{grid-template-columns:repeat(3,minmax(0,1fr))}.stat{font-size:11px}.stat b{font-size:19px}.step{font-size:12px;padding:8px 10px}}
+@media print{.workspace-top{display:none!important}}

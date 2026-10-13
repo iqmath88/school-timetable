@@ -1,4 +1,4 @@
-const APP_VERSION='0.9.14.4';
+const APP_VERSION='0.9.14.5';
 const KEY='school-timetable-v01';
 const stageDefaults=[['الأول',1,'#587B9B'],['الثاني',2,'#6F8F72'],['الثالث',3,'#9A7B60'],['الرابع',4,'#7D7398'],['الخامس',5,'#A16F78'],['السادس',6,'#557F83']];
 const defaultDays=[['الأحد',7,true],['الاثنين',7,true],['الثلاثاء',6,true],['الأربعاء',7,true],['الخميس',5,true],['الجمعة',0,false],['السبت',0,false]];
@@ -24,7 +24,22 @@ function downloadRecovery(){
 }
 
 const pages=[['school','1. المدرسة'],['days','2. الأيام والحصص'],['sections','3. المراحل والشعب'],['subjects','4. المواد'],['teachers','5. المدرسون'],['loads','6. حصص المراحل'],['assignments','7. إدارة التكليفات'],['audit','8. تدقيق التكليفات'],['constraints','9. قيود المدرسين'],['advanced','10. القيود المتقدمة'],['fixed','11. الحصص المثبتة'],['feasibility','12. فحص الجدوى'],['generator','13. توليد الجدول'],['workspaceTT','14. مساحة عمل الجدول'],['gapDiagnosis','15. تشخيص الفراغات'],['printSetup','16. التصميم والطباعة']];
-function nav(){$('#steps').innerHTML=pages.map(x=>`<button class="step ${page===x[0]?'active':''}" data-p="${x[0]}">${x[1]}</button>`).join('');document.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{page=b.dataset.p;render()})}
+const navigationGroups=[
+ ['الإعداد الأساسي',['school','days','sections','subjects','loads']],
+ ['المدرسون والتكليفات',['teachers','assignments','audit']],
+ ['القيود',['constraints','advanced','fixed']],
+ ['التوليد والتشخيص',['feasibility','generator','gapDiagnosis']],
+ ['الجداول والطباعة',['workspaceTT','printSetup']]
+];
+function nav(){
+ const group=navigationGroups.find(g=>g[1].includes(page))||navigationGroups[0];
+ const selector=document.getElementById('sectionSelector');
+ if(selector){selector.innerHTML=navigationGroups.map((g,i)=>`<option value="${i}" ${g===group?'selected':''}>${g[0]}</option>`).join('');selector.onchange=()=>{page=navigationGroups[+selector.value][1][0];render()}}
+ $('#steps').innerHTML=group[1].map(id=>{const item=pages.find(x=>x[0]===id);return `<button class="step ${page===id?'active':''}" data-p="${id}" aria-current="${page===id?'page':'false'}">${item[1].replace(/^\d+\.\s*/, '')}</button>`}).join('');
+ document.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{page=b.dataset.p;render()});
+ const current=document.getElementById('currentPage');if(current)current.textContent=(pages.find(x=>x[0]===page)||[])[1]?.replace(/^\d+\.\s*/, '')||'';
+}
+
 function completeness(){let c=[!!db.school.name,db.days.some(d=>d.active&&d.periods>0),db.sections.length,db.subjects.length,db.teachers.length,db.assignments.length];return Math.round(c.filter(Boolean).length/c.length*100)}
 function renderSummary(){if(!$('#summary'))return;let configured=db.teachers.filter(t=>db.teacherRules[t.id]).length;$('#summary').innerHTML=`<div class="cards"><div class="stat">اكتمال البيانات<b>${completeness()}%</b></div><div class="stat">الشعب<b>${db.sections.length}</b></div><div class="stat">المواد<b>${db.subjects.length}</b></div><div class="stat">المدرسون<b>${db.teachers.length}</b></div><div class="stat">قيود مضبوطة<b>${configured}</b></div><div class="stat">حصص مثبتة<b>${db.fixedLessons.length}</b></div></div><div class="progress" style="margin-top:12px"><i style="width:${completeness()}%"></i></div>`}
 function render(){nav();renderSummary();({school,days,sections,subjects,teachers,loads,assignments,audit,constraints,advanced,fixed,feasibility,generator,workspaceTT,gapDiagnosis,printSetup}[page])()}
