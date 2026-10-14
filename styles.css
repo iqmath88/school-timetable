@@ -382,3 +382,13 @@ body.sidebar-compact .side-link{position:relative}
 .version-item .actions button{min-height:40px}
 .version-diff:not(:empty){margin-top:12px;padding:12px;border-radius:10px;background:#e8f2f3;color:#214650;line-height:1.7;font-size:14px}
 @media(max-width:650px){.version-item .actions button{flex:1 1 42%}.version-title{align-items:flex-start;flex-direction:column}}
+
+/* v0.9.16.0: readable slot diagnostic on iPad */
+#slotAuditPanel{margin-top:18px}
+#slotAuditPanel .actions{align-items:end;flex-wrap:wrap}
+#slotAuditPanel label{display:flex;flex-direction:column;gap:5px;color:#253b46;font-weight:700}
+#slotAuditPanel select{min-width:115px;min-height:42px}
+#slotAuditResult details,#auditSlotResult details{margin:12px 0;border:1px solid #b9d0d2;border-radius:12px;padding:10px;background:rgba(255,255,255,.82)}
+#auditSlotResult summary{cursor:pointer;font-weight:700;color:#123b45}
+#auditSlotResult table{width:100%}
+#auditSlotResult th,#auditSlotResult td{font-size:14px}

@@ -1,4 +1,4 @@
-const APP_VERSION='0.9.15.8';
+const APP_VERSION='0.9.16.0';
 const KEY='school-timetable-v01';
 const stageDefaults=[['الأول',1,'#587B9B'],['الثاني',2,'#6F8F72'],['الثالث',3,'#9A7B60'],['الرابع',4,'#7D7398'],['الخامس',5,'#A16F78'],['السادس',6,'#557F83']];
 const defaultDays=[['الأحد',7,true],['الاثنين',7,true],['الثلاثاء',6,true],['الأربعاء',7,true],['الخميس',5,true],['الجمعة',0,false],['السبت',0,false]];
@@ -786,8 +786,81 @@ function showDirectDiagnostics(){
  document.querySelectorAll('.direct-diagnostic-jump').forEach(b=>b.onclick=()=>{page=b.dataset.target;render()});
 }
 function exportDirectDiagnostics(){if(!window.lastDirectDiagnosis)showDirectDiagnostics();const data=JSON.stringify(window.lastDirectDiagnosis,null,2),url=URL.createObjectURL(new Blob([data],{type:'application/json;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download='masar-diagnosis.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
-function diagnosticControls(){return `<section class="generation-report"><h3>تشخيص أسباب عدم توليد الجدول</h3><p class="muted">يفحص التزامن الإجباري للشعب في كل حصة بنظرية المطابقة الرياضية، ثم يتحقق من القيود والتكليفات وسعة المدرسين. ويعرض موقع التعارض والأسماء وخيارات الإصلاح دون تغيير البيانات. لا يغير الجدول المحفوظ.</p><div class="actions"><button type="button" id="directDiagnosisBtn">تشخيص الآن</button><button type="button" class="secondary" id="directDiagnosisExport">تنزيل تقرير التشخيص JSON</button></div><div class="notice">إذا انتهى وقت التوليد دون حل، يمكنك تشغيل اختبارات تخفيف القيود. نجاح نسخة مخففة يحدد قيوداً مؤثرة لكنه لا يثبت أن النسخة الأصلية مستحيلة؛ ولن تُعدّل بياناتك.</div><div class="actions"><button type="button" id="probeBtn">🔎 تشخيص دقيق بالاختبار التجريبي</button></div><div class="actions"><button type="button" id="smartCapacityBtn">🧠 فحص ذكي لسعة الشعب والمدرسين</button></div><div id="smartCapacityResult"></div><div id="probeResult"></div><div id="directDiagnosisResult"></div></section>`}
-function wireDirectDiagnostics(){if($('#smartCapacityBtn'))$('#smartCapacityBtn').onclick=runSmartCapacityDiagnosis;if($('#directDiagnosisBtn'))$('#directDiagnosisBtn').onclick=showDirectDiagnostics;if($('#probeBtn'))$('#probeBtn').onclick=runProbeDiagnosis;if($('#directDiagnosisExport'))$('#directDiagnosisExport').onclick=exportDirectDiagnostics}
+
+// Read-only slot audit. This is a local diagnostic, NOT a proof of global unsatisfiability.
+function slotAudit(dayId,period){
+ const day=db.days.find(d=>d.id===dayId);
+ const assignments=db.assignments.filter(a=>+a.weeklyPeriods>0);
+ const activeSections=db.sections.filter(sec=>day&&period<=sectionDayPeriods(sec,day));
+ const entries=(db.timetable||[]).filter(e=>e.dayId===dayId&&+e.period===period);
+ const occupiedTeachers=new Map(),occupiedSections=new Map(),issues=[];
+ for(const e of entries){
+  const tn=db.teachers.find(t=>t.id===e.teacherId)?.name||e.teacherId;
+  const sn=db.sections.find(x=>x.id===e.sectionId)?.name||e.sectionId;
+  if(occupiedTeachers.has(e.teacherId))issues.push({kind:'teacher-clash',level:'block',teacher:tn,section:sn,detail:'المدرس موجود في حصتين في الوقت نفسه',where:'workspaceTT'});
+  if(occupiedSections.has(e.sectionId))issues.push({kind:'section-clash',level:'block',teacher:tn,section:sn,detail:'الشعبة لها حصتان في الوقت نفسه',where:'workspaceTT'});
+  occupiedTeachers.set(e.teacherId,e);occupiedSections.set(e.sectionId,e);
+ }
+ const teacherRows=db.teachers.map(t=>{
+  const relevant=assignments.filter(a=>a.teacherId===t.id);
+  if(!relevant.length)return null;
+  const r=db.teacherRules?.[t.id]||{};
+  const unavailable=(r.unavailable?.[dayId]||[]).some(p=>+p===+period);
+  const occupied=occupiedTeachers.has(t.id);
+  const options=relevant.filter(a=>{
+   const sec=db.sections.find(x=>x.id===a.sectionId);
+   if(!sec||!day||period>sectionDayPeriods(sec,day))return false;
+   return slotAllowedFor(a,sec,day,period);
+  });
+  const remaining=relevant.reduce((n,a)=>n+Math.max(0,+a.weeklyPeriods||0)-(db.timetable||[]).filter(e=>e.assignmentId===a.id).length,0);
+  return {id:t.id,name:t.name,unavailable,occupied,possibleAssignments:options.length,remaining,load:relevant.reduce((n,a)=>n+(+a.weeklyPeriods||0),0)};
+ }).filter(Boolean);
+ const unfilled=activeSections.filter(sec=>!occupiedSections.has(sec.id));
+ for(const sec of unfilled){
+  const options=assignments.filter(a=>a.sectionId===sec.id&&
+   !occupiedTeachers.has(a.teacherId)&&
+   slotAllowedFor(a,sec,day,period)&&
+   (db.timetable||[]).filter(e=>e.assignmentId===a.id).length<+a.weeklyPeriods);
+  if(!options.length)issues.push({kind:'no-local-candidate',level:'warn',section:sec.name,detail:'لا يوجد تكليف متبقٍ مؤهل لهذه الخانة وفق الفحص المحلي. قد يلزم نقل حصص أخرى.',where:'assignments'});
+ }
+ const fixed=(db.fixedLessons||[]).filter(e=>e.dayId===dayId&&+e.period===period).map(e=>({
+  teacher:db.teachers.find(t=>t.id===e.teacherId)?.name||e.teacherId||'—',
+  section:db.sections.find(x=>x.id===e.sectionId)?.name||e.sectionId||'—'
+ }));
+ return {applicationVersion:APP_VERSION,createdAt:new Date().toISOString(),scope:'single-slot-local-audit',day:day?.name||'',dayId,period,
+  expectedLessons:assignments.reduce((n,a)=>n+(+a.weeklyPeriods||0),0),
+  scheduledLessons:(db.timetable||[]).length,
+  occupiedLessons:entries.length,activeSections:activeSections.length,unfilledSections:unfilled.length,
+  availableTeachers:teacherRows.filter(x=>!x.unavailable&&!x.occupied).length,
+  teacherRows,fixed,issues,
+  interpretation:'هذا فحص موضعي للقيود والخانات الحالية، وليس إثباتاً لاستحالة توليد جدول كامل أو تحديداً وحيداً لسبب فشل البحث.'};
+}
+function slotAuditControls(){
+ const days=db.days.filter(d=>d.active&&+d.periods>0);
+ const wed=days.find(d=>d.name.includes('الأربع'))||days[0];
+ return `<section class="generation-report" id="slotAuditPanel"><h3>فحص تعارض يوم وحصة محددين</h3>
+ <p class="muted">ابدأ بالأربعاء، الحصة السادسة، للتحقق من الحالة التي ظهرت في بيانات المدرسة. يعرض الفحص عدد الحصص والقيود المحلية ولا يغير الجدول أو التكليفات.</p>
+ <div class="actions"><label>اليوم <select id="auditDay">${days.map(d=>`<option value="${esc(d.id)}" ${d.id===wed?.id?'selected':''}>${esc(d.name)}</option>`).join('')}</select></label><label>الحصة <select id="auditPeriod">${Array.from({length:Math.max(1,Math.max(...days.map(d=>+d.periods)))},(_,i)=>`<option value="${i+1}" ${i===5?'selected':''}>${i+1}</option>`).join('')}</select></label><button type="button" id="auditSlotRun">فحص الحصة</button><button type="button" class="secondary" id="auditSlotExport">تصدير تقرير JSON</button></div>
+ <div id="auditSlotResult" aria-live="polite"></div></section>`;
+}
+function wireSlotAudit(){
+ const run=document.getElementById('auditSlotRun'),exportBtn=document.getElementById('auditSlotExport');
+ if(!run)return;
+ run.onclick=()=>{
+  const d=document.getElementById('auditDay').value,p=+document.getElementById('auditPeriod').value;
+  const report=slotAudit(d,p);window.lastSlotAudit=report;
+  const target=document.getElementById('auditSlotResult');
+  target.innerHTML=`<div class="notice"><b>${esc(report.day)} — الحصة ${report.period}</b><div>التكليفات الأسبوعية المطلوبة: ${report.expectedLessons} · الحصص المحفوظة: ${report.scheduledLessons}</div><div>الشعب التي تعمل في هذه الحصة: ${report.activeSections} · حصص موزعة: ${report.occupiedLessons} · شعب بلا حصة: ${report.unfilledSections}</div><div>مدرسون غير مشغولين وغير محظورين في هذا الوقت: ${report.availableTeachers}</div></div>
+  ${report.fixed.length?`<div class="notice">الحصص المثبتة: ${report.fixed.map(x=>esc(x.teacher)+' — '+esc(x.section)).join('، ')}</div>`:''}
+  ${report.issues.length?report.issues.map(x=>`<div class="issue ${x.level==='block'?'red':'orange'}"><div><b>${x.level==='block'?'تعارض مثبت في الجدول الحالي':'ملاحظة موضعية'}: ${esc(x.section||x.teacher||'')}</b><p>${esc(x.detail)}</p></div></div>`).join(''):'<div class="notice">لم يرصد الفحص الموضعي تعارضاً مباشراً في الحصص المحفوظة لهذه الخانة. هذا لا يثبت إمكان التوليد الكامل.</div>'}
+  <details><summary>عرض حالة المدرسين (${report.teacherRows.length})</summary><div class="tt-wrap"><table><thead><tr><th>المدرس</th><th>متاح في هذه الحصة</th><th>مشغول</th><th>تكليفات مؤهلة محلياً</th></tr></thead><tbody>${report.teacherRows.map(t=>`<tr><td>${esc(t.name)}</td><td>${t.unavailable?'لا':'نعم'}</td><td>${t.occupied?'نعم':'لا'}</td><td>${t.possibleAssignments}</td></tr>`).join('')}</tbody></table></div></details>
+  <p class="muted">${esc(report.interpretation)}</p>`;
+ };
+ exportBtn.onclick=()=>{if(!window.lastSlotAudit)run.click();if(window.lastSlotAudit)downloadJsonData(window.lastSlotAudit,'masar-slot-audit-'+new Date().toISOString().slice(0,10)+'.json')};
+}
+
+function diagnosticControls(){return `<section class="generation-report"><h3>تشخيص أسباب عدم توليد الجدول</h3><p class="muted">يفحص التزامن الإجباري للشعب في كل حصة بنظرية المطابقة الرياضية، ثم يتحقق من القيود والتكليفات وسعة المدرسين. ويعرض موقع التعارض والأسماء وخيارات الإصلاح دون تغيير البيانات. لا يغير الجدول المحفوظ.</p><div class="actions"><button type="button" id="directDiagnosisBtn">تشخيص الآن</button><button type="button" class="secondary" id="directDiagnosisExport">تنزيل تقرير التشخيص JSON</button></div><div class="notice">إذا انتهى وقت التوليد دون حل، يمكنك تشغيل اختبارات تخفيف القيود. نجاح نسخة مخففة يحدد قيوداً مؤثرة لكنه لا يثبت أن النسخة الأصلية مستحيلة؛ ولن تُعدّل بياناتك.</div><div class="actions"><button type="button" id="probeBtn">🔎 تشخيص دقيق بالاختبار التجريبي</button></div><div class="actions"><button type="button" id="smartCapacityBtn">🧠 فحص ذكي لسعة الشعب والمدرسين</button></div><div id="smartCapacityResult"></div><div id="probeResult"></div><div id="directDiagnosisResult"></div>${slotAuditControls()}</section>`}
+function wireDirectDiagnostics(){wireSlotAudit();if($('#smartCapacityBtn'))$('#smartCapacityBtn').onclick=runSmartCapacityDiagnosis;if($('#directDiagnosisBtn'))$('#directDiagnosisBtn').onclick=showDirectDiagnostics;if($('#probeBtn'))$('#probeBtn').onclick=runProbeDiagnosis;if($('#directDiagnosisExport'))$('#directDiagnosisExport').onclick=exportDirectDiagnostics}
 function generationDiagnostics(result){
  const found=[];const add=(severity,title,detail,where)=>found.push({severity,title,detail,where});
  const active=db.days.filter(d=>d.active&&d.periods>0).sort((a,b)=>a.order-b.order);
@@ -959,7 +1032,8 @@ function startGeneration(){
    if(result.ok&&!result.reused){
      const verification=await validateLocalCandidate(result.entries);
      if(!verification.ok)result={ok:false,reason:'validation-failed',message:'رفض المدقق المستقل الجدول: '+(verification.reason||'مخالفة للقيود'),nodes:result.nodes,bestDepth:result.bestDepth,total:result.total};
-     else{preserveTimetable('قبل استبدال الجدول بجدول جديد');db.manualHistory=[];db.timetable=result.entries.map((e,i)=>({...e,id:'ent_'+Date.now().toString(36)+'_'+i}));save()}
+     else{if(!preserveTimetable('قبل استبدال الجدول بجدول جديد'))result={ok:false,reason:'backup-failed',message:'لم تُستبدل الحصص: تعذر حفظ نسخة استرجاع قبل التوليد.'};
+     else{const previous=db.timetable;db.manualHistory=[];db.timetable=result.entries.map((e,i)=>({...e,id:'ent_'+Date.now().toString(36)+'_'+i}));if(!save()){db.timetable=previous;result={ok:false,reason:'storage-failed',message:'لم يُحفظ الجدول الجديد بسبب خطأ في التخزين.'}}}}
    }
    window.generationReport={...result,seconds:((Date.now()-began)/1000).toFixed(1)};
    if(page==='generator')generator();
