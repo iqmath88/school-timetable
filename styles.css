@@ -392,3 +392,8 @@ body.sidebar-compact .side-link{position:relative}
 #auditSlotResult summary{cursor:pointer;font-weight:700;color:#123b45}
 #auditSlotResult table{width:100%}
 #auditSlotResult th,#auditSlotResult td{font-size:14px}
+/* v0.9.16.1 */
+.slot-section-analysis{display:grid;gap:10px;max-height:440px;overflow:auto;padding:8px 0}
+.slot-analysis-item{background:rgba(255,255,255,.88);border:1px solid #c8d8dd;border-radius:12px;padding:12px;color:#253b46}
+.slot-analysis-item strong{color:#123b45}
+.slot-analysis-item p{font-size:14px;line-height:1.65;margin:5px 0}
