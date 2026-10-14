@@ -306,3 +306,31 @@ body.sidebar-compact .side-link{position:relative}
 @media(max-width:410px){.home-actions{grid-template-columns:1fr}.home-hero-symbol{display:none}}
 @media(prefers-reduced-motion:reduce){.home-action{transition:none}}
 @media print{.home-dash .glass-surface{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}}
+
+/* v0.9.15.4 — legible glass palette; screen only */
+@media screen{
+:root{--masar-title:#123B45;--masar-text:#253B46;--masar-secondary:#526775;--masar-number:#123C5A;--masar-action:#086C69}
+.home-dash{color:var(--masar-text)}
+.home-dash .home-hero h2,.home-dash .home-section-head h3,.home-dash .home-audit h3{color:var(--masar-title)!important}
+.home-dash .home-hero p,.home-dash .home-metric span,.home-dash .home-metric small,.home-dash .home-progress p,.home-dash .home-section-head p,.home-dash .home-action-text small{color:var(--masar-secondary)!important}
+.home-dash .home-metric strong{color:var(--masar-number)!important}
+.home-dash .home-action-text strong{color:var(--masar-title)!important}
+.home-dash .home-action-icon,.home-dash .home-action-arrow,.home-dash .home-kicker{color:var(--masar-action)!important}
+.home-dash .home-note{color:#315862}
+.home-audit{padding:18px 22px}
+.home-audit-heading{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+.home-audit h3{font-size:18px;margin:0 0 8px}
+.home-audit p{font-size:13px;line-height:1.65;color:var(--masar-secondary);margin:0;overflow-wrap:anywhere}
+.home-audit button{color:#fff!important;background:#086C69!important;min-height:42px}
+.home-audit button:disabled{opacity:.55}
+.home-audit-tag{display:inline-flex;vertical-align:middle;margin-inline-start:8px;padding:5px 11px;border-radius:999px;font-size:12px;background:#e8edf0;color:#36515e}
+.home-audit-tag.pass{background:#d5f0e4;color:#10583d}
+.home-audit-tag.fail{background:#fbe3e1;color:#98251e}
+.home-audit-tag.pending{background:#fff0d6;color:#7a490c}
+.home-audit-facts{display:flex;gap:12px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid rgba(81,127,133,.2);font-size:13px;color:var(--masar-secondary)}
+.home-audit-facts strong{color:var(--masar-number)}
+/* Maintain contrast on transparent panels without erasing semantic lesson colors. */
+.home-dash .glass-surface{background-color:rgba(255,255,255,.72)}
+.home-dash .home-action:focus-visible,.home-audit button:focus-visible{outline:3px solid #b16a14;outline-offset:2px}
+}
+@media screen and (max-width:650px){.home-audit{padding:14px}.home-audit-heading button{width:100%}.home-audit-tag{margin-top:5px}}

@@ -1,4 +1,4 @@
-const APP_VERSION='0.9.15.3';
+const APP_VERSION='0.9.15.4';
 const KEY='school-timetable-v01';
 const stageDefaults=[['الأول',1,'#587B9B'],['الثاني',2,'#6F8F72'],['الثالث',3,'#9A7B60'],['الرابع',4,'#7D7398'],['الخامس',5,'#A16F78'],['السادس',6,'#557F83']];
 const defaultDays=[['الأحد',7,true],['الاثنين',7,true],['الثلاثاء',6,true],['الأربعاء',7,true],['الخميس',5,true],['الجمعة',0,false],['السبت',0,false]];
@@ -51,6 +51,21 @@ function nav(){
 function completeness(){let c=[!!db.school.name,db.days.some(d=>d.active&&d.periods>0),db.sections.length,db.subjects.length,db.teachers.length,db.assignments.length];return Math.round(c.filter(Boolean).length/c.length*100)}
 function renderSummary(){if(!$('#summary'))return;let configured=db.teachers.filter(t=>db.teacherRules[t.id]).length;$('#summary').innerHTML=`<div class="cards"><div class="stat">اكتمال البيانات<b>${completeness()}%</b></div><div class="stat">الشعب<b>${db.sections.length}</b></div><div class="stat">المواد<b>${db.subjects.length}</b></div><div class="stat">المدرسون<b>${db.teachers.length}</b></div><div class="stat">قيود مضبوطة<b>${configured}</b></div><div class="stat">حصص مثبتة<b>${db.fixedLessons.length}</b></div></div><div class="progress" style="margin-top:12px"><i style="width:${completeness()}%"></i></div>`}
 function render(){nav();renderSummary();document.body.classList.toggle('dashboard-page',page==='school');({school,schoolSettings,days,sections,subjects,teachers,loads,assignments,audit,matrix,constraints,advanced,fixed,feasibility,generator,workspaceTT,gapDiagnosis,printSetup}[page])()}
+// Independent dashboard verification is ephemeral and tied to the exact input snapshot.
+let homeAudit=null;
+function homeAuditSignature(){return JSON.stringify([db.timetable,db.assignments,db.teacherRules,db.subjectRules,db.advancedRules,db.fixedLessons,db.days,db.stageDayPeriods]);}
+async function runHomeAudit(){
+ const btn=document.getElementById('homeAuditButton');
+ if(btn){btn.disabled=true;btn.textContent='جارٍ فحص سلامة الجدول…'}
+ const signature=homeAuditSignature();
+ const expected=db.assignments.reduce((n,a)=>n+Math.max(0,+a.weeklyPeriods||0),0);
+ const actual=db.timetable.length;
+ let result;
+ try{result=await validateLocalCandidate(structuredClone(db.timetable))}
+ catch(e){result={ok:false,reason:'تعذر تشغيل المدقق: '+String(e)}}
+ homeAudit={signature,passed:!!result.ok&&actual===expected,reason:result.reason||'',checkedAt:new Date().toLocaleString('ar-IQ'),expected,actual};
+ if(page==='school')school();
+}
 function school(){
  const assigned=db.assignments.reduce((n,a)=>n+Math.max(0,+a.weeklyPeriods||0),0);
  const placed=db.timetable.length;
@@ -59,6 +74,11 @@ function school(){
  const state=placed===0?'لم يتم إنشاء جدول بعد':placed===assigned?'اكتمل العدد المطلوب — بانتظار التدقيق':'الجدول غير مكتمل';
  const status=placed===0?'neutral':placed===assigned?'ready':'attention';
  const teacherRules=Object.values(db.teacherRules||{}).filter(Boolean).length;
+ const auditCurrent=homeAudit&&homeAudit.signature===homeAuditSignature()?homeAudit:null;
+ const auditText=placed===0?'لا يوجد جدول للتدقيق':auditCurrent?(auditCurrent.passed?'اجتاز التدقيق المستقل':'لم يجتز التدقيق المستقل'):'لم يُفحص الجدول الحالي';
+ const auditClass=placed===0?'neutral':auditCurrent?(auditCurrent.passed?'pass':'fail'):'pending';
+ const auditDetail=auditCurrent?(auditCurrent.passed?'فحص بتاريخ '+auditCurrent.checkedAt:(auditCurrent.reason||'يوجد اختلاف أو مخالفة تستدعي المراجعة')):'اضغط على زر الفحص للحصول على نتيجة موثقة للجدول الحالي.';
+
  const actions=[['feasibility','◎','فحص الجدوى','فحص القيود والسعة'],['generator','✦','توليد الجدول','تشغيل محرك الجدولة'],['workspaceTT','▦','مساحة عمل الجدول','التعديل والتبادل اليدوي'],['gapDiagnosis','⌕','التشخيص','فحص الفراغات والمشكلات'],['printSetup','▧','الطباعة والتصميم','تصدير الجداول'],['schoolSettings','⚙','إعدادات المدرسة','الاسم والنسخ الاحتياطية']];
  $('#workspace').innerHTML=`<div class="home-dash">
  <div class="home-hero glass-surface"><div class="home-hero-text"><div class="home-kicker">✦ مركز التحكم المدرسي</div><h2>${esc(db.school.name||'مرحباً بك في مسار')}</h2><p>العام الدراسي ${esc(db.school.year||'—')} · إدارة الجداول من مكان واحد</p><div class="home-status ${status}"><span class="home-status-dot"></span>${esc(state)}</div></div><div class="home-hero-symbol" aria-hidden="true">▦</div></div>
@@ -69,10 +89,12 @@ function school(){
  <div class="home-metric glass-surface"><span>المدرسون</span><strong>${teacherCount}</strong><small>${teacherRules} قيود مدرسين مسجلة</small></div>
  </div>
  <div class="home-progress glass-surface"><div class="home-progress-head"><b>تغطية الحصص</b><span>${assigned?Math.min(100,Math.round(placed/assigned*100)):0}%</span></div><div class="home-track"><i style="width:${assigned?Math.min(100,placed/assigned*100):0}%"></i></div><p>${assigned===0?'أدخل تكليفات المدرسين أولاً.':missing?'متبقي '+missing+' حصة غير مجدولة.':extra?'هناك '+extra+' حصة إضافية مقارنة بالتكليفات.':'اكتمل عدد الحصص. يجب تشغيل المدقق المستقل للتأكد من سلامة القيود.'}</p></div>
+ <section class="home-audit glass-surface" aria-label="سلامة الجدول"><div class="home-audit-heading"><div><h3>سلامة الجدول <span class="home-audit-tag ${auditClass}">${esc(auditText)}</span></h3><p>${esc(auditDetail)}</p></div><button type="button" id="homeAuditButton" ${placed?'':'disabled'}>فحص سلامة الجدول</button></div><div class="home-audit-facts"><span>اكتمال التوزيع: <strong>${assigned?Math.round(100*placed/assigned):0}%</strong></span><span>نتيجة التدقيق: <strong>${auditCurrent?(auditCurrent.passed?'ناجح':'غير ناجح'):'غير متاحة'}</strong></span></div></section>
  <div class="home-section-head"><div><h3>الوصول السريع</h3><p>اختر العملية المطلوبة للانتقال إلى أدواتها مباشرة</p></div></div>
  <div class="home-actions">${actions.map(a=>`<button type="button" class="home-action glass-surface" data-home-page="${a[0]}"><span class="home-action-icon" aria-hidden="true">${a[1]}</span><span class="home-action-text"><strong>${a[2]}</strong><small>${a[3]}</small></span><span class="home-action-arrow" aria-hidden="true">←</span></button>`).join('')}</div>
  <div class="home-note"><span aria-hidden="true">ⓘ</span><p><strong>معلومة مهمة:</strong> اكتمال عدد الحصص لا يعني اجتياز جميع القيود. افتح «مساحة عمل الجدول» ثم شغّل «تدقيق الجدول وتصدير الشهادة» للتحقق المستقل.</p></div>
  </div>`;
+ const homeAuditButton=document.getElementById('homeAuditButton');if(homeAuditButton)homeAuditButton.onclick=runHomeAudit;
  document.querySelectorAll('[data-home-page]').forEach(b=>b.onclick=()=>{page=b.dataset.homePage;render();window.scrollTo({top:0,behavior:'smooth'})});
 }
 function schoolSettings(){$('#workspace').innerHTML=`<h2>إعداد المدرسة</h2><div class="grid"><div class="field"><label>اسم المدرسة</label><input id="schoolName" value="${esc(db.school.name)}"></div><div class="field"><label>العام الدراسي</label><input id="schoolYear" value="${esc(db.school.year)}"></div></div><div class="actions"><button id="saveSchool">حفظ الإعدادات</button><button class="secondary" id="importBtn">استيراد نسخة احتياطية</button><button class="secondary" id="recoveryBtn">تنزيل نسخة الاسترجاع المحلية</button><button class="danger" id="resetBtn">إعادة ضبط المشروع</button></div>`;$('#saveSchool').onclick=()=>{db.school.name=$('#schoolName').value.trim();db.school.year=$('#schoolYear').value.trim();save()};$('#importBtn').onclick=()=>$('#importFile').click();$('#recoveryBtn').onclick=downloadRecovery;$('#resetBtn').onclick=()=>{if(confirm('سيتم حذف جميع البيانات المحلية. هل أنت متأكد؟')){if(!preserveTimetable('إعادة ضبط المشروع'))return;db=seed();save();render()}}}
