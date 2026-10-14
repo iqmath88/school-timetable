@@ -1,4 +1,4 @@
-const APP_VERSION='0.9.16.5';
+const APP_VERSION='0.9.16.6';
 const KEY='school-timetable-v01';
 const stageDefaults=[['الأول',1,'#587B9B'],['الثاني',2,'#6F8F72'],['الثالث',3,'#9A7B60'],['الرابع',4,'#7D7398'],['الخامس',5,'#A16F78'],['السادس',6,'#557F83']];
 const defaultDays=[['الأحد',7,true],['الاثنين',7,true],['الثلاثاء',6,true],['الأربعاء',7,true],['الخميس',5,true],['الجمعة',0,false],['السبت',0,false]];
@@ -1058,6 +1058,70 @@ function wireThreeCycles(){
  });
 }
 
+
+// v0.9.16.6: simultaneous cross-section time exchanges.
+// A lesson retains its section, subject and teacher; only day/period change.
+function crossSectionExchangeCandidates(report){
+ const timetable=db.timetable||[],out=[];
+ const targets=timetable.filter(e=>e.dayId===report.dayId&&+e.period===+report.period&&!e.locked);
+ const fixed=e=>(db.fixedLessons||[]).some(f=>f.assignmentId===e.assignmentId&&f.dayId===e.dayId&&+f.period===+e.period);
+ const positionFree=(sectionId,dayId,period,exceptId)=>!timetable.some(x=>x.id!==exceptId&&x.sectionId===sectionId&&x.dayId===dayId&&+x.period===+period);
+ let examined=0;
+ for(const a of targets){
+  if(fixed(a))continue;
+  const secA=db.sections.find(x=>x.id===a.sectionId),asA=db.assignments.find(x=>x.id===a.assignmentId);
+  if(!secA||!asA)continue;
+  for(const b of timetable){
+   if(++examined>25000)return out;
+   if(out.length>=12)return out;
+   if(a.id===b.id||a.sectionId===b.sectionId||b.locked||fixed(b))continue;
+   if(a.dayId===b.dayId&&+a.period===+b.period)continue;
+   const secB=db.sections.find(x=>x.id===b.sectionId),asB=db.assignments.find(x=>x.id===b.assignmentId);
+   const dayA=db.days.find(x=>x.id===a.dayId),dayB=db.days.find(x=>x.id===b.dayId);
+   if(!secB||!asB||!dayA||!dayB)continue;
+   // Both destination section cells must be empty. This avoids any third lesson being displaced.
+   if(!positionFree(a.sectionId,b.dayId,+b.period,a.id)||!positionFree(b.sectionId,a.dayId,+a.period,b.id))continue;
+   if(!slotAllowedFor(asA,secA,dayB,+b.period)||!slotAllowedFor(asB,secB,dayA,+a.period))continue;
+   const changes=[{id:a.id,dayId:b.dayId,period:+b.period},{id:b.id,dayId:a.dayId,period:+a.period}];
+   const check=manualValidate(changes);
+   if(check.errors.length)continue;
+   out.push({original:[{id:a.id,dayId:a.dayId,period:+a.period},{id:b.id,dayId:b.dayId,period:+b.period}],changes,
+    lessons:[a,b].map((e,i)=>({section:db.sections.find(x=>x.id===e.sectionId)?.name||'—',subject:db.subjects.find(x=>x.id===e.subjectId)?.name||'—',teacher:db.teachers.find(x=>x.id===e.teacherId)?.name||'—',from:(i?dayB:dayA).name+' / '+e.period,to:(i?dayA:dayB).name+' / '+(i?+a.period:+b.period)})),warnings:check.warnings});
+  }
+ }
+ return out;
+}
+function crossSectionExchangeUI(report){
+ const options=crossSectionExchangeCandidates(report);window.crossSectionPreview={options};
+ return `<details class="slot-repair-panel"><summary>تبادل مواعيد حصتين بين شعبتين (${options.length})</summary><p class="muted">تُبدّل مواعيد حصتين من شعبتين مختلفتين، مع إبقاء كل مادة ومدرس في شعبته الأصلية. لا تتغير أعداد الحصص، لكن تتغير مواقع الفراغات في الشعبتين. تُفحص قيود المدرسين والشعبتين قبل الاعتماد.</p>${options.length?options.map((o,i)=>`<article class="slot-repair-item"><strong>${esc(o.lessons[0].section)} ↔ ${esc(o.lessons[1].section)}</strong>${o.lessons.map(x=>`<p>${esc(x.subject)} — ${esc(x.teacher)} (${esc(x.section)}): ${esc(x.from)} ← ${esc(x.to)}</p>`).join('')}<p>${o.warnings.length?'تحذيرات: '+esc(o.warnings.join('، ')):'اجتاز الفحص الموضعي دون تحذيرات.'}</p><button type="button" class="secondary cross-section-apply" data-cross-index="${i}">معاينة التغيير واعتماده</button></article>`).join(''):'<div class="notice">لا يوجد تبادل صالح وفق الفحص الحالي. هذا لا يثبت استحالة معالجة التعارض.</div>'}</details>`;
+}
+function wireCrossSectionExchanges(){
+ document.querySelectorAll('.cross-section-apply').forEach(button=>button.onclick=()=>{
+  const option=window.crossSectionPreview?.options?.[+button.dataset.crossIndex];if(!option)return alert('المعاينة غير متاحة. أعد الفحص.');
+  const current=option.original.map(x=>db.timetable.find(e=>e.id===x.id));
+  if(current.some((e,i)=>!e||e.dayId!==option.original[i].dayId||+e.period!==option.original[i].period||e.locked))return alert('تغير الجدول منذ المعاينة. أعد الفحص.');
+  if(current[0].sectionId===current[1].sectionId)return alert('لم تعد الحصتان من شعبتين مختلفتين.');
+  const fixed=e=>(db.fixedLessons||[]).some(f=>f.assignmentId===e.assignmentId&&f.dayId===e.dayId&&+f.period===+e.period);
+  if(current.some(fixed))return alert('إحدى الحصتين مثبتة.');
+  if(current.some((e,i)=>db.timetable.some(x=>x.id!==e.id&&x.sectionId===e.sectionId&&x.dayId===option.changes[i].dayId&&+x.period===+option.changes[i].period)))return alert('أصبحت إحدى الخانتين مشغولة. أعد الفحص.');
+  if(current.some((e,i)=>{
+   const a=db.assignments.find(x=>x.id===e.assignmentId),sec=db.sections.find(x=>x.id===e.sectionId),day=db.days.find(x=>x.id===option.changes[i].dayId);
+   return !a||!sec||!day||!slotAllowedFor(a,sec,day,option.changes[i].period);
+  }))return alert('تغيرت القيود منذ المعاينة.');
+  const check=manualValidate(option.changes);if(check.errors.length)return alert('تعارض يمنع التبديل: '+check.errors.join('، '));
+  const summary=option.lessons.map(x=>x.section+' — '+x.subject+': '+x.from+' إلى '+x.to).join('\n');
+  if(!confirm('اعتماد تبادل موعدي الحصتين بين الشعبتين؟\n'+summary+'\nقد تنتقل مواقع الفراغات، ولن تتغير التكليفات.\n'+(check.warnings.length?'تحذيرات: '+check.warnings.join('، ')+'\n':'')+'ستُحفظ نسخة استرجاع قبل التنفيذ.'))return;
+  if(!preserveTimetable('قبل تبادل مواعيد حصتين بين شعبتين'))return;
+  const before=structuredClone(db.timetable),history=structuredClone(db.manualHistory||[]);
+  for(const change of option.changes)Object.assign(db.timetable.find(e=>e.id===change.id),change);
+  db.manualHistory??=[];db.manualHistory.push({id:uid('edit'),at:new Date().toISOString(),type:'تبادل مواعيد بين شعبتين',before:option.original.map(x=>({...x})),after:option.changes.map(x=>({...x}))});
+  if(db.manualHistory.length>100)db.manualHistory.shift();
+  if(!save()){db.timetable=before;db.manualHistory=history;return}
+  window.crossSectionPreview=null;alert('تم التبادل. راجع الفراغات وجدولي المدرسين والشعبتين قبل اعتماد الجدول.');
+  document.getElementById('auditSlotRun')?.click();
+ });
+}
+
 function slotAuditControls(){
  const days=db.days.filter(d=>d.active&&+d.periods>0);
  const wed=days.find(d=>d.name.includes('الأربع'))||days[0];
@@ -1080,10 +1144,11 @@ function wireSlotAudit(){
   ${movePreviewUI(report)}
   ${lessonSwapUI(report)}
   ${threeCycleUI(report)}
+  ${crossSectionExchangeUI(report)}
   <details><summary>تحليل أسباب عدم توفر التكليفات للشعب الفارغة (${report.sectionAnalysis.length})</summary><div class="slot-section-analysis">${report.sectionAnalysis.map(x=>`<div class="slot-analysis-item"><strong>${esc(x.section)}</strong><p>تكليفات مؤهلة الآن: ${x.eligible.length} · تكليفات غير مؤهلة: ${x.blocked.length}</p>${x.blocked.map(a=>`<p>${esc(a.teacher)} — ${esc(a.subject)}: ${a.reasons.map(esc).join('، ')}</p>`).join('')}</div>`).join('')}</div></details>
   <details><summary>عرض حالة المدرسين (${report.teacherRows.length})</summary><div class="tt-wrap"><table><thead><tr><th>المدرس</th><th>متاح في هذه الحصة</th><th>مشغول</th><th>تكليفات مؤهلة محلياً</th></tr></thead><tbody>${report.teacherRows.map(t=>`<tr><td>${esc(t.name)}</td><td>${t.unavailable?'لا':'نعم'}</td><td>${t.occupied?'نعم':'لا'}</td><td>${t.possibleAssignments}</td></tr>`).join('')}</tbody></table></div></details>
   <p class="muted">${esc(report.interpretation)}</p>`;
-  wireMovePreviews();wireLessonSwaps();wireThreeCycles();
+  wireMovePreviews();wireLessonSwaps();wireThreeCycles();wireCrossSectionExchanges();
  };
  exportBtn.onclick=()=>{run.click();if(window.lastSlotAudit)downloadJsonData(window.lastSlotAudit,'masar-slot-audit-'+new Date().toISOString().slice(0,10)+'.json')};
 }
