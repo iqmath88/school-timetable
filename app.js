@@ -1,4 +1,4 @@
-const APP_VERSION='0.9.15.7';
+const APP_VERSION='0.9.15.8';
 const KEY='school-timetable-v01';
 const stageDefaults=[['الأول',1,'#587B9B'],['الثاني',2,'#6F8F72'],['الثالث',3,'#9A7B60'],['الرابع',4,'#7D7398'],['الخامس',5,'#A16F78'],['السادس',6,'#557F83']];
 const defaultDays=[['الأحد',7,true],['الاثنين',7,true],['الثلاثاء',6,true],['الأربعاء',7,true],['الخميس',5,true],['الجمعة',0,false],['السبت',0,false]];
@@ -14,7 +14,7 @@ function invalidateTimetable(reason){if(!Array.isArray(db.timetable)||!db.timeta
 const RECOVERY_KEY=KEY+'-recovery';
 function preserveTimetable(reason){
  if(!db)return true;
- try{localStorage.setItem(RECOVERY_KEY,JSON.stringify({savedAt:new Date().toISOString(),reason,data:db}));return true}
+ try{localStorage.setItem(RECOVERY_KEY,JSON.stringify({savedAt:new Date().toISOString(),reason,data:db}));if(!snapshotState('تلقائية: '+reason,'before-change'))return false;return true}
  catch(err){alert('تعذر حفظ نسخة الاسترجاع. صدّر نسخة احتياطية قبل المتابعة.');return false}
 }
 function downloadRecovery(){
@@ -66,6 +66,78 @@ async function showStorageProtection(){
  try{const persistent=await navigator.storage?.persisted?.();status.textContent=persistent?'التخزين الدائم: مفعّل (لا يحمي من حذف بيانات Safari).':'التخزين الدائم: غير مؤكد. اطلبه بالزر إذا كان مدعوماً.'}
  catch(e){status.textContent='لا يمكن تحديد حالة التخزين على هذا المتصفح.'}
 }
+
+// v0.9.15.8: independent local snapshots of the full school state.
+const SNAPSHOT_KEY=KEY+'-timetable-versions-v1';
+const SNAPSHOT_LIMIT=8;
+function readVersions(){
+ try{const value=JSON.parse(localStorage.getItem(SNAPSHOT_KEY)||'[]');return Array.isArray(value)?value.filter(v=>v&&v.id&&v.data&&Array.isArray(v.data.timetable)):[]}
+ catch(e){return []}
+}
+function snapshotState(label,reason='manual'){
+ const current=readVersions(),record={
+  id:uid('version'),label:String(label||'نسخة جدول').slice(0,100),
+  createdAt:new Date().toISOString(),reason,lessonCount:db.timetable.length,
+  data:structuredClone(db)
+ };
+ const next=[record,...current].slice(0,SNAPSHOT_LIMIT);
+ try{localStorage.setItem(SNAPSHOT_KEY,JSON.stringify(next));return true}
+ catch(e){alert('تعذر حفظ نسخة الجدول: مساحة التخزين المحلية غير كافية. صدّر نسخة JSON إلى الملفات قبل المتابعة.');return false}
+}
+function timetableVersionDiff(a,b){
+ const key=x=>String(x.assignmentId||'')+'|'+String(x.sectionId||'')+'|'+String(x.teacherId||'')+'|'+String(x.subjectId||'');
+ const group=arr=>{const map=new Map();for(const e of arr){const k=key(e);if(!map.has(k))map.set(k,[]);map.get(k).push(String(e.dayId)+'#'+e.period)}
+  for(const v of map.values())v.sort();return map};
+ const old=group(a),now=group(b);let removed=0,added=0,changed=0;
+ for(const k of new Set([...old.keys(),...now.keys()])){
+  const left=old.get(k)||[],right=now.get(k)||[];
+  const l=new Map(),r=new Map();for(const x of left)l.set(x,(l.get(x)||0)+1);for(const x of right)r.set(x,(r.get(x)||0)+1);
+  let common=0;for(const [x,n] of l)common+=Math.min(n,r.get(x)||0);
+  const oldOnly=left.length-common,newOnly=right.length-common;
+  changed+=Math.min(oldOnly,newOnly);removed+=Math.max(0,oldOnly-newOnly);added+=Math.max(0,newOnly-oldOnly);
+ }
+ return {changed,removed,added};
+}
+function versionsUI(){
+ const versions=readVersions();
+ return `<section class="backup-protection glass-surface" id="versionsPanel"><h3>نسخ الجداول والمقارنة</h3><p>احفظ نسخاً مسماة من بيانات المدرسة والجدول، وقارنها ثم استعد أي نسخة بعد تأكيدك. النسخ المحلية محدودة بثمانٍ؛ صدّر المهم منها إلى ملف خارج المتصفح.</p>
+ <div class="actions"><button type="button" id="createVersion">حفظ نسخة جديدة</button><button type="button" class="secondary" id="exportVersionHistory">تصدير سجل النسخ JSON</button></div>
+ <div class="versions-list">${versions.length?versions.map(v=>`<article class="version-item" data-version="${esc(v.id)}"><div class="version-title"><strong>${esc(v.label)}</strong><small>${esc(new Date(v.createdAt).toLocaleString('ar-IQ'))} · ${v.lessonCount} حصة</small></div><div class="actions"><button type="button" class="secondary version-compare">مقارنة بالحالي</button><button type="button" class="secondary version-export">تصدير النسخة</button><button type="button" class="version-restore">استعادة</button><button type="button" class="danger version-delete">حذف</button></div><div class="version-diff" aria-live="polite"></div></article>`).join(''):'<p>لا توجد نسخ محفوظة بعد.</p>'}</div></section>`;
+}
+function wireVersions(){
+ const create=document.getElementById('createVersion');
+ if(!create)return;
+ create.onclick=()=>{const name=prompt('اسم النسخة (مثلاً: جدول معتمد قبل التعديل)',`جدول ${new Date().toLocaleDateString('ar-IQ')}`);if(name===null)return;if(snapshotState(name))schoolSettings()};
+ document.getElementById('exportVersionHistory').onclick=()=>{
+  const list=readVersions();if(!list.length)return alert('لا توجد نسخ محفوظة.');
+  downloadJsonData({type:'masar-version-history',version:1,exportedAt:new Date().toISOString(),versions:list},'masar-timetable-versions-'+new Date().toISOString().slice(0,10)+'.json');
+ };
+ document.querySelectorAll('.version-item').forEach(row=>{
+  const id=row.dataset.version;
+  const get=()=>readVersions().find(v=>v.id===id);
+  row.querySelector('.version-compare').onclick=()=>{
+   const v=get();if(!v)return;
+   const diff=timetableVersionDiff(v.data.timetable||[],db.timetable||[]);
+   const configurationChanged=JSON.stringify([v.data.assignments,v.data.teacherRules,v.data.days,v.data.stageDayPeriods,v.data.advancedRules,v.data.fixedLessons])!==JSON.stringify([db.assignments,db.teacherRules,db.days,db.stageDayPeriods,db.advancedRules,db.fixedLessons]);
+   row.querySelector('.version-diff').textContent=`النسخة: ${v.lessonCount} حصة، الحالي: ${db.timetable.length} حصة. حصص تغيّر موعدها: ${diff.changed}، أضيفت: ${diff.added}، حُذفت: ${diff.removed}. ${configurationChanged?'تنبيه: تغيّرت التكليفات أو القيود أو الأيام أيضاً.':'التكليفات والقيود الأساسية متطابقة.'}`;
+  };
+  row.querySelector('.version-export').onclick=()=>{const v=get();if(v)downloadJsonData(v.data,'masar-version-'+v.createdAt.slice(0,10)+'-'+v.id+'.json')};
+  row.querySelector('.version-restore').onclick=()=>{
+   const v=get();if(!v)return;
+   if(!confirm(`استعادة "${v.label}"؟ ستستبدل جميع بيانات المدرسة الحالية، وليس الجدول فقط. سنحفظ نسخة من الوضع الحالي قبل الاستعادة.`))return;
+   if(!snapshotState('قبل استعادة '+v.label,'before-restore'))return;
+   const previous=db;
+   try{db=migrate(structuredClone(v.data));if(!save()){db=previous;return}schoolSettings();alert('تمت الاستعادة. يُنصح بتصدير نسخة احتياطية خارج المتصفح.')}
+   catch(e){db=previous;alert('تعذرت الاستعادة: '+String(e))}
+  };
+  row.querySelector('.version-delete').onclick=()=>{
+   const v=get();if(!v||!confirm('حذف النسخة "'+v.label+'" نهائياً من هذا المتصفح؟'))return;
+   try{localStorage.setItem(SNAPSHOT_KEY,JSON.stringify(readVersions().filter(x=>x.id!==id)));schoolSettings()}
+   catch(e){alert('تعذر حذف النسخة: '+String(e))}
+  };
+ });
+}
+
 function backupProtectionUI(){
  const last=(()=>{try{return localStorage.getItem(BACKUP_DATE_KEY)}catch(e){return null}})();
  return `<section class="backup-protection glass-surface"><h3>حماية بيانات المدرسة</h3><p>يُحفظ العمل في هذا المتصفح. حذف بيانات Safari أو تبديل الجهاز قد يفقد النسخة المحلية؛ احفظ ملف JSON خارج الجهاز بانتظام.</p><p><strong>آخر تصدير بدأ من التطبيق:</strong> ${last?esc(new Date(last).toLocaleString('ar-IQ')):'لا يوجد تصدير مسجل'}</p><p class="backup-disclaimer">التاريخ يعني بدء تنزيل الملف، وليس تأكيد حفظه في «الملفات» أو iCloud.</p><div class="actions"><button type="button" id="backupNow">تصدير نسخة مؤرخة</button><button type="button" class="secondary" id="storagePersist">طلب تخزين دائم</button></div><p id="storageProtectionStatus" role="status"></p></section>`;
@@ -159,7 +231,7 @@ function school(){
  const homeAuditButton=document.getElementById('homeAuditButton');if(homeAuditButton)homeAuditButton.onclick=runHomeAudit;
  document.querySelectorAll('[data-home-page]').forEach(b=>b.onclick=()=>{page=b.dataset.homePage;render();window.scrollTo({top:0,behavior:'smooth'})});
 }
-function schoolSettings(){$('#workspace').innerHTML=`<h2>إعداد المدرسة</h2>${backupProtectionUI()}<div class="grid"><div class="field"><label>اسم المدرسة</label><input id="schoolName" value="${esc(db.school.name)}"></div><div class="field"><label>العام الدراسي</label><input id="schoolYear" value="${esc(db.school.year)}"></div></div><div class="actions"><button id="saveSchool">حفظ الإعدادات</button><button class="secondary" id="importBtn">استيراد نسخة احتياطية</button><button class="secondary" id="recoveryBtn">تنزيل نسخة الاسترجاع المحلية</button><button class="danger" id="resetBtn">إعادة ضبط المشروع</button></div>`;wireBackupProtection();$('#saveSchool').onclick=()=>{db.school.name=$('#schoolName').value.trim();db.school.year=$('#schoolYear').value.trim();save()};$('#importBtn').onclick=()=>$('#importFile').click();$('#recoveryBtn').onclick=downloadRecovery;$('#resetBtn').onclick=()=>{if(confirm('سيتم حذف جميع البيانات المحلية. هل أنت متأكد؟')){if(!preserveTimetable('إعادة ضبط المشروع'))return;db=seed();if(save())render()}}}
+function schoolSettings(){$('#workspace').innerHTML=`<h2>إعداد المدرسة</h2>${backupProtectionUI()}${versionsUI()}<div class="grid"><div class="field"><label>اسم المدرسة</label><input id="schoolName" value="${esc(db.school.name)}"></div><div class="field"><label>العام الدراسي</label><input id="schoolYear" value="${esc(db.school.year)}"></div></div><div class="actions"><button id="saveSchool">حفظ الإعدادات</button><button class="secondary" id="importBtn">استيراد نسخة احتياطية</button><button class="secondary" id="recoveryBtn">تنزيل نسخة الاسترجاع المحلية</button><button class="danger" id="resetBtn">إعادة ضبط المشروع</button></div>`;wireBackupProtection();wireVersions();$('#saveSchool').onclick=()=>{db.school.name=$('#schoolName').value.trim();db.school.year=$('#schoolYear').value.trim();save()};$('#importBtn').onclick=()=>$('#importFile').click();$('#recoveryBtn').onclick=downloadRecovery;$('#resetBtn').onclick=()=>{if(confirm('سيتم حذف جميع البيانات المحلية. هل أنت متأكد؟')){if(!preserveTimetable('إعادة ضبط المشروع'))return;db=seed();if(save())render()}}}
 function sectionDayPeriods(sec,day){const x=db.stageDayPeriods?.[sec.stageId]?.[day.id];return day.active?Math.max(0,Math.min(day.periods,Number.isFinite(+x)&&x!==undefined?+x:day.periods)):0}
 function dayCapacity(sec){return db.days.reduce((n,d)=>n+sectionDayPeriods(sec,d),0)}
 function days(){$('#workspace').innerHTML=`<h2>أيام الدوام وعدد الحصص</h2><div class="notice">يمكن أن يختلف عدد الحصص من يوم إلى آخر.</div><table><thead><tr><th>اليوم</th><th>دوام</th><th>عدد الحصص</th></tr></thead><tbody>${db.days.sort((a,b)=>a.order-b.order).map(d=>`<tr><td>${esc(d.name)}</td><td><input type="checkbox" data-active="${d.id}" ${d.active?'checked':''}></td><td><input type="number" min="0" max="12" data-periods="${d.id}" value="${d.periods}"></td></tr>`).join('')}</tbody></table><h3>تخصيص عدد الحصص حسب المرحلة واليوم</h3><div class="notice">العدد العام هو الحد الأعلى. مثال: الثلاثاء 7 حصص للمدرسة، و6 لبقية المراحل، و7 للسادس.</div><div class="tt-wrap"><table><thead><tr><th>المرحلة</th>${db.days.filter(d=>d.active).map(d=>`<th>${esc(d.name)}</th>`).join('')}</tr></thead><tbody>${db.stages.map(g=>`<tr><th>${esc(g.name)}</th>${db.days.filter(d=>d.active).map(d=>`<td><input class="stage-period-input" type="number" min="0" max="${d.periods}" data-stage-day="${g.id}|${d.id}" value="${db.stageDayPeriods[g.id]?.[d.id]??d.periods}"></td>`).join('')}</tr>`).join('')}</tbody></table></div>`;document.querySelectorAll('[data-stage-day]').forEach(x=>x.onchange=()=>{const [g,d]=x.dataset.stageDay.split('|');const max=db.days.find(v=>v.id===d).periods;if(!invalidateTimetable('تغيير حصص المرحلة')){days();return}db.stageDayPeriods[g]??={};db.stageDayPeriods[g][d]=Math.min(max,Math.max(0,+x.value||0));save();days()});document.querySelectorAll('[data-active]').forEach(x=>x.onchange=()=>{if(!invalidateTimetable('تغيير أيام الدوام')){days();return}db.days.find(d=>d.id===x.dataset.active).active=x.checked;save()});document.querySelectorAll('[data-periods]').forEach(x=>x.onchange=()=>{if(!invalidateTimetable('تغيير عدد الحصص')){days();return}let d=db.days.find(d=>d.id===x.dataset.periods);d.periods=Math.max(0,+x.value||0);d.active=d.periods>0;save();days()})}

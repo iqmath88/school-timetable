@@ -371,3 +371,14 @@ body.sidebar-compact .side-link{position:relative}
 .backup-reminder p{font-size:13px;color:#455D68;margin:6px 0 0}
 .backup-reminder-actions{display:flex;flex-wrap:wrap;gap:8px}
 @media(max-width:600px){.backup-reminder{bottom:8px;left:8px;right:8px}.backup-reminder-actions{width:100%}.backup-reminder-actions button{flex:1}}
+
+/* v0.9.15.8: version history, compact glass cards */
+.versions-list{display:grid;gap:12px;margin-top:16px}
+.version-item{border:1px solid rgba(56,108,118,.22);border-radius:16px;padding:14px;background:rgba(255,255,255,.72);color:#253B46}
+.version-title{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+.version-title strong{color:#123B45}
+.version-title small{color:#455D68}
+.version-item .actions{display:flex;flex-wrap:wrap;gap:8px}
+.version-item .actions button{min-height:40px}
+.version-diff:not(:empty){margin-top:12px;padding:12px;border-radius:10px;background:#e8f2f3;color:#214650;line-height:1.7;font-size:14px}
+@media(max-width:650px){.version-item .actions button{flex:1 1 42%}.version-title{align-items:flex-start;flex-direction:column}}
