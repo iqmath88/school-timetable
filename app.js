@@ -1,4 +1,4 @@
-const APP_VERSION='0.9.15.5';
+const APP_VERSION='0.9.15.7';
 const KEY='school-timetable-v01';
 const stageDefaults=[['الأول',1,'#587B9B'],['الثاني',2,'#6F8F72'],['الثالث',3,'#9A7B60'],['الرابع',4,'#7D7398'],['الخامس',5,'#A16F78'],['السادس',6,'#557F83']];
 const defaultDays=[['الأحد',7,true],['الاثنين',7,true],['الثلاثاء',6,true],['الأربعاء',7,true],['الخميس',5,true],['الجمعة',0,false],['السبت',0,false]];
@@ -7,13 +7,13 @@ function migrate(x){x=x||seed();for(const k of ['days','stages','sections','subj
 function load(){try{return migrate(JSON.parse(localStorage.getItem(KEY)))}catch{return seed()}}
 let db=load(),page='school';
 const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),uid=p=>p+'_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
-function save(){try{localStorage.setItem(KEY,JSON.stringify(db))}catch(err){if(!window.__saveWarned){window.__saveWarned=true;alert('تعذر الحفظ في المتصفح (المساحة ممتلئة). صدّر نسخة احتياطية الآن، أو احذف الشعار أو نسخة الاسترجاع.')}}renderSummary()}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(db));renderSummary();return true}catch(err){alert('فشل حفظ بيانات المدرسة على الجهاز. صدّر نسخة احتياطية الآن؛ لا تعتمد على استمرار هذه الجلسة.');return false}}
 // Every change that makes the generated timetable invalid goes through here: confirm, keep a recovery copy, then clear.
 function invalidateTimetable(reason){if(!Array.isArray(db.timetable)||!db.timetable.length)return true;if(!confirm('هذا التغيير سيمسح الجدول المولد ('+db.timetable.length+' حصة) ويلزم إعادة التوليد.\nسيُحفظ نسخة استرجاع قبل المسح. هل تريد المتابعة؟'))return false;if(!preserveTimetable(reason))return false;db.timetable=[];db.manualHistory=[];return true}
 // Keep a recoverable copy before every operation that could discard a generated timetable.
 const RECOVERY_KEY=KEY+'-recovery';
 function preserveTimetable(reason){
- if(!Array.isArray(db.timetable)||!db.timetable.length)return true;
+ if(!db)return true;
  try{localStorage.setItem(RECOVERY_KEY,JSON.stringify({savedAt:new Date().toISOString(),reason,data:db}));return true}
  catch(err){alert('تعذر حفظ نسخة الاسترجاع. صدّر نسخة احتياطية قبل المتابعة.');return false}
 }
@@ -21,6 +21,59 @@ function downloadRecovery(){
  const raw=localStorage.getItem(RECOVERY_KEY);if(!raw)return alert('لا توجد نسخة استرجاع محفوظة على هذا الجهاز.');
  const obj=JSON.parse(raw),blob=new Blob([JSON.stringify(obj.data,null,2)],{type:'application/json'}),a=document.createElement('a');
  a.href=URL.createObjectURL(blob);a.download='masar-recovery-'+(obj.savedAt||'').slice(0,10)+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+
+
+// Data protection is deliberately local and opt-in; exported JSON is the durable backup.
+const BACKUP_DATE_KEY=KEY+'-last-external-backup';
+const BACKUP_SNOOZE_KEY=KEY+'-backup-reminder-dismissed';
+function downloadJsonData(data,filename){
+ const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json;charset=utf-8'});
+ const url=URL.createObjectURL(blob),a=document.createElement('a');
+ a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),60000);
+}
+function exportSafeBackup(){
+ const stamp=new Date().toISOString().replace(/[:.]/g,'-');
+ downloadJsonData(db,'masar-backup-'+stamp+'.json');
+ try{localStorage.setItem(BACKUP_DATE_KEY,new Date().toISOString());localStorage.removeItem(BACKUP_SNOOZE_KEY)}catch(e){}
+ if(page==='schoolSettings')schoolSettings();
+}
+function backupIsDue(){
+ if(!db.sections.length&&!db.teachers.length&&!db.assignments.length)return false;
+ let last;try{last=localStorage.getItem(BACKUP_DATE_KEY)}catch(e){}
+ return !last||Date.now()-new Date(last).getTime()>7*86400000;
+}
+function backupReminder(){
+ if(!backupIsDue()||document.getElementById('masar-backup-reminder'))return;
+ try{if(Date.now()-new Date(localStorage.getItem(BACKUP_SNOOZE_KEY)).getTime()<86400000)return}catch(e){}
+ const n=document.createElement('div');n.id='masar-backup-reminder';n.className='backup-reminder';
+ n.setAttribute('role','status');n.innerHTML='<div><strong>حماية بيانات المدرسة</strong><p>مرّ وقت على آخر تصدير احتياطي، أو لم يُصدّر ملف بعد. احتفظ بنسخة خارج المتصفح.</p></div><div class="backup-reminder-actions"><button type="button" id="backupReminderExport">تصدير نسخة الآن</button><button type="button" class="secondary" id="backupReminderLater">تذكيري غداً</button></div>';
+ document.body.appendChild(n);
+ n.querySelector('#backupReminderExport').onclick=()=>{exportSafeBackup();n.remove()};
+ n.querySelector('#backupReminderLater').onclick=()=>{try{localStorage.setItem(BACKUP_SNOOZE_KEY,new Date().toISOString())}catch(e){}n.remove()};
+}
+async function requestPersistentStorage(){
+ const status=document.getElementById('storageProtectionStatus');
+ if(!navigator.storage||!navigator.storage.persist){if(status)status.textContent='المتصفح لا يدعم طلب التخزين الدائم.';return}
+ try{
+  const granted=await navigator.storage.persist();
+  if(status)status.textContent=granted?'وافق المتصفح على حماية التخزين من التنظيف التلقائي. لا تزال النسخة الخارجية ضرورية.':'لم يمنح المتصفح التخزين الدائم. احفظ نسخة احتياطية خارج الجهاز.';
+ }catch(e){if(status)status.textContent='تعذر طلب التخزين الدائم: '+String(e)}
+}
+async function showStorageProtection(){
+ const status=document.getElementById('storageProtectionStatus');if(!status)return;
+ try{const persistent=await navigator.storage?.persisted?.();status.textContent=persistent?'التخزين الدائم: مفعّل (لا يحمي من حذف بيانات Safari).':'التخزين الدائم: غير مؤكد. اطلبه بالزر إذا كان مدعوماً.'}
+ catch(e){status.textContent='لا يمكن تحديد حالة التخزين على هذا المتصفح.'}
+}
+function backupProtectionUI(){
+ const last=(()=>{try{return localStorage.getItem(BACKUP_DATE_KEY)}catch(e){return null}})();
+ return `<section class="backup-protection glass-surface"><h3>حماية بيانات المدرسة</h3><p>يُحفظ العمل في هذا المتصفح. حذف بيانات Safari أو تبديل الجهاز قد يفقد النسخة المحلية؛ احفظ ملف JSON خارج الجهاز بانتظام.</p><p><strong>آخر تصدير بدأ من التطبيق:</strong> ${last?esc(new Date(last).toLocaleString('ar-IQ')):'لا يوجد تصدير مسجل'}</p><p class="backup-disclaimer">التاريخ يعني بدء تنزيل الملف، وليس تأكيد حفظه في «الملفات» أو iCloud.</p><div class="actions"><button type="button" id="backupNow">تصدير نسخة مؤرخة</button><button type="button" class="secondary" id="storagePersist">طلب تخزين دائم</button></div><p id="storageProtectionStatus" role="status"></p></section>`;
+}
+function wireBackupProtection(){
+ const b=document.getElementById('backupNow');if(b)b.onclick=exportSafeBackup;
+ const p=document.getElementById('storagePersist');if(p)p.onclick=requestPersistentStorage;
+ showStorageProtection();
 }
 
 const pages=[['school','لوحة التحكم'],['schoolSettings','إعدادات المدرسة'],['days','2. الأيام والحصص'],['sections','3. المراحل والشعب'],['subjects','4. المواد'],['teachers','5. المدرسون'],['loads','6. حصص المراحل'],['assignments','7. إدارة التكليفات'],['audit','8. تدقيق التكليفات'],['matrix','مصفوفة الحصص'],['constraints','9. قيود المدرسين'],['advanced','10. القيود المتقدمة'],['fixed','11. الحصص المثبتة'],['feasibility','12. فحص الجدوى'],['generator','13. توليد الجدول'],['workspaceTT','14. مساحة عمل الجدول'],['gapDiagnosis','15. تشخيص الفراغات'],['printSetup','16. التصميم والطباعة']];
@@ -33,12 +86,21 @@ const navigationGroups=[
 ];
 const glassIcons={school:'✧',schoolSettings:'⚙',days:'◷',sections:'▦',subjects:'◈',loads:'▤',teachers:'♙',assignments:'⇄',matrix:'▦',audit:'✓',constraints:'⛭',advanced:'◇',fixed:'♧',feasibility:'◎',generator:'✦',gapDiagnosis:'⌕',workspaceTT:'▦',printSetup:'▧'};
 function closeMobileMenu(){document.body.classList.remove('sidebar-open');const toggle=document.getElementById('menuToggle'),shade=document.getElementById('sidebarBackdrop');if(toggle)toggle.setAttribute('aria-expanded','false');if(shade)shade.hidden=true}
+const NAV_GROUP_KEY='masar-nav-group-v1';
+let navOpenGroup=(()=>{try{return Math.max(0,Math.min(navigationGroups.length-1,Number(sessionStorage.getItem(NAV_GROUP_KEY))||0))}catch(e){return 0}})();
 function glassSidebar(){const side=document.getElementById('sideNavigation');if(!side)return;
-side.innerHTML=navigationGroups.map((group,i)=>`<div class="side-group"><div class="side-group-title">${group[0]}</div>${group[1].map(id=>{const item=pages.find(p=>p[0]===id);return `<button type="button" title="${item[1].replace(/^\d+\.\s*/, '')}" aria-label="${item[1].replace(/^\d+\.\s*/, '')}" class="side-link ${page===id?'selected':''}" data-side-page="${id}" ${page===id?'aria-current="page"':''}><span class="glass-icon side-icon" aria-hidden="true">${glassIcons[id]||'◇'}</span><span>${item[1].replace(/^\d+\.\s*/, '')}</span>${page===id?'<span class="side-active-dot"></span>':''}</button>`}).join('')}</div>`).join('');
-side.querySelectorAll('[data-side-page]').forEach(btn=>btn.onclick=()=>{page=btn.dataset.sidePage;closeMobileMenu();render();window.scrollTo({top:0,behavior:'smooth'})});
-const toggle=document.getElementById('menuToggle'),shade=document.getElementById('sidebarBackdrop');if(toggle&&!toggle.dataset.bound){toggle.dataset.bound='1';toggle.onclick=()=>{const open=!document.body.classList.contains('sidebar-open');document.body.classList.toggle('sidebar-open',open);toggle.setAttribute('aria-expanded',String(open));if(shade)shade.hidden=!open}}if(shade&&!shade.dataset.bound){shade.dataset.bound='1';shade.onclick=closeMobileMenu}
+ const currentGroup=navigationGroups.findIndex(g=>g[1].includes(page));
+ if(currentGroup>=0&&navOpenGroup===-2)navOpenGroup=currentGroup;
+ side.innerHTML=navigationGroups.map((group,i)=>{const open=navOpenGroup===i;const active=group[1].includes(page);return `<div class="side-group ${open?'group-open':''}"><button type="button" class="side-group-trigger ${active?'group-active':''}" data-nav-group="${i}" aria-expanded="${open}" aria-controls="nav-group-${i}" title="${group[0]}"><span class="glass-icon group-symbol" aria-hidden="true">${['✧','▦','♙','⛭','▤'][i]}</span><span class="group-label">${group[0]}</span><span class="group-chevron" aria-hidden="true">${open?'⌄':'‹'}</span></button><div class="side-group-items" id="nav-group-${i}" ${open?'':'hidden'}>${group[1].map(id=>{const item=pages.find(p=>p[0]===id);const label=item[1].replace(/^\d+\.\s*/, '');return `<button type="button" title="${label}" aria-label="${label}" class="side-link ${page===id?'selected':''}" data-side-page="${id}" ${page===id?'aria-current="page"':''}><span class="glass-icon side-icon" aria-hidden="true">${glassIcons[id]||'◇'}</span><span>${label}</span>${page===id?'<span class="side-active-dot"></span>':''}</button>`}).join('')}</div></div>`}).join('');
+ side.querySelectorAll('[data-nav-group]').forEach(btn=>btn.onclick=()=>{const i=+btn.dataset.navGroup;navOpenGroup=navOpenGroup===i?-1:i;try{sessionStorage.setItem(NAV_GROUP_KEY,String(navOpenGroup))}catch(e){};glassSidebar()});
+ side.querySelectorAll('[data-side-page]').forEach(btn=>btn.onclick=()=>{page=btn.dataset.sidePage;closeMobileMenu();render();window.scrollTo({top:0,behavior:'smooth'})});
+ const toggle=document.getElementById('menuToggle'),shade=document.getElementById('sidebarBackdrop');if(toggle&&!toggle.dataset.bound){toggle.dataset.bound='1';toggle.onclick=()=>{const open=!document.body.classList.contains('sidebar-open');document.body.classList.toggle('sidebar-open',open);toggle.setAttribute('aria-expanded',String(open));if(shade)shade.hidden=!open}}if(shade&&!shade.dataset.bound){shade.dataset.bound='1';shade.onclick=closeMobileMenu}
 }
+
+let navLastPage=null;
 function nav(){
+ const activeGroup=navigationGroups.findIndex(g=>g[1].includes(page));
+ if(navLastPage!==page&&activeGroup>=0){navOpenGroup=activeGroup;navLastPage=page;}
  glassSidebar();
  const group=navigationGroups.find(g=>g[1].includes(page))||navigationGroups[0];
  const selector=document.getElementById('sectionSelector');
@@ -97,7 +159,7 @@ function school(){
  const homeAuditButton=document.getElementById('homeAuditButton');if(homeAuditButton)homeAuditButton.onclick=runHomeAudit;
  document.querySelectorAll('[data-home-page]').forEach(b=>b.onclick=()=>{page=b.dataset.homePage;render();window.scrollTo({top:0,behavior:'smooth'})});
 }
-function schoolSettings(){$('#workspace').innerHTML=`<h2>إعداد المدرسة</h2><div class="grid"><div class="field"><label>اسم المدرسة</label><input id="schoolName" value="${esc(db.school.name)}"></div><div class="field"><label>العام الدراسي</label><input id="schoolYear" value="${esc(db.school.year)}"></div></div><div class="actions"><button id="saveSchool">حفظ الإعدادات</button><button class="secondary" id="importBtn">استيراد نسخة احتياطية</button><button class="secondary" id="recoveryBtn">تنزيل نسخة الاسترجاع المحلية</button><button class="danger" id="resetBtn">إعادة ضبط المشروع</button></div>`;$('#saveSchool').onclick=()=>{db.school.name=$('#schoolName').value.trim();db.school.year=$('#schoolYear').value.trim();save()};$('#importBtn').onclick=()=>$('#importFile').click();$('#recoveryBtn').onclick=downloadRecovery;$('#resetBtn').onclick=()=>{if(confirm('سيتم حذف جميع البيانات المحلية. هل أنت متأكد؟')){if(!preserveTimetable('إعادة ضبط المشروع'))return;db=seed();save();render()}}}
+function schoolSettings(){$('#workspace').innerHTML=`<h2>إعداد المدرسة</h2>${backupProtectionUI()}<div class="grid"><div class="field"><label>اسم المدرسة</label><input id="schoolName" value="${esc(db.school.name)}"></div><div class="field"><label>العام الدراسي</label><input id="schoolYear" value="${esc(db.school.year)}"></div></div><div class="actions"><button id="saveSchool">حفظ الإعدادات</button><button class="secondary" id="importBtn">استيراد نسخة احتياطية</button><button class="secondary" id="recoveryBtn">تنزيل نسخة الاسترجاع المحلية</button><button class="danger" id="resetBtn">إعادة ضبط المشروع</button></div>`;wireBackupProtection();$('#saveSchool').onclick=()=>{db.school.name=$('#schoolName').value.trim();db.school.year=$('#schoolYear').value.trim();save()};$('#importBtn').onclick=()=>$('#importFile').click();$('#recoveryBtn').onclick=downloadRecovery;$('#resetBtn').onclick=()=>{if(confirm('سيتم حذف جميع البيانات المحلية. هل أنت متأكد؟')){if(!preserveTimetable('إعادة ضبط المشروع'))return;db=seed();if(save())render()}}}
 function sectionDayPeriods(sec,day){const x=db.stageDayPeriods?.[sec.stageId]?.[day.id];return day.active?Math.max(0,Math.min(day.periods,Number.isFinite(+x)&&x!==undefined?+x:day.periods)):0}
 function dayCapacity(sec){return db.days.reduce((n,d)=>n+sectionDayPeriods(sec,d),0)}
 function days(){$('#workspace').innerHTML=`<h2>أيام الدوام وعدد الحصص</h2><div class="notice">يمكن أن يختلف عدد الحصص من يوم إلى آخر.</div><table><thead><tr><th>اليوم</th><th>دوام</th><th>عدد الحصص</th></tr></thead><tbody>${db.days.sort((a,b)=>a.order-b.order).map(d=>`<tr><td>${esc(d.name)}</td><td><input type="checkbox" data-active="${d.id}" ${d.active?'checked':''}></td><td><input type="number" min="0" max="12" data-periods="${d.id}" value="${d.periods}"></td></tr>`).join('')}</tbody></table><h3>تخصيص عدد الحصص حسب المرحلة واليوم</h3><div class="notice">العدد العام هو الحد الأعلى. مثال: الثلاثاء 7 حصص للمدرسة، و6 لبقية المراحل، و7 للسادس.</div><div class="tt-wrap"><table><thead><tr><th>المرحلة</th>${db.days.filter(d=>d.active).map(d=>`<th>${esc(d.name)}</th>`).join('')}</tr></thead><tbody>${db.stages.map(g=>`<tr><th>${esc(g.name)}</th>${db.days.filter(d=>d.active).map(d=>`<td><input class="stage-period-input" type="number" min="0" max="${d.periods}" data-stage-day="${g.id}|${d.id}" value="${db.stageDayPeriods[g.id]?.[d.id]??d.periods}"></td>`).join('')}</tr>`).join('')}</tbody></table></div>`;document.querySelectorAll('[data-stage-day]').forEach(x=>x.onchange=()=>{const [g,d]=x.dataset.stageDay.split('|');const max=db.days.find(v=>v.id===d).periods;if(!invalidateTimetable('تغيير حصص المرحلة')){days();return}db.stageDayPeriods[g]??={};db.stageDayPeriods[g][d]=Math.min(max,Math.max(0,+x.value||0));save();days()});document.querySelectorAll('[data-active]').forEach(x=>x.onchange=()=>{if(!invalidateTimetable('تغيير أيام الدوام')){days();return}db.days.find(d=>d.id===x.dataset.active).active=x.checked;save()});document.querySelectorAll('[data-periods]').forEach(x=>x.onchange=()=>{if(!invalidateTimetable('تغيير عدد الحصص')){days();return}let d=db.days.find(d=>d.id===x.dataset.periods);d.periods=Math.max(0,+x.value||0);d.active=d.periods>0;save();days()})}
@@ -1299,11 +1361,13 @@ async function exportSchedulePNG(mode,id){
  const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),15000);
 }
 
-$('#exportBtn').onclick=()=>{let blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='masar-backup-v'+APP_VERSION+'.json';a.click();URL.revokeObjectURL(a.href)};
+$('#exportBtn').onclick=exportSafeBackup;
 $('#importFile').onchange=e=>{let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{const incoming=migrate(JSON.parse(r.result));
  if(!Array.isArray(incoming.sections)||!Array.isArray(incoming.assignments)||!Array.isArray(incoming.timetable))throw Error('بيانات غير مكتملة');
  const oldCount=db.timetable?.length||0,newCount=incoming.timetable.length;
  if(oldCount>0&&newCount===0&&!confirm('تحذير: النسخة المستوردة لا تحتوي أي حصة موزعة، بينما جدولك الحالي يحتوي '+oldCount+' حصة. هل تريد استبداله رغم ذلك؟'))return;
- if(oldCount>0&&!preserveTimetable('استيراد نسخة احتياطية'))return;
- db=incoming;save();render();alert('تم الاستيراد بنجاح — الحصص الموزعة: '+newCount)}catch{alert('ملف غير صالح')}};r.readAsText(f)};
+ if(!preserveTimetable('استيراد نسخة احتياطية'))return;
+ db=incoming;if(!save())throw Error('تعذر حفظ الملف المستورد');render();alert('تم الاستيراد بنجاح — الحصص الموزعة: '+newCount)}catch{alert('ملف غير صالح')}};r.readAsText(f)};
 render();
+// A non-blocking reminder after initial UI paint.
+setTimeout(backupReminder,900);

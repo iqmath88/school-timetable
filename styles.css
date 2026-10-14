@@ -334,3 +334,40 @@ body.sidebar-compact .side-link{position:relative}
 .home-dash .home-action:focus-visible,.home-audit button:focus-visible{outline:3px solid #b16a14;outline-offset:2px}
 }
 @media screen and (max-width:650px){.home-audit{padding:14px}.home-audit-heading button{width:100%}.home-audit-tag{margin-top:5px}}
+/* Masar 0.9.15.6 — readable glass surfaces and compact grouped navigation */
+@media screen{
+:root{--muted:#455D68;--text:#253B46}
+.glass-sidebar{background:rgba(250,253,255,.94)!important}
+.side-group{padding:3px 0!important;border-bottom:1px solid rgba(35,92,105,.11)}
+.side-group-trigger{display:flex!important;align-items:center!important;gap:9px!important;width:100%!important;min-height:45px!important;padding:7px 9px!important;background:rgba(232,244,247,.52)!important;border:1px solid rgba(69,128,139,.18)!important;border-radius:12px!important;color:#234653!important;font-size:13px!important;font-weight:800!important;text-align:right!important;cursor:pointer!important;box-shadow:none!important}
+.side-group-trigger.group-active{background:rgba(216,239,242,.9)!important;color:#0e4f5b!important}
+.side-group-trigger .group-symbol{width:29px;height:29px;min-width:29px;display:inline-grid;place-items:center;font-size:17px;color:#12677a;background:rgba(255,255,255,.75)}
+.side-group-trigger .group-label{flex:1}
+.side-group-trigger .group-chevron{font-size:18px;color:#345b68}
+.side-group-items{padding:5px 5px 6px!important}
+.side-group-items[hidden]{display:none!important}
+.side-link{color:#253B46!important;font-size:13px!important;min-height:41px!important}
+.side-link.selected{color:#0d4958!important}
+/* Improve contrast across all panels, while leaving colored timetable cells intact. */
+.panel>p,.panel small,.panel .hint,.panel .muted,.panel .subtle,.panel .description,.panel .note,.panel .help,.panel .card small,.panel .stat small,.panel .diagnosis-card small{color:#455D68!important}
+.panel .stat b,.panel .cards b{color:#123C5A!important}
+.panel input,.panel select,.panel textarea{color:#253B46}
+.panel button:not(.secondary):not(.side-link):not(.step){font-weight:700}
+.panel button.secondary{color:#14545e!important}
+.panel .home-audit button,.panel button.primary{color:white!important}
+.glass-sidebar .sidebar-head small,.sidebar-foot{color:#455D68!important}
+.side-group-trigger:focus-visible,.side-link:focus-visible{outline:3px solid #bb7b20!important;outline-offset:2px}
+}
+@media screen and (min-width:781px){body.sidebar-compact .side-group-trigger{justify-content:center!important;padding:6px 3px!important;min-height:42px!important}body.sidebar-compact .side-group-trigger .group-label,body.sidebar-compact .side-group-trigger .group-chevron,body.sidebar-compact .side-group-items{display:none!important}body.sidebar-compact .side-group-trigger .group-symbol{width:30px;height:30px;min-width:30px}body.sidebar-compact .side-group{padding:5px 0!important}}
+@media screen and (max-width:780px){.side-group-trigger{font-size:14px!important;min-height:48px!important}.side-link{min-height:44px!important}}
+/* v0.9.15.7: backup protection controls, clear on iPad and mobile */
+.backup-protection{margin:12px 0 22px;padding:20px;border:1px solid rgba(8,108,105,.24);border-radius:18px;background:rgba(241,250,250,.88);box-shadow:0 10px 28px rgba(17,57,69,.05);color:#253B46}
+.backup-protection h3{color:#123B45;margin:0 0 10px}
+.backup-protection p{color:#455D68;line-height:1.7;font-size:14px}
+.backup-protection .backup-disclaimer{font-size:12px}
+.backup-protection .actions{display:flex;flex-wrap:wrap;gap:9px}
+.backup-protection button,.backup-reminder button{min-height:40px}
+.backup-reminder{position:fixed;z-index:9999;bottom:18px;left:18px;right:18px;max-width:740px;margin:auto;display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;border:1px solid #8ab7b2;border-radius:18px;padding:16px 18px;background:rgba(250,255,254,.97);box-shadow:0 10px 35px rgba(14,46,56,.22);color:#123B45;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.backup-reminder p{font-size:13px;color:#455D68;margin:6px 0 0}
+.backup-reminder-actions{display:flex;flex-wrap:wrap;gap:8px}
+@media(max-width:600px){.backup-reminder{bottom:8px;left:8px;right:8px}.backup-reminder-actions{width:100%}.backup-reminder-actions button{flex:1}}
