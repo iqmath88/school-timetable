@@ -1,4 +1,4 @@
-const APP_VERSION='0.9.16.4';
+const APP_VERSION='0.9.16.5';
 const KEY='school-timetable-v01';
 const stageDefaults=[['الأول',1,'#587B9B'],['الثاني',2,'#6F8F72'],['الثالث',3,'#9A7B60'],['الرابع',4,'#7D7398'],['الخامس',5,'#A16F78'],['السادس',6,'#557F83']];
 const defaultDays=[['الأحد',7,true],['الاثنين',7,true],['الثلاثاء',6,true],['الأربعاء',7,true],['الخميس',5,true],['الجمعة',0,false],['السبت',0,false]];
@@ -999,6 +999,65 @@ function wireLessonSwaps(){
  });
 }
 
+
+// v0.9.16.5: a three-lesson cycle within one section; all occupied cells stay occupied.
+// The whole proposed state is validated before showing or applying it.
+function threeCycleCandidates(report){
+ const out=[],target=db.timetable.filter(e=>e.dayId===report.dayId&&+e.period===+report.period&&!e.locked);
+ const sections=new Map();for(const e of db.timetable){if(!sections.has(e.sectionId))sections.set(e.sectionId,[]);sections.get(e.sectionId).push(e)}
+ for(const a of target){
+  const pool=(sections.get(a.sectionId)||[]).filter(e=>e.id!==a.id&&!e.locked);
+  const sec=db.sections.find(x=>x.id===a.sectionId);if(!sec)continue;
+  for(let i=0;i<pool.length;i++)for(let j=i+1;j<pool.length;j++){
+   const b=pool[i],c=pool[j];
+   for(const order of [[b,c],[c,b]]){
+    const [second,third]=order;
+    // a->second's slot, second->third's slot, third->a's slot
+    const original=[a,second,third];
+    const changes=original.map((e,k)=>({id:e.id,dayId:original[(k+1)%3].dayId,period:+original[(k+1)%3].period}));
+    if(new Set(changes.map(x=>x.dayId+'|'+x.period)).size!==3)continue;
+    if(original.some((e,k)=>{
+      const assignment=db.assignments.find(x=>x.id===e.assignmentId),day=db.days.find(x=>x.id===changes[k].dayId);
+      return !assignment||!day||!slotAllowedFor(assignment,sec,day,changes[k].period);
+    }))continue;
+    const validation=manualValidate(changes);if(validation.errors.length)continue;
+    out.push({ids:original.map(x=>x.id),original:original.map(e=>({id:e.id,dayId:e.dayId,period:+e.period})),changes,section:sec.name,
+      lessons:original.map((e,k)=>({subject:db.subjects.find(x=>x.id===e.subjectId)?.name||'—',teacher:db.teachers.find(x=>x.id===e.teacherId)?.name||'—',from:db.days.find(x=>x.id===e.dayId)?.name+' / '+e.period,to:db.days.find(x=>x.id===changes[k].dayId)?.name+' / '+changes[k].period})),warnings:validation.warnings});
+    if(out.length>=12)return out;
+   }
+  }
+ }
+ return out;
+}
+function threeCycleUI(report){
+ const options=threeCycleCandidates(report);window.threeCyclePreview={options};
+ return `<details class="slot-repair-panel"><summary>سلسلة تبديل ثلاث حصص دون فراغ (${options.length})</summary><p class="muted">معاينة ثلاثة تغييرات مترابطة داخل الشعبة نفسها. تُفحص جميع الخانات قبل التنفيذ ولا تتغير بيانات المدرسة أثناء المعاينة.</p>${options.length?options.map((o,i)=>`<article class="slot-repair-item"><strong>${esc(o.section)}</strong>${o.lessons.map(x=>`<p>${esc(x.subject)} — ${esc(x.teacher)}: ${esc(x.from)} ← ${esc(x.to)}</p>`).join('')}<p>${o.warnings.length?'تحذيرات: '+esc(o.warnings.join('، ')):'لا توجد تحذيرات من الفحص اليدوي.'}</p><button type="button" class="secondary three-cycle-apply" data-cycle-index="${i}">مراجعة السلسلة واعتمادها</button></article>`).join(''):'<div class="notice">لم يُعثر على سلسلة ثلاثية صالحة في هذه الحصة وفق القيود المفحوصة. هذا لا يثبت استحالة الإصلاح.</div>'}</details>`;
+}
+function wireThreeCycles(){
+ document.querySelectorAll('.three-cycle-apply').forEach(button=>button.onclick=()=>{
+  const option=window.threeCyclePreview?.options?.[+button.dataset.cycleIndex];if(!option)return alert('انتهت صلاحية المعاينة. أعد الفحص.');
+  const current=option.original.map(x=>db.timetable.find(e=>e.id===x.id));
+  if(current.some((e,i)=>!e||e.dayId!==option.original[i].dayId||+e.period!==option.original[i].period))return alert('تغيرت الحصص منذ المعاينة. أعد الفحص.');
+  if(new Set(current.map(x=>x.sectionId)).size!==1)return alert('تغيرت الشعبة. أعد الفحص.');
+  const sec=db.sections.find(x=>x.id===current[0].sectionId);
+  if(!sec||current.some((e,i)=>{
+    const a=db.assignments.find(x=>x.id===e.assignmentId),day=db.days.find(x=>x.id===option.changes[i].dayId);
+    return !a||!day||!slotAllowedFor(a,sec,day,option.changes[i].period);
+  }))return alert('تغيرت القيود. أعد الفحص.');
+  const check=manualValidate(option.changes);if(check.errors.length)return alert('تعارض يمنع التعديل: '+check.errors.join('، '));
+  const summary=option.lessons.map(x=>x.subject+': '+x.from+' إلى '+x.to).join('\n');
+  if(!confirm('تأكيد تدوير ثلاث حصص للشعبة '+option.section+'؟\n'+summary+'\n'+(check.warnings.length?'تحذيرات: '+check.warnings.join('، ')+'\n':'')+'ستُحفظ نسخة استرجاع قبل التنفيذ.'))return;
+  if(!preserveTimetable('قبل تدوير ثلاث حصص للشعبة '+option.section))return;
+  const before=structuredClone(db.timetable),history=structuredClone(db.manualHistory||[]);
+  for(const change of option.changes)Object.assign(db.timetable.find(e=>e.id===change.id),change);
+  db.manualHistory??=[];db.manualHistory.push({id:uid('edit'),at:new Date().toISOString(),type:'سلسلة تدوير ثلاث حصص',before:option.original,after:option.changes.map(x=>({...x}))});
+  if(db.manualHistory.length>100)db.manualHistory.shift();
+  if(!save()){db.timetable=before;db.manualHistory=history;return}
+  window.threeCyclePreview=null;alert('تم تدوير الحصص الثلاث مع الحفاظ على إشغال مواقعها. راجع الجدول قبل الاعتماد.');
+  document.getElementById('auditSlotRun')?.click();
+ });
+}
+
 function slotAuditControls(){
  const days=db.days.filter(d=>d.active&&+d.periods>0);
  const wed=days.find(d=>d.name.includes('الأربع'))||days[0];
@@ -1020,10 +1079,11 @@ function wireSlotAudit(){
   ${repairSuggestionsUI(report)}
   ${movePreviewUI(report)}
   ${lessonSwapUI(report)}
+  ${threeCycleUI(report)}
   <details><summary>تحليل أسباب عدم توفر التكليفات للشعب الفارغة (${report.sectionAnalysis.length})</summary><div class="slot-section-analysis">${report.sectionAnalysis.map(x=>`<div class="slot-analysis-item"><strong>${esc(x.section)}</strong><p>تكليفات مؤهلة الآن: ${x.eligible.length} · تكليفات غير مؤهلة: ${x.blocked.length}</p>${x.blocked.map(a=>`<p>${esc(a.teacher)} — ${esc(a.subject)}: ${a.reasons.map(esc).join('، ')}</p>`).join('')}</div>`).join('')}</div></details>
   <details><summary>عرض حالة المدرسين (${report.teacherRows.length})</summary><div class="tt-wrap"><table><thead><tr><th>المدرس</th><th>متاح في هذه الحصة</th><th>مشغول</th><th>تكليفات مؤهلة محلياً</th></tr></thead><tbody>${report.teacherRows.map(t=>`<tr><td>${esc(t.name)}</td><td>${t.unavailable?'لا':'نعم'}</td><td>${t.occupied?'نعم':'لا'}</td><td>${t.possibleAssignments}</td></tr>`).join('')}</tbody></table></div></details>
   <p class="muted">${esc(report.interpretation)}</p>`;
-  wireMovePreviews();wireLessonSwaps();
+  wireMovePreviews();wireLessonSwaps();wireThreeCycles();
  };
  exportBtn.onclick=()=>{run.click();if(window.lastSlotAudit)downloadJsonData(window.lastSlotAudit,'masar-slot-audit-'+new Date().toISOString().slice(0,10)+'.json')};
 }
