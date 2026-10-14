@@ -403,3 +403,7 @@ body.sidebar-compact .side-link{position:relative}
 .slot-repair-panel summary{font-weight:750;color:#123b45;cursor:pointer}
 .slot-repair-item{margin:10px 0;padding:12px;border:1px solid #c8d8dd;border-radius:12px;background:#fff}
 .slot-repair-item p{font-size:14px;line-height:1.7;margin:8px 0}.slot-repair-item small{color:#45616c}
+
+/* v0.9.16.3 safe move previews */
+.slot-preview-apply{margin-top:8px;min-height:42px}
+.slot-repair-item p{line-height:1.7}

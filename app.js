@@ -1,4 +1,4 @@
-const APP_VERSION='0.9.16.2';
+const APP_VERSION='0.9.16.3';
 const KEY='school-timetable-v01';
 const stageDefaults=[['الأول',1,'#587B9B'],['الثاني',2,'#6F8F72'],['الثالث',3,'#9A7B60'],['الرابع',4,'#7D7398'],['الخامس',5,'#A16F78'],['السادس',6,'#557F83']];
 const defaultDays=[['الأحد',7,true],['الاثنين',7,true],['الثلاثاء',6,true],['الأربعاء',7,true],['الخميس',5,true],['الجمعة',0,false],['السبت',0,false]];
@@ -887,6 +887,58 @@ function repairSuggestionsUI(report){
  const suggestions=suggestSlotRepairs(report);
  return `<details class="slot-repair-panel" open><summary>حلول مقترحة ومعاينة أثرها (${suggestions.length})</summary><p class="muted">المقترحات مبنية على فحص موضعي فقط. لا يُنفّذ أي تعديل تلقائياً، ولا تضمن هذه المقترحات إمكان توليد الجدول الكامل.</p>${suggestions.length?suggestions.map((x,i)=>`<article class="slot-repair-item"><strong>${i+1}. ${esc(x.title)}</strong><p>${esc(x.detail)}</p><p><b>الأثر المتوقع:</b> ${esc(x.impact)}</p><small>الأولوية ${x.priority} · معاينة فقط · دون تعديل البيانات</small></article>`).join(''):'<div class="notice">لم تُكتشف حاجة إلى حل موضعي بناءً على البيانات الحالية. لا يعني ذلك أن التوليد الكامل مضمون.</div>'}</details>`;
 }
+// v0.9.16.3: sandboxed one-lesson move preview. No mutation until explicit approval.
+function candidateSlotMoves(report){
+ const day=db.days.find(d=>d.id===report.dayId),period=report.period;
+ if(!day||!db.timetable?.length)return [];
+ const result=[];
+ for(const section of report.sectionAnalysis||[]){
+  if(!section.eligible.length)continue;
+  const sec=db.sections.find(x=>x.id===section.sectionId);if(!sec)continue;
+  const entries=db.timetable.filter(e=>e.sectionId===sec.id&&!(e.dayId===day.id&&+e.period===+period));
+  for(const e of entries){
+   const assignment=db.assignments.find(a=>a.id===e.assignmentId);
+   if(!assignment||!slotAllowedFor(assignment,sec,day,period))continue;
+   const changes=[{id:e.id,dayId:day.id,period}];
+   const check=manualValidate(changes);
+   if(check.errors.length)continue;
+   const fromDay=db.days.find(d=>d.id===e.dayId);
+   result.push({id:e.id,sectionId:sec.id,section:sec.name,teacher:db.teachers.find(t=>t.id===e.teacherId)?.name||'—',subject:db.subjects.find(x=>x.id===e.subjectId)?.name||'—',fromDay:fromDay?.name||'—',fromDayId:e.dayId,fromPeriod:e.period,toDayId:day.id,toPeriod:period,warnings:check.warnings,changes});
+   if(result.length>=24)return result;
+  }
+ }
+ return result;
+}
+function movePreviewUI(report){
+ const options=candidateSlotMoves(report);
+ window.slotMovePreview={createdAt:Date.now(),dayId:report.dayId,period:report.period,options};
+ return `<details class="slot-repair-panel" open><summary>تجربة نقل حصة دون تعديل الجدول (${options.length})</summary><p class="muted">هذه عمليات نقل إلى شعبة فارغة في الحصة المختارة، وليست تبديلاً شاملاً أو إعادة توليد. المعاينة لا تغير البيانات؛ ويُعاد فحص التعارضات عند التنفيذ.</p>${options.length?options.map((o,i)=>`<article class="slot-repair-item"><strong>${esc(o.section)} — ${esc(o.subject)}</strong><p>المدرس: ${esc(o.teacher)}</p><p>من ${esc(o.fromDay)} / الحصة ${o.fromPeriod} ← إلى ${esc(report.day)} / الحصة ${report.period}</p><p>ستصبح الخانة الأصلية فارغة. ${o.warnings.length?'تحذيرات: '+esc(o.warnings.join('، ')):'لم يظهر تعارض في الفحص اليدوي الأولي.'}</p><button type="button" class="secondary slot-preview-apply" data-preview-index="${i}">مراجعة النقل واعتماده</button></article>`).join(''):'<div class="notice">لم يُعثر على نقل مباشر صالح مبدئياً. قد يتطلب الحل تبادلاً متعدد الحصص أو إعادة توزيع أوسع.</div>'}</details>`;
+}
+function wireMovePreviews(){
+ document.querySelectorAll('.slot-preview-apply').forEach(button=>button.onclick=()=>{
+  const preview=window.slotMovePreview,index=Number(button.dataset.previewIndex);
+  const option=preview?.options?.[index];
+  if(!option)return alert('انتهت صلاحية المعاينة؛ أعد تشغيل الفحص.');
+  const original=db.timetable.find(e=>e.id===option.id);
+  if(!original||original.dayId!==option.fromDayId||+original.period!==+option.fromPeriod)return alert('تغير الجدول منذ المعاينة؛ أعد تشغيل الفحص.');
+  const section=db.sections.find(x=>x.id===option.sectionId),day=db.days.find(d=>d.id===option.toDayId),assignment=db.assignments.find(a=>a.id===original.assignmentId);
+  if(!section||!day||!assignment||!slotAllowedFor(assignment,section,day,option.toPeriod))return alert('تغيرت القيود منذ المعاينة.');
+  const changes=[{id:original.id,dayId:option.toDayId,period:option.toPeriod}],check=manualValidate(changes);
+  if(check.errors.length)return alert('لم يعد النقل صالحاً: '+check.errors.join('، '));
+  const warning=check.warnings.length?'\nتحذيرات: '+check.warnings.join('، '):'';
+  if(!confirm(`نقل ${option.subject} للشعبة ${option.section} من ${option.fromDay} / ${option.fromPeriod} إلى ${day.name} / ${option.toPeriod}؟\nستبقى الخانة الأصلية فارغة.${warning}\nسيُحفظ وضع الجدول قبل النقل.`))return;
+  if(!preserveTimetable('قبل تجربة نقل حصة إلى '+day.name+' '+option.toPeriod))return;
+  const before=structuredClone(db.timetable),history=structuredClone(db.manualHistory||[]);
+  Object.assign(original,changes[0]);
+  db.manualHistory??=[];db.manualHistory.push({id:uid('edit'),at:new Date().toISOString(),type:'نقل بعد المعاينة',before:[{id:original.id,dayId:option.fromDayId,period:option.fromPeriod}],after:changes});
+  if(db.manualHistory.length>100)db.manualHistory.shift();
+  if(!save()){db.timetable=before;db.manualHistory=history;return}
+  window.slotMovePreview=null;
+  alert('تم النقل وحفظ نسخة سابقة. راجع الجدول كاملاً قبل اعتماده.');
+  document.getElementById('auditSlotRun')?.click();
+ });
+}
+
 function slotAuditControls(){
  const days=db.days.filter(d=>d.active&&+d.periods>0);
  const wed=days.find(d=>d.name.includes('الأربع'))||days[0];
@@ -906,9 +958,11 @@ function wireSlotAudit(){
   ${report.fixed.length?`<div class="notice">الحصص المثبتة: ${report.fixed.map(x=>esc(x.teacher)+' — '+esc(x.section)).join('، ')}</div>`:''}
   ${report.issues.length?report.issues.map(x=>`<div class="issue ${x.level==='block'?'red':'orange'}"><div><b>${x.level==='block'?'تعارض مثبت في الجدول الحالي':'ملاحظة موضعية'}: ${esc(x.section||x.teacher||'')}</b><p>${esc(x.detail)}</p></div></div>`).join(''):'<div class="notice">لم يرصد الفحص الموضعي تعارضاً مباشراً في الحصص المحفوظة لهذه الخانة. هذا لا يثبت إمكان التوليد الكامل.</div>'}
   ${repairSuggestionsUI(report)}
+  ${movePreviewUI(report)}
   <details><summary>تحليل أسباب عدم توفر التكليفات للشعب الفارغة (${report.sectionAnalysis.length})</summary><div class="slot-section-analysis">${report.sectionAnalysis.map(x=>`<div class="slot-analysis-item"><strong>${esc(x.section)}</strong><p>تكليفات مؤهلة الآن: ${x.eligible.length} · تكليفات غير مؤهلة: ${x.blocked.length}</p>${x.blocked.map(a=>`<p>${esc(a.teacher)} — ${esc(a.subject)}: ${a.reasons.map(esc).join('، ')}</p>`).join('')}</div>`).join('')}</div></details>
   <details><summary>عرض حالة المدرسين (${report.teacherRows.length})</summary><div class="tt-wrap"><table><thead><tr><th>المدرس</th><th>متاح في هذه الحصة</th><th>مشغول</th><th>تكليفات مؤهلة محلياً</th></tr></thead><tbody>${report.teacherRows.map(t=>`<tr><td>${esc(t.name)}</td><td>${t.unavailable?'لا':'نعم'}</td><td>${t.occupied?'نعم':'لا'}</td><td>${t.possibleAssignments}</td></tr>`).join('')}</tbody></table></div></details>
   <p class="muted">${esc(report.interpretation)}</p>`;
+  wireMovePreviews();
  };
  exportBtn.onclick=()=>{run.click();if(window.lastSlotAudit)downloadJsonData(window.lastSlotAudit,'masar-slot-audit-'+new Date().toISOString().slice(0,10)+'.json')};
 }
