@@ -407,3 +407,6 @@ body.sidebar-compact .side-link{position:relative}
 /* v0.9.16.3 safe move previews */
 .slot-preview-apply{margin-top:8px;min-height:42px}
 .slot-repair-item p{line-height:1.7}
+
+/* v0.9.16.4 two-lesson exchange previews */
+.slot-swap-apply{margin-top:8px;min-height:44px}

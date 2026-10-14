@@ -1,4 +1,4 @@
-const APP_VERSION='0.9.16.3';
+const APP_VERSION='0.9.16.4';
 const KEY='school-timetable-v01';
 const stageDefaults=[['الأول',1,'#587B9B'],['الثاني',2,'#6F8F72'],['الثالث',3,'#9A7B60'],['الرابع',4,'#7D7398'],['الخامس',5,'#A16F78'],['السادس',6,'#557F83']];
 const defaultDays=[['الأحد',7,true],['الاثنين',7,true],['الثلاثاء',6,true],['الأربعاء',7,true],['الخميس',5,true],['الجمعة',0,false],['السبت',0,false]];
@@ -939,6 +939,66 @@ function wireMovePreviews(){
  });
 }
 
+
+// v0.9.16.4: atomic two-lesson exchange within the SAME section.
+// Both positions remain occupied; no mutation occurs during preview.
+function candidateLessonSwaps(report){
+ const targetDay=db.days.find(d=>d.id===report.dayId),period=+report.period;
+ if(!targetDay||!db.timetable?.length)return [];
+ const options=[];
+ // Exchange two occupied cells, one in the inspected period. No empty source is created.
+ for(const a of db.timetable.filter(e=>e.dayId===report.dayId&&+e.period===period)){
+  if(a.locked)continue;
+  const sec=db.sections.find(x=>x.id===a.sectionId);if(!sec)continue;
+  const assignmentA=db.assignments.find(x=>x.id===a.assignmentId);if(!assignmentA)continue;
+  for(const b of db.timetable.filter(e=>e.sectionId===a.sectionId&&e.id!==a.id)){
+   if(b.locked)continue;
+   const oldDay=db.days.find(x=>x.id===b.dayId),assignmentB=db.assignments.find(x=>x.id===b.assignmentId);
+   if(!oldDay||!assignmentB)continue;
+   if(!slotAllowedFor(assignmentA,sec,oldDay,+b.period)||!slotAllowedFor(assignmentB,sec,targetDay,period))continue;
+   const changes=[{id:a.id,dayId:b.dayId,period:+b.period},{id:b.id,dayId:a.dayId,period:+a.period}];
+   const check=manualValidate(changes);
+   if(check.errors.length)continue;
+   options.push({aId:a.id,bId:b.id,aDayId:a.dayId,aPeriod:+a.period,bDayId:b.dayId,bPeriod:+b.period,section:sec.name,
+    aSubject:db.subjects.find(x=>x.id===a.subjectId)?.name||'—',bSubject:db.subjects.find(x=>x.id===b.subjectId)?.name||'—',
+    aTeacher:db.teachers.find(x=>x.id===a.teacherId)?.name||'—',bTeacher:db.teachers.find(x=>x.id===b.teacherId)?.name||'—',
+    aDay:targetDay.name,bDay:oldDay.name,warnings:check.warnings});
+   if(options.length>=30)return options;
+  }
+ }
+ return options;
+}
+function lessonSwapUI(report){
+ const options=candidateLessonSwaps(report);
+ window.slotSwapPreview={options};
+ return `<details class="slot-repair-panel" open><summary>تبادل حصتين دون إنشاء فراغ (${options.length})</summary><p class="muted">يعرض التبادل حصتين مشغولتين من الشعبة نفسها، ويختبر الموضعين معاً. لا يغيّر الجدول قبل موافقتك. لا يشمل التبادل متعدد الشعب أو أكثر من حصتين.</p>${options.length?options.map((o,i)=>`<article class="slot-repair-item"><strong>${esc(o.section)} — تبادل ${esc(o.aSubject)} مع ${esc(o.bSubject)}</strong><p>${esc(o.aTeacher)}: ${esc(o.aDay)} / ${o.aPeriod} ← ${esc(o.bDay)} / ${o.bPeriod}</p><p>${esc(o.bTeacher)}: ${esc(o.bDay)} / ${o.bPeriod} ← ${esc(o.aDay)} / ${o.aPeriod}</p><p>تبقى الخانتان مشغولتين. ${o.warnings.length?'تحذيرات: '+esc(o.warnings.join('، ')):'لا توجد تحذيرات من فحص التعديل اليدوي.'}</p><button type="button" class="secondary slot-swap-apply" data-swap-index="${i}">مراجعة التبادل واعتماده</button></article>`).join(''):'<div class="notice">لا يوجد تبادل ثنائي صالح مبدئياً في هذه الحصة. قد تحتاج معالجة أكثر من حصتين أو أكثر من شعبة.</div>'}</details>`;
+}
+function wireLessonSwaps(){
+ document.querySelectorAll('.slot-swap-apply').forEach(button=>button.onclick=()=>{
+  const option=window.slotSwapPreview?.options?.[Number(button.dataset.swapIndex)];
+  if(!option)return alert('المعاينة غير متاحة. أعد تشغيل الفحص.');
+  const a=db.timetable.find(x=>x.id===option.aId),b=db.timetable.find(x=>x.id===option.bId);
+  if(!a||!b||a.dayId!==option.aDayId||+a.period!==option.aPeriod||b.dayId!==option.bDayId||+b.period!==option.bPeriod)return alert('تغير الجدول منذ المعاينة. أعد الفحص.');
+  const sec=db.sections.find(x=>x.id===a.sectionId),dayA=db.days.find(x=>x.id===a.dayId),dayB=db.days.find(x=>x.id===b.dayId);
+  const asA=db.assignments.find(x=>x.id===a.assignmentId),asB=db.assignments.find(x=>x.id===b.assignmentId);
+  if(!sec||b.sectionId!==sec.id||!dayA||!dayB||!asA||!asB||!slotAllowedFor(asA,sec,dayB,+b.period)||!slotAllowedFor(asB,sec,dayA,+a.period))return alert('لم يعد التبادل متوافقاً مع القيود. أعد الفحص.');
+  const changes=[{id:a.id,dayId:b.dayId,period:+b.period},{id:b.id,dayId:a.dayId,period:+a.period}];
+  const check=manualValidate(changes);
+  if(check.errors.length)return alert('تعارض يمنع التبادل: '+check.errors.join('، '));
+  const extra=check.warnings.length?'\nتحذيرات: '+check.warnings.join('، '):'';
+  if(!confirm(`تبادل الحصتين للشعبة ${option.section}؟\n${option.aSubject}: ${option.aDay}/${option.aPeriod} إلى ${option.bDay}/${option.bPeriod}\n${option.bSubject}: ${option.bDay}/${option.bPeriod} إلى ${option.aDay}/${option.aPeriod}${extra}\nلن تُترك خانة فارغة. سيتم حفظ نسخة استرجاع.`))return;
+  if(!preserveTimetable('قبل تبادل حصتين للشعبة '+option.section))return;
+  const before=structuredClone(db.timetable),history=structuredClone(db.manualHistory||[]);
+  Object.assign(a,changes[0]);Object.assign(b,changes[1]);
+  db.manualHistory??=[];
+  db.manualHistory.push({id:uid('edit'),at:new Date().toISOString(),type:'تبادل حصتين بعد المعاينة',before:[{id:a.id,dayId:option.aDayId,period:option.aPeriod},{id:b.id,dayId:option.bDayId,period:option.bPeriod}],after:changes});
+  if(db.manualHistory.length>100)db.manualHistory.shift();
+  if(!save()){db.timetable=before;db.manualHistory=history;return}
+  window.slotSwapPreview=null;alert('تم تبادل الحصتين مع الحفاظ على إشغال الخانتين. راجع الجدول قبل الاعتماد.');
+  document.getElementById('auditSlotRun')?.click();
+ });
+}
+
 function slotAuditControls(){
  const days=db.days.filter(d=>d.active&&+d.periods>0);
  const wed=days.find(d=>d.name.includes('الأربع'))||days[0];
@@ -959,10 +1019,11 @@ function wireSlotAudit(){
   ${report.issues.length?report.issues.map(x=>`<div class="issue ${x.level==='block'?'red':'orange'}"><div><b>${x.level==='block'?'تعارض مثبت في الجدول الحالي':'ملاحظة موضعية'}: ${esc(x.section||x.teacher||'')}</b><p>${esc(x.detail)}</p></div></div>`).join(''):'<div class="notice">لم يرصد الفحص الموضعي تعارضاً مباشراً في الحصص المحفوظة لهذه الخانة. هذا لا يثبت إمكان التوليد الكامل.</div>'}
   ${repairSuggestionsUI(report)}
   ${movePreviewUI(report)}
+  ${lessonSwapUI(report)}
   <details><summary>تحليل أسباب عدم توفر التكليفات للشعب الفارغة (${report.sectionAnalysis.length})</summary><div class="slot-section-analysis">${report.sectionAnalysis.map(x=>`<div class="slot-analysis-item"><strong>${esc(x.section)}</strong><p>تكليفات مؤهلة الآن: ${x.eligible.length} · تكليفات غير مؤهلة: ${x.blocked.length}</p>${x.blocked.map(a=>`<p>${esc(a.teacher)} — ${esc(a.subject)}: ${a.reasons.map(esc).join('، ')}</p>`).join('')}</div>`).join('')}</div></details>
   <details><summary>عرض حالة المدرسين (${report.teacherRows.length})</summary><div class="tt-wrap"><table><thead><tr><th>المدرس</th><th>متاح في هذه الحصة</th><th>مشغول</th><th>تكليفات مؤهلة محلياً</th></tr></thead><tbody>${report.teacherRows.map(t=>`<tr><td>${esc(t.name)}</td><td>${t.unavailable?'لا':'نعم'}</td><td>${t.occupied?'نعم':'لا'}</td><td>${t.possibleAssignments}</td></tr>`).join('')}</tbody></table></div></details>
   <p class="muted">${esc(report.interpretation)}</p>`;
-  wireMovePreviews();
+  wireMovePreviews();wireLessonSwaps();
  };
  exportBtn.onclick=()=>{run.click();if(window.lastSlotAudit)downloadJsonData(window.lastSlotAudit,'masar-slot-audit-'+new Date().toISOString().slice(0,10)+'.json')};
 }
