@@ -1,4 +1,4 @@
-const APP_VERSION='0.9.16.1';
+const APP_VERSION='0.9.16.2';
 const KEY='school-timetable-v01';
 const stageDefaults=[['الأول',1,'#587B9B'],['الثاني',2,'#6F8F72'],['الثالث',3,'#9A7B60'],['الرابع',4,'#7D7398'],['الخامس',5,'#A16F78'],['السادس',6,'#557F83']];
 const defaultDays=[['الأحد',7,true],['الاثنين',7,true],['الثلاثاء',6,true],['الأربعاء',7,true],['الخميس',5,true],['الجمعة',0,false],['السبت',0,false]];
@@ -857,6 +857,36 @@ function slotAudit(dayId,period){
   teacherRows,fixed,issues,sectionAnalysis,
   interpretation:'هذا فحص موضعي للقيود والخانات الحالية، وليس إثباتاً لاستحالة توليد جدول كامل أو تحديداً وحيداً لسبب فشل البحث.'};
 }
+// v0.9.16.2: read-only, evidence-linked repair suggestions.
+// The app never relaxes a mandatory constraint automatically.
+function suggestSlotRepairs(report){
+ const proposals=[];
+ const push=(priority,title,detail,impact,kind,sectionId,teacherId)=>proposals.push({priority,title,detail,impact,kind,sectionId,teacherId,automatic:false});
+ for(const x of report.sectionAnalysis||[]){
+  if(x.eligible.length){
+   push(1,'مراجعة تكليف متاح للشعبة '+x.section,'توجد '+x.eligible.length+' تكليفات مؤهلة موضعياً؛ جرّب وضع أحدها في الخانة بعد التحقق من الجدول الكامل.','لا يغير أي قيد؛ قد يتطلب نقل حصة أخرى.', 'eligible',x.sectionId);
+   continue;
+  }
+  const all=x.blocked||[];
+  if(!all.length){push(2,'إكمال تكليفات الشعبة '+x.section,'لا توجد تكليفات مرتبطة بهذه الشعبة.','يتطلب مراجعة بيانات التكليفات، وقد يزيد إجمالي الحصص.','assignment',x.sectionId);continue;}
+  const counts=new Map();
+  for(const a of all)for(const reason of a.reasons||[])counts.set(reason,(counts.get(reason)||0)+1);
+  const top=[...counts].sort((a,b)=>b[1]-a[1]).slice(0,3);
+  for(const [reason,count] of top){
+   const isBusy=reason==='المدرس مشغول في الوقت نفسه';
+   const isComplete=reason==='اكتمل نصاب هذا التكليف';
+   push(isBusy?1:isComplete?3:2,(isBusy?'دراسة تبديل حصص':'مراجعة قيد أو نصاب')+' — '+x.section,
+    'السبب: '+reason+' ('+count+' من '+all.length+' تكليفات). '+(isBusy?'افحص إمكانية نقل الحصة المتزامنة إلى خانة أخرى.':isComplete?'لا تُضف حصة تتجاوز النصاب دون مراجعة التكليف.':'افحص القيد المقابل في إعدادات المدرس أو المادة قبل أي تعديل.'),
+    isBusy?'قد يؤثر في مدرس وشعبة أخرى؛ يحتاج تحققاً من كامل الجدول.':isComplete?'تعديل النصاب يغيّر مجموع الحصص المطلوبة.':'تخفيف القيد قد يخالف تفضيلات أو شروط المدرسة؛ يتطلب موافقة صريحة.',
+    isBusy?'swap':isComplete?'load':'constraint',x.sectionId);
+  }
+ }
+ return proposals.sort((a,b)=>a.priority-b.priority).slice(0,24);
+}
+function repairSuggestionsUI(report){
+ const suggestions=suggestSlotRepairs(report);
+ return `<details class="slot-repair-panel" open><summary>حلول مقترحة ومعاينة أثرها (${suggestions.length})</summary><p class="muted">المقترحات مبنية على فحص موضعي فقط. لا يُنفّذ أي تعديل تلقائياً، ولا تضمن هذه المقترحات إمكان توليد الجدول الكامل.</p>${suggestions.length?suggestions.map((x,i)=>`<article class="slot-repair-item"><strong>${i+1}. ${esc(x.title)}</strong><p>${esc(x.detail)}</p><p><b>الأثر المتوقع:</b> ${esc(x.impact)}</p><small>الأولوية ${x.priority} · معاينة فقط · دون تعديل البيانات</small></article>`).join(''):'<div class="notice">لم تُكتشف حاجة إلى حل موضعي بناءً على البيانات الحالية. لا يعني ذلك أن التوليد الكامل مضمون.</div>'}</details>`;
+}
 function slotAuditControls(){
  const days=db.days.filter(d=>d.active&&+d.periods>0);
  const wed=days.find(d=>d.name.includes('الأربع'))||days[0];
@@ -870,11 +900,12 @@ function wireSlotAudit(){
  if(!run)return;
  run.onclick=()=>{
   const d=document.getElementById('auditDay').value,p=+document.getElementById('auditPeriod').value;
-  const report=slotAudit(d,p);window.lastSlotAudit=report;
+  const report=slotAudit(d,p);report.suggestions=suggestSlotRepairs(report);window.lastSlotAudit=report;
   const target=document.getElementById('auditSlotResult');
   target.innerHTML=`<div class="notice"><b>${esc(report.day)} — الحصة ${report.period}</b><div>التكليفات الأسبوعية المطلوبة: ${report.expectedLessons} · الحصص المحفوظة: ${report.scheduledLessons}</div><div>الشعب التي تعمل في هذه الحصة: ${report.activeSections} · حصص موزعة: ${report.occupiedLessons} · شعب بلا حصة: ${report.unfilledSections}</div><div>مدرسون غير مشغولين وغير محظورين في هذا الوقت: ${report.availableTeachers}</div></div>
   ${report.fixed.length?`<div class="notice">الحصص المثبتة: ${report.fixed.map(x=>esc(x.teacher)+' — '+esc(x.section)).join('، ')}</div>`:''}
   ${report.issues.length?report.issues.map(x=>`<div class="issue ${x.level==='block'?'red':'orange'}"><div><b>${x.level==='block'?'تعارض مثبت في الجدول الحالي':'ملاحظة موضعية'}: ${esc(x.section||x.teacher||'')}</b><p>${esc(x.detail)}</p></div></div>`).join(''):'<div class="notice">لم يرصد الفحص الموضعي تعارضاً مباشراً في الحصص المحفوظة لهذه الخانة. هذا لا يثبت إمكان التوليد الكامل.</div>'}
+  ${repairSuggestionsUI(report)}
   <details><summary>تحليل أسباب عدم توفر التكليفات للشعب الفارغة (${report.sectionAnalysis.length})</summary><div class="slot-section-analysis">${report.sectionAnalysis.map(x=>`<div class="slot-analysis-item"><strong>${esc(x.section)}</strong><p>تكليفات مؤهلة الآن: ${x.eligible.length} · تكليفات غير مؤهلة: ${x.blocked.length}</p>${x.blocked.map(a=>`<p>${esc(a.teacher)} — ${esc(a.subject)}: ${a.reasons.map(esc).join('، ')}</p>`).join('')}</div>`).join('')}</div></details>
   <details><summary>عرض حالة المدرسين (${report.teacherRows.length})</summary><div class="tt-wrap"><table><thead><tr><th>المدرس</th><th>متاح في هذه الحصة</th><th>مشغول</th><th>تكليفات مؤهلة محلياً</th></tr></thead><tbody>${report.teacherRows.map(t=>`<tr><td>${esc(t.name)}</td><td>${t.unavailable?'لا':'نعم'}</td><td>${t.occupied?'نعم':'لا'}</td><td>${t.possibleAssignments}</td></tr>`).join('')}</tbody></table></div></details>
   <p class="muted">${esc(report.interpretation)}</p>`;

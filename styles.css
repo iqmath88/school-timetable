@@ -397,3 +397,9 @@ body.sidebar-compact .side-link{position:relative}
 .slot-analysis-item{background:rgba(255,255,255,.88);border:1px solid #c8d8dd;border-radius:12px;padding:12px;color:#253b46}
 .slot-analysis-item strong{color:#123b45}
 .slot-analysis-item p{font-size:14px;line-height:1.65;margin:5px 0}
+
+/* Read-only repair preview */
+.slot-repair-panel{margin:14px 0;padding:14px;border:1px solid #b3cbd0;border-radius:14px;background:rgba(240,248,248,.85);color:#243e48}
+.slot-repair-panel summary{font-weight:750;color:#123b45;cursor:pointer}
+.slot-repair-item{margin:10px 0;padding:12px;border:1px solid #c8d8dd;border-radius:12px;background:#fff}
+.slot-repair-item p{font-size:14px;line-height:1.7;margin:8px 0}.slot-repair-item small{color:#45616c}
