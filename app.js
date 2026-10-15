@@ -1,4 +1,4 @@
-const APP_VERSION='0.9.17.2';
+const APP_VERSION='0.9.18.0';
 const KEY='school-timetable-v01';
 const stageDefaults=[['الأول',1,'#587B9B'],['الثاني',2,'#6F8F72'],['الثالث',3,'#9A7B60'],['الرابع',4,'#7D7398'],['الخامس',5,'#A16F78'],['السادس',6,'#557F83']];
 const defaultDays=[['الأحد',7,true],['الاثنين',7,true],['الثلاثاء',6,true],['الأربعاء',7,true],['الخميس',5,true],['الجمعة',0,false],['السبت',0,false]];
@@ -1579,10 +1579,62 @@ function toggleTimetableLock(id){
   if(!e.locked&&i>=0)db.fixedLessons.splice(i,1);
   save();workspaceTT();
 }
+// ===== السحب والإفلات لتعديل الحصص يدوياً (جدول المدرس/الشعبة) — يعتمد على manualValidate نفسه =====
+function dndToast(msg,level,undo){let t=document.getElementById('ttToast');if(!t){t=document.createElement('div');t.id='ttToast';t.setAttribute('role','status');t.setAttribute('aria-live','polite');document.body.appendChild(t)}
+ t.className='tt-toast '+(level||'ok');t.innerHTML=`<span></span>${undo?'<button type="button" class="tt-toast-undo">تراجع</button>':''}`;t.firstChild.textContent=msg;t.hidden=false;
+ if(undo)t.querySelector('.tt-toast-undo').onclick=()=>{t.hidden=true;undoManual()};clearTimeout(t._h);t._h=setTimeout(()=>{t.hidden=true},undo?7000:4500)}
+function dndGapWarning(changes){const draft=db.timetable.map(e=>({...e,...(changes.find(c=>c.id===e.id)||{})}));const secs=new Set(),touched=new Set();changes.forEach(c=>{const e=db.timetable.find(x=>x.id===c.id);if(e){secs.add(e.sectionId);touched.add(e.sectionId+'|'+e.dayId);touched.add(e.sectionId+'|'+c.dayId)}});
+ for(const k of touched){const [sid,did]=k.split('|'),ps=draft.filter(x=>x.sectionId===sid&&x.dayId===did).map(x=>x.period).sort((a,b)=>a-b);if(ps.length&&ps.some((p,i)=>p!==i+1))return 'يترك فراغاً داخل يوم الشعبة'}return ''}
+function dndAdvanced(changes){const errors=[],warnings=[];for(const c of changes){const e0=db.timetable.find(x=>x.id===c.id),a=e0&&db.assignments.find(x=>x.id===e0.assignmentId),sec=e0&&db.sections.find(x=>x.id===e0.sectionId);if(!a||!sec)continue;
+  for(const r of db.advancedRules||[]){const hit=advancedDiagnosticMatch(r,a,sec,c.dayId,c.period)&&((r.mode==='allow'&&(c.period<r.from||c.period>r.to))||(r.mode==='block'&&c.period>=r.from&&c.period<=r.to));if(hit)(r.strict==='soft'?warnings:errors).push(r.strict==='soft'?'يخالف قيداً متقدماً تفضيلياً':'يخالف قيداً متقدماً إلزامياً')}}
+ return {errors:[...new Set(errors)],warnings:[...new Set(warnings)]}}
+function dndEvaluate(mode,viewId,e,dayId,period){
+ const inView=x=>(mode==='teacher'?x.teacherId===viewId:x.sectionId===viewId)&&x.dayId===dayId&&x.period===period;let target=db.timetable.find(inView);
+ if(target&&target.id===e.id)return null;
+ // في عرض المدرس: الخانة الفارغة عنده قد تكون مشغولة بحصة أخرى لشعبة الحصة؛ فالنقل إليها يعني تبديلها مع تلك الحصة
+ if(!target&&mode==='teacher')target=db.timetable.find(x=>x.id!==e.id&&x.sectionId===e.sectionId&&x.dayId===dayId&&x.period===period);
+ const changes=target?[{id:e.id,dayId,period},{id:target.id,dayId:e.dayId,period:e.period}]:[{id:e.id,dayId,period}],v=manualValidate(changes),adv=dndAdvanced(changes),gap=dndGapWarning(changes);
+ const errors=[...v.errors,...adv.errors],warnings=[...v.warnings,...adv.warnings,...(gap?[gap]:[])];
+ return {changes,type:target?'تبديل حصتين':'نقل حصة',errors,warnings,level:errors.length?'bad':warnings.length?'warn':'ok'}}
+function dndCommit(ev){const c=manualValidate(ev.changes),adv=dndAdvanced(ev.changes);if(c.errors.length||adv.errors.length){dndToast('⛔ '+[...c.errors,...adv.errors].join('، '),'bad');return false}
+ const before=ev.changes.map(x=>{const e=db.timetable.find(y=>y.id===x.id);return {id:e.id,dayId:e.dayId,period:e.period}});
+ ev.changes.forEach(x=>Object.assign(db.timetable.find(e=>e.id===x.id),x));db.manualHistory??=[];db.manualHistory.push({id:uid('edit'),at:new Date().toISOString(),type:ev.type,before,after:ev.changes.map(x=>({...x}))});if(db.manualHistory.length>100)db.manualHistory.shift();
+ if(!save()){ev.changes.forEach((x,i)=>Object.assign(db.timetable.find(e=>e.id===x.id),before[i]));db.manualHistory.pop();workspaceTT();dndToast('⛔ تعذر الحفظ؛ أُلغي التعديل في الذاكرة. صدّر نسخة احتياطية.','bad');return false}
+ workspaceTT();const w=[...c.warnings,...ev.warnings.filter(x=>!c.warnings.includes(x))];dndToast((w.length?'⚠️ ':'✓ ')+ev.type+(w.length?' — '+w.join('، '):''),w.length?'warn':'ok',true);return true}
+function lessonSheet(id){const e=db.timetable.find(x=>x.id===id);if(!e)return;const o=document.createElement('div');o.className='edit-overlay';
+ o.innerHTML=`<div class="edit-card"><div class="edit-head"><h3>خيارات الحصة</h3><button class="icon-close" type="button" aria-label="إغلاق">×</button></div><div class="notice">${esc(manualLabel(e))}</div><div class="notice">لنقل الحصة اسحبها إلى خانة أخرى (على الجوال: اضغط مطولاً ثم اسحب).</div><div class="actions"><button id="shLock">${e.locked?'🔓 فتح التثبيت':'🔒 تثبيت الحصة'}</button><button class="secondary" id="shMove">نقل/تبديل بالقوائم</button><button class="secondary" id="shClose">إغلاق</button></div></div>`;
+ document.body.appendChild(o);const close=()=>o.remove();o.querySelector('.icon-close').onclick=close;o.querySelector('#shClose').onclick=close;o.querySelector('#shLock').onclick=()=>{close();toggleTimetableLock(id)};o.querySelector('#shMove').onclick=()=>{close();moveTimetableEntry(id)}}
+function enableTimetableDnD(root){
+ const table=root.querySelector('table.focused');if(!table)return;const mode=table.dataset.mode,viewId=table.dataset.id;let st=null,hold=null;
+ const clear=()=>{table.querySelectorAll('.dnd-ok,.dnd-warn,.dnd-bad,.dnd-hover,.dnd-src').forEach(c=>c.classList.remove('dnd-ok','dnd-warn','dnd-bad','dnd-hover','dnd-src'));if(st?.ghost)st.ghost.remove();document.body.classList.remove('dnd-active')};
+ const slotOf=el=>{const td=el?.closest?.('td[data-slot]');return td&&table.contains(td)?td:null};
+ const begin=(td,e,x,y)=>{const ghost=document.createElement('div');ghost.className='dnd-ghost';ghost.textContent=td.querySelector('b')?.textContent||'حصة';document.body.appendChild(ghost);
+  st={td,e,ghost,map:new Map(),over:null,x,y};td.classList.add('dnd-src');document.body.classList.add('dnd-active');
+  table.querySelectorAll('td[data-slot]').forEach(c=>{const [d,p]=c.dataset.slot.split('|'),ev=dndEvaluate(mode,viewId,e,d,+p);if(!ev)return;st.map.set(c,ev);c.classList.add('dnd-'+ev.level)});move(x,y)};
+ const move=(x,y)=>{if(!st)return;st.x=x;st.y=y;st.ghost.style.left=x+'px';st.ghost.style.top=y+'px';const el=document.elementFromPoint?.(x,y),c=slotOf(el);
+  if(st.over&&st.over!==c)st.over.classList.remove('dnd-hover');st.over=c;if(c&&st.map.has(c)){c.classList.add('dnd-hover');const ev=st.map.get(c);dndToast((ev.level==='bad'?'⛔ '+ev.errors.join('، '):ev.level==='warn'?'⚠️ '+ev.warnings.join('، '):'✓ '+ev.type+' إلى هذه الخانة'),ev.level==='bad'?'bad':ev.level==='warn'?'warn':'ok')}
+  if(y<90)window.scrollBy(0,-14);else if(y>window.innerHeight-90)window.scrollBy(0,14)};
+ const end=(drop)=>{if(!st)return;const ev=drop&&st.over?st.map.get(st.over):null;clear();const was=st;st=null;window._dndJustDragged=Date.now();
+  if(ev){if(ev.level==='bad')dndToast('⛔ '+ev.errors.join('، '),'bad');else dndCommit(ev)}else{const t=document.getElementById('ttToast');if(t)t.hidden=true}};
+ table.querySelectorAll('td.lesson[data-entry]').forEach(td=>{
+  td.addEventListener('pointerdown',ev=>{if(ev.button>0)return;const e=db.timetable.find(x=>x.id===td.dataset.entry);if(!e)return;const x0=ev.clientX,y0=ev.clientY,touch=ev.pointerType&&ev.pointerType!=='mouse';
+   if(e.locked){hold=null;return}
+   const startDrag=()=>{try{td.setPointerCapture?.(ev.pointerId)}catch(_){}begin(td,e,x0,y0)};
+   if(!touch){hold={x0,y0,mouse:true,start:startDrag};return}
+   hold={x0,y0,timer:setTimeout(()=>{hold.timer=null;startDrag()},320),start:startDrag}});
+  td.addEventListener('pointermove',ev=>{if(st){ev.preventDefault();move(ev.clientX,ev.clientY);return}
+   if(hold){const dx=Math.abs(ev.clientX-hold.x0),dy=Math.abs(ev.clientY-hold.y0);if(hold.mouse){if(dx+dy>5){const h=hold;hold=null;h.start()}}else if(dx+dy>10){clearTimeout(hold.timer);hold=null}}});
+  const up=ev=>{if(hold?.timer)clearTimeout(hold.timer);hold=null;if(st){ev.preventDefault();end(ev.type==='pointerup')}};
+  td.addEventListener('pointerup',up);td.addEventListener('pointercancel',up);
+  td.addEventListener('click',ev=>{if(Date.now()-(window._dndJustDragged||0)<400)return;const e=db.timetable.find(x=>x.id===td.dataset.entry);if(!e)return;lessonSheet(e.id)});
+  td.addEventListener('contextmenu',ev=>{if(st||hold)ev.preventDefault()})});
+ document.addEventListener('touchmove',function tm(ev){if(!document.body.classList.contains('dnd-active')){if(!document.body.contains(table))document.removeEventListener('touchmove',tm);return}ev.preventDefault()},{passive:false});
+ document.addEventListener('keydown',function kd(ev){if(!document.body.contains(table)){document.removeEventListener('keydown',kd);return}if(ev.key==='Escape'&&st)end(false)})}
+
 function focusedTimetable(mode,id){
   const days=db.days.filter(d=>d.active).sort((a,b)=>a.order-b.order),max=Math.max(...days.map(d=>d.periods));let rows='';
-  for(let p=1;p<=max;p++)rows+=`<tr><th>الحصة ${p}</th>`+days.map(d=>{if(p>d.periods||(mode==='section'&&p>sectionDayPeriods(db.sections.find(s=>s.id===id),d)))return '<td class="tt-off">—</td>';const e=db.timetable.find(x=>(mode==='teacher'?x.teacherId===id:x.sectionId===id)&&x.dayId===d.id&&x.period===p);if(!e)return '<td class="tt-empty">—</td>';const l=ttEntryInfo(e);return `<td class="lesson interactive" data-entry="${e.id}" style="background:${l.color}"><b>${esc(l.subject)}</b><small>${esc(mode==='teacher'?l.section:l.teacher)}</small>${e.locked?'<span class="lock-mark">🔒</span>':''}</td>`}).join('')+'</tr>';
-  return `<div class="tt-wrap"><table class="timetable focused"><thead><tr><th>الحصة</th>${days.map(d=>`<th class="day-label day-${d.id}">${esc(d.name)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>`;
+  for(let p=1;p<=max;p++)rows+=`<tr><th>الحصة ${p}</th>`+days.map(d=>{if(p>d.periods||(mode==='section'&&p>sectionDayPeriods(db.sections.find(s=>s.id===id),d)))return '<td class="tt-off">—</td>';const e=db.timetable.find(x=>(mode==='teacher'?x.teacherId===id:x.sectionId===id)&&x.dayId===d.id&&x.period===p);if(!e)return `<td class="tt-empty" data-slot="${d.id}|${p}">—</td>`;const l=ttEntryInfo(e);return `<td class="lesson interactive" data-entry="${e.id}" data-slot="${d.id}|${p}" style="background:${l.color}"><b>${esc(l.subject)}</b><small>${esc(mode==='teacher'?l.section:l.teacher)}</small>${e.locked?'<span class="lock-mark">🔒</span>':''}</td>`}).join('')+'</tr>';
+  return `<div class="tt-wrap"><table class="timetable focused" data-mode="${mode}" data-id="${esc(id)}"><thead><tr><th>الحصة</th>${days.map(d=>`<th class="day-label day-${d.id}">${esc(d.name)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 function timetableIssueCounts(){
   let errors=0,warnings=0;db.timetable.forEach(e=>{const v=validateTimetableMove(e,e.dayId,e.period);if(v.level==='red')errors++;else if(v.level==='orange')warnings++});return {errors,warnings};
@@ -1632,9 +1684,9 @@ function daysForGaps(){return db.days.filter(d=>d.active).sort((a,b)=>a.order-b.
 function workspaceTT(){
  if(!db.timetable.length){$('#workspace').innerHTML='<h2>مساحة عمل الجدول</h2><div class="empty">أنشئ الجدول أولاً.</div>';return}
  const pref=window.ttPreferred||{mode:'school'},counts=timetableIssueCounts();
- $('#workspace').innerHTML=`<h2>مساحة عمل الجدول</h2><div class="workspace-toolbar"><div class="field"><label>نوع العرض</label><select id="ttMode"><option value="school">المدرسة كاملة</option><option value="teacher">جدول مدرس</option><option value="section">جدول شعبة</option></select></div><div class="field" id="ttEntityWrap"></div><button class="secondary" id="manualBatch">تعديل متعدد بين المدرسين</button><button class="secondary" id="manualUndo">تراجع عن آخر تعديل</button><button class="secondary" id="manualLog">سجل التعديلات</button><button class="secondary" id="gapGo">تشخيص الفراغات</button><button class="problems-btn" id="ttProblems">${counts.errors} أخطاء — ${counts.warnings} تحذيرات</button><button class="secondary" id="ttImage">حفظ العرض كصورة PNG</button><span id="ttImageStatus" class="muted" aria-live="polite"></span><button class="secondary" id="ttPrint">طباعة العرض الحالي</button><button class="secondary" id="ttPrintAllTeachers">طباعة بطاقات جميع المدرسين</button></div><div class="notice">اختر المدرس أو الشعبة. اضغط على الحصة لنقلها أو تبديلها أو تثبيتها. الطباعة تتبع العرض المختار.</div><div id="ttWorkspaceView"></div>`;
+ $('#workspace').innerHTML=`<h2>مساحة عمل الجدول</h2><div class="workspace-toolbar"><div class="field"><label>نوع العرض</label><select id="ttMode"><option value="school">المدرسة كاملة</option><option value="teacher">جدول مدرس</option><option value="section">جدول شعبة</option></select></div><div class="field" id="ttEntityWrap"></div><button class="secondary" id="manualBatch">تعديل متعدد بين المدرسين</button><button class="secondary" id="manualUndo">تراجع عن آخر تعديل</button><button class="secondary" id="manualLog">سجل التعديلات</button><button class="secondary" id="gapGo">تشخيص الفراغات</button><button class="problems-btn" id="ttProblems">${counts.errors} أخطاء — ${counts.warnings} تحذيرات</button><button class="secondary" id="ttImage">حفظ العرض كصورة PNG</button><span id="ttImageStatus" class="muted" aria-live="polite"></span><button class="secondary" id="ttPrint">طباعة العرض الحالي</button><button class="secondary" id="ttPrintAllTeachers">طباعة بطاقات جميع المدرسين</button></div><div class="notice">اختر المدرس أو الشعبة. اسحب الحصة إلى خانة أخرى لنقلها (أو فوق حصة لتبديلهما) — على الجوال اضغط مطولاً ثم اسحب. اضغط الحصة لتثبيتها أو لخيارات أخرى. الطباعة تتبع العرض المختار.</div><div id="ttWorkspaceView"></div>`;
  const mode=$('#ttMode'),wrap=$('#ttEntityWrap'),view=$('#ttWorkspaceView');mode.value=pref.mode;
- function bindCells(){document.querySelectorAll('#ttWorkspaceView [data-entry]').forEach(td=>td.onclick=()=>{const e=db.timetable.find(x=>x.id===td.dataset.entry),l=ttEntryInfo(e);if(confirm(`${l.subject} — ${l.teacher}\nموافق = نقل الحصة\nإلغاء = خيارات القفل`))moveTimetableEntry(e.id);else if(confirm(e.locked?'فتح القفل؟':'تثبيت الحصة؟'))toggleTimetableLock(e.id)})}
+ function bindCells(){enableTimetableDnD(view)}
  function draw(){const m=mode.value;window.ttPreferred={mode:m};if(m==='school'){wrap.innerHTML='';view.innerHTML=timetableTable();return}
  const list=m==='teacher'?db.teachers.slice().sort((a,b)=>a.name.localeCompare(b.name,'ar')):db.sections.slice().sort((a,b)=>(db.stages.find(g=>g.id===a.stageId)?.order||0)-(db.stages.find(g=>g.id===b.stageId)?.order||0)||a.name.localeCompare(b.name,'ar'));
  wrap.innerHTML=`<label>${m==='teacher'?'المدرس':'الشعبة'}</label><select id="ttEntity">${list.map(x=>{const g=db.stages.find(v=>v.id===x.stageId);return `<option value="${esc(x.id)}">${esc(m==='teacher'?x.name:(g?.name||'')+' '+x.name)}</option>`}).join('')}</select>`;

@@ -417,7 +417,7 @@ body.sidebar-compact .side-link{position:relative}
 .load-matrix tfoot th{position:sticky;bottom:0;z-index:2}
 @media print{.load-matrix tfoot th{position:static}.load-matrix tfoot,.audit-totals-row{display:table-footer-group;break-inside:avoid}}
 
-/* v0.9.17.2: Safari/iPad stage-load totals must remain in the table body.
+/* v0.9.18.0: Safari/iPad stage-load totals must remain in the table body.
    Older mobile rules force tables to display:block, which can detach tfoot. */
 #workspace #stageLoadMatrix{display:table!important;width:100%;min-width:860px;table-layout:fixed;border-collapse:collapse;margin-top:0}
 #workspace #stageLoadMatrix .load-totals-row{display:table-row!important}
