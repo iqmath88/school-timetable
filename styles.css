@@ -410,3 +410,9 @@ body.sidebar-compact .side-link{position:relative}
 
 /* v0.9.16.4 two-lesson exchange previews */
 .slot-swap-apply{margin-top:8px;min-height:44px}
+
+/* v0.9.17.1: readable totals in planning and audit tables */
+.load-matrix tfoot th,.audit-totals-row th{background:#dcefeb!important;color:#164d48!important;font-weight:800!important;border-top:2px solid #16766b!important;white-space:nowrap}
+.load-matrix .load-total{font-weight:700;background:#f0f7f5;text-align:center;font-variant-numeric:tabular-nums}
+.load-matrix tfoot th{position:sticky;bottom:0;z-index:2}
+@media print{.load-matrix tfoot th{position:static}.load-matrix tfoot,.audit-totals-row{display:table-footer-group;break-inside:avoid}}
