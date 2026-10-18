@@ -426,3 +426,8 @@ body.sidebar-compact .side-link{position:relative}
 #workspace #stageLoadMatrix .load-total{background:#f0f7f5!important;text-align:center!important;font-weight:800!important}
 #workspace #stageLoadMatrix th:last-child,#workspace #stageLoadMatrix td:last-child{position:static!important;min-width:105px!important;box-shadow:none!important}
 @media(max-width:900px){#workspace #stageLoadMatrix{min-width:860px!important}#workspace #stageLoadMatrix th,#workspace #stageLoadMatrix td{white-space:normal!important}}
+
+/* 0.9.19.1: iPad Safari backup picker: visually hidden, not display:none. */
+.masar-import-input{position:absolute!important;width:1px!important;height:1px!important;opacity:0!important;overflow:hidden!important;clip-path:inset(50%)!important;pointer-events:none!important}
+.masar-import-label{display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:10px 16px;border-radius:10px;border:1px solid #b9c9d1;color:#163a49;background:#eef5f7;font-weight:700}
+.masar-import-label:focus-visible{outline:3px solid #0f766e;outline-offset:3px}

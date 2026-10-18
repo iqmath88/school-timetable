@@ -1,4 +1,4 @@
-const APP_VERSION='0.9.18.1';
+const APP_VERSION='0.9.19.5';
 const KEY='school-timetable-v01';
 const stageDefaults=[['الأول',1,'#587B9B'],['الثاني',2,'#6F8F72'],['الثالث',3,'#9A7B60'],['الرابع',4,'#7D7398'],['الخامس',5,'#A16F78'],['السادس',6,'#557F83']];
 const defaultDays=[['الأحد',7,true],['الاثنين',7,true],['الثلاثاء',6,true],['الأربعاء',7,true],['الخميس',5,true],['الجمعة',0,false],['السبت',0,false]];
@@ -243,7 +243,7 @@ function school(){
  const homeAuditButton=document.getElementById('homeAuditButton');if(homeAuditButton)homeAuditButton.onclick=runHomeAudit;
  document.querySelectorAll('[data-home-page]').forEach(b=>b.onclick=()=>{page=b.dataset.homePage;render();window.scrollTo({top:0,behavior:'smooth'})});
 }
-function schoolSettings(){$('#workspace').innerHTML=`<h2>إعداد المدرسة</h2>${backupProtectionUI()}${workspaceUI()}${versionsUI()}<div class="grid"><div class="field"><label>اسم المدرسة</label><input id="schoolName" value="${esc(db.school.name)}"></div><div class="field"><label>العام الدراسي</label><input id="schoolYear" value="${esc(db.school.year)}"></div><div class="field"><label>نوع المدرسة</label><select id="schoolType"><option value="primary" ${schoolType()==='primary'?'selected':''}>ابتدائية (الأول–السادس الابتدائي)</option><option value="secondary" ${schoolType()==='secondary'?'selected':''}>ثانوية (الأول–الثالث المتوسط والرابع–السادس الإعدادي)</option><option value="middle" ${schoolType()==='middle'?'selected':''}>متوسطة فقط (الأول–الثالث المتوسط)</option><option value="preparatory" ${schoolType()==='preparatory'?'selected':''}>إعدادية فقط (الرابع–السادس الإعدادي)</option></select></div></div><div class="notice">تغيير نوع المدرسة يعدّل مسميات الصفوف والتصدير فقط، ولا يحذف الشعب أو التكليفات أو الحصص. للمدرسة المتوسطة أو الإعدادية فقط، يجب أن تكون المراحل المسجلة مطابقة لطبيعة المدرسة.</div><div class="actions"><button id="saveSchool">حفظ الإعدادات</button><button class="secondary" id="importBtn">استيراد نسخة احتياطية</button><button class="secondary" id="recoveryBtn">تنزيل نسخة الاسترجاع المحلية</button><button class="danger" id="resetBtn">إعادة ضبط المشروع</button></div>`;wireBackupProtection();wireWorkspaces();wireVersions();$('#saveSchool').onclick=()=>{db.school.name=$('#schoolName').value.trim();db.school.year=$('#schoolYear').value.trim();db.school.type=$('#schoolType').value;save();schoolSettings()};$('#importBtn').onclick=()=>$('#importFile').click();$('#recoveryBtn').onclick=downloadRecovery;$('#resetBtn').onclick=()=>{if(confirm('سيتم حذف جميع البيانات المحلية. هل أنت متأكد؟')){if(!preserveTimetable('إعادة ضبط المشروع'))return;db=seed();if(save())render()}}}
+function schoolSettings(){$('#workspace').innerHTML=`<h2>إعداد المدرسة</h2>${backupProtectionUI()}${workspaceUI()}${versionsUI()}<div class="grid"><div class="field"><label>اسم المدرسة</label><input id="schoolName" value="${esc(db.school.name)}"></div><div class="field"><label>العام الدراسي</label><input id="schoolYear" value="${esc(db.school.year)}"></div><div class="field"><label>نوع المدرسة</label><select id="schoolType"><option value="primary" ${schoolType()==='primary'?'selected':''}>ابتدائية (الأول–السادس الابتدائي)</option><option value="secondary" ${schoolType()==='secondary'?'selected':''}>ثانوية (الأول–الثالث المتوسط والرابع–السادس الإعدادي)</option><option value="middle" ${schoolType()==='middle'?'selected':''}>متوسطة فقط (الأول–الثالث المتوسط)</option><option value="preparatory" ${schoolType()==='preparatory'?'selected':''}>إعدادية فقط (الرابع–السادس الإعدادي)</option></select></div></div><div class="notice">تغيير نوع المدرسة يعدّل مسميات الصفوف والتصدير فقط، ولا يحذف الشعب أو التكليفات أو الحصص. للمدرسة المتوسطة أو الإعدادية فقط، يجب أن تكون المراحل المسجلة مطابقة لطبيعة المدرسة.</div><div class="actions"><button id="saveSchool">حفظ الإعدادات</button><label class="secondary masar-import-label" for="importFile" role="button" tabindex="0">استيراد نسخة احتياطية JSON</label><button class="secondary" id="recoveryBtn">تنزيل نسخة الاسترجاع المحلية</button><button class="danger" id="resetBtn">إعادة ضبط المشروع</button></div>`;wireBackupProtection();wireWorkspaces();wireVersions();$('#saveSchool').onclick=()=>{db.school.name=$('#schoolName').value.trim();db.school.year=$('#schoolYear').value.trim();db.school.type=$('#schoolType').value;save();schoolSettings()};$('#recoveryBtn').onclick=downloadRecovery;$('#resetBtn').onclick=()=>{if(confirm('سيتم حذف جميع البيانات المحلية. هل أنت متأكد؟')){if(!preserveTimetable('إعادة ضبط المشروع'))return;db=seed();if(save())render()}}}
 function sectionDayPeriods(sec,day){const x=db.stageDayPeriods?.[sec.stageId]?.[day.id];return day.active?Math.max(0,Math.min(day.periods,Number.isFinite(+x)&&x!==undefined?+x:day.periods)):0}
 function dayCapacity(sec){return db.days.reduce((n,d)=>n+sectionDayPeriods(sec,d),0)}
 function days(){$('#workspace').innerHTML=`<h2>أيام الدوام وعدد الحصص</h2><div class="notice">يمكن أن يختلف عدد الحصص من يوم إلى آخر.</div><table><thead><tr><th>اليوم</th><th>دوام</th><th>عدد الحصص</th></tr></thead><tbody>${db.days.sort((a,b)=>a.order-b.order).map(d=>`<tr><td>${esc(d.name)}</td><td><input type="checkbox" data-active="${d.id}" ${d.active?'checked':''}></td><td><input type="number" min="0" max="12" data-periods="${d.id}" value="${d.periods}"></td></tr>`).join('')}</tbody></table><h3>تخصيص عدد الحصص حسب المرحلة واليوم</h3><div class="notice">العدد العام هو الحد الأعلى. مثال: الثلاثاء 7 حصص للمدرسة، و6 لبقية المراحل، و7 للسادس.</div><div class="tt-wrap"><table><thead><tr><th>المرحلة</th>${db.days.filter(d=>d.active).map(d=>`<th>${esc(d.name)}</th>`).join('')}</tr></thead><tbody>${db.stages.map(g=>`<tr><th>${esc(g.name)}</th>${db.days.filter(d=>d.active).map(d=>`<td><input class="stage-period-input" type="number" min="0" max="${d.periods}" data-stage-day="${g.id}|${d.id}" value="${db.stageDayPeriods[g.id]?.[d.id]??d.periods}"></td>`).join('')}</tr>`).join('')}</tbody></table></div>`;document.querySelectorAll('[data-stage-day]').forEach(x=>x.onchange=()=>{const [g,d]=x.dataset.stageDay.split('|');const max=db.days.find(v=>v.id===d).periods;if(!invalidateTimetable('تغيير حصص المرحلة')){days();return}db.stageDayPeriods[g]??={};db.stageDayPeriods[g][d]=Math.min(max,Math.max(0,+x.value||0));save();days()});document.querySelectorAll('[data-active]').forEach(x=>x.onchange=()=>{if(!invalidateTimetable('تغيير أيام الدوام')){days();return}db.days.find(d=>d.id===x.dataset.active).active=x.checked;save()});document.querySelectorAll('[data-periods]').forEach(x=>x.onchange=()=>{if(!invalidateTimetable('تغيير عدد الحصص')){days();return}let d=db.days.find(d=>d.id===x.dataset.periods);d.periods=Math.max(0,+x.value||0);d.active=d.periods>0;save();days()})}
@@ -326,7 +326,7 @@ function loads(){
  const subjects=db.subjects;
  const rowTotal=sub=>stages.reduce((n,g)=>n+loadFor(g.id,sub.id),0);
  const stageTotal=g=>subjects.reduce((n,sub)=>n+loadFor(g.id,sub.id),0);
- $('#workspace').innerHTML=`<h2>عدد حصص المواد حسب المرحلة</h2><div class="notice">أدخل العدد الأسبوعي مرة واحدة لكل مادة ومرحلة. الرقم صفر يعني أن المادة غير مقررة لهذه المرحلة. يمكن تخصيص عدد مختلف عند التكليف.</div><div class="tt-wrap"><table class="load-matrix" id="stageLoadMatrix"><thead><tr><th>المادة</th>${stages.map(g=>`<th style="border-top:5px solid ${g.color}">${esc(g.name)}</th>`).join('')}<th>مجموع المادة</th></tr></thead><tbody>${subjects.map(sub=>`<tr><th>${esc(sub.name)}</th>${stages.map(g=>`<td><input type="number" min="0" max="20" data-load="${g.id}|${sub.id}" value="${loadFor(g.id,sub.id)}"></td>`).join('')}<td class="load-total" data-subject-total="${sub.id}">${rowTotal(sub)}</td></tr>`).join('')}<tr class="load-totals-row"><th>مجموع الحصص الأسبوعية لكل مرحلة</th>${stages.map(g=>`<th data-stage-total="${g.id}">${stageTotal(g)}</th>`).join('')}<th data-load-grand-total>${stages.reduce((n,g)=>n+stageTotal(g),0)}</th></tr></tbody></table></div><div class="notice">مجموع كل مرحلة يمثل نصاب شعبة واحدة وفق خطة المواد، ولا يُضرب بعدد الشعب. مجموع المادة يجمع قيمها عبر المراحل للمقارنة فقط.</div><div class="actions"><button id="saveLoads">حفظ خطة الحصص</button></div>`;
+ $('#workspace').innerHTML=`<h2>عدد حصص المواد حسب المرحلة</h2><div class="notice">أدخل العدد الأسبوعي لكل مادة ومرحلة. عند الحفظ تُطابَق تكليفات الشعب مع الخطة، حتى لو كانت الخطة محفوظة سابقاً. الرقم صفر يعني أن المادة غير مقررة لهذه المرحلة.</div><div class="tt-wrap"><table class="load-matrix" id="stageLoadMatrix"><thead><tr><th>المادة</th>${stages.map(g=>`<th style="border-top:5px solid ${g.color}">${esc(g.name)}</th>`).join('')}<th>مجموع المادة</th></tr></thead><tbody>${subjects.map(sub=>`<tr><th>${esc(sub.name)}</th>${stages.map(g=>`<td><input type="number" min="0" max="20" data-load="${g.id}|${sub.id}" value="${loadFor(g.id,sub.id)}"></td>`).join('')}<td class="load-total" data-subject-total="${sub.id}">${rowTotal(sub)}</td></tr>`).join('')}<tr class="load-totals-row"><th>مجموع الحصص الأسبوعية لكل مرحلة</th>${stages.map(g=>`<th data-stage-total="${g.id}">${stageTotal(g)}</th>`).join('')}<th data-load-grand-total>${stages.reduce((n,g)=>n+stageTotal(g),0)}</th></tr></tbody></table></div><div class="notice">مجموع كل مرحلة يمثل نصاب شعبة واحدة وفق خطة المواد، ولا يُضرب بعدد الشعب. مجموع المادة يجمع قيمها عبر المراحل للمقارنة فقط.</div><div class="actions"><button id="saveLoads">حفظ خطة الحصص</button></div>`;
  const inputs=[...document.querySelectorAll('#stageLoadMatrix [data-load]')];
  const numberOf=i=>Math.max(0,Math.min(20,Number(i.value)||0));
  const updateTotals=()=>{
@@ -337,7 +337,50 @@ function loads(){
   const grand=document.querySelector('[data-load-grand-total]');if(grand)grand.textContent=[...sums.values()].reduce((n,v)=>n+v,0);
  };
  inputs.forEach(i=>i.addEventListener('input',updateTotals));
- $('#saveLoads').onclick=()=>{inputs.forEach(i=>db.stageLoads[i.dataset.load]=numberOf(i));save();updateTotals();alert('حُفظت خطة الحصص. لا تتغير التكليفات القديمة تلقائياً.')};
+ $('#saveLoads').onclick=()=>{
+  const next={...db.stageLoads};inputs.forEach(i=>next[i.dataset.load]=numberOf(i));
+  // Reconcile saved stage quotas with existing assignments even when the quota
+  // was already saved in an earlier version (legacy inconsistent state).
+  const changed=inputs.filter(i=>{
+   const [stageId,subjectId]=i.dataset.load.split('|'),quota=numberOf(i);
+   if(quota!==loadFor(stageId,subjectId))return true;
+   return db.sections.some(sec=>sec.stageId===stageId&&(
+    db.assignments.filter(a=>a.sectionId===sec.id&&a.subjectId===subjectId)
+     .reduce((n,a)=>n+(Number(a.weeklyPeriods)||0),0)!==quota));
+  });
+  if(!changed.length){alert('خطة الحصص والتكليفات متطابقة؛ لا توجد تغييرات.');return}
+  const proposed=new Map(), problems=[];
+  for(const i of changed){const [stageId,subjectId]=i.dataset.load.split('|'),quota=numberOf(i);
+   for(const sec of db.sections.filter(x=>x.stageId===stageId)){
+    const as=db.assignments.filter(a=>a.sectionId===sec.id&&a.subjectId===subjectId);
+    if(as.length>1){problems.push('أكثر من تكليف للمادة في الشعبة '+sec.name);continue}
+    if(as.length===1)proposed.set(as[0].id,quota);
+    else if(quota>0)problems.push('لا يوجد تكليف للمادة في الشعبة '+sec.name+'؛ أضفه أولاً من إدارة التكليفات');
+   }
+  }
+  if(problems.length){alert('لا يمكن تطبيق الخطة تلقائياً:\n'+problems.slice(0,12).join('\n'));return}
+  const excess=[],deficit=[];
+  for(const [id,quota] of proposed){const entries=db.timetable.filter(e=>e.assignmentId===id),locked=entries.filter(e=>e.locked),a=db.assignments.find(x=>x.id===id);
+   if(locked.length>quota){problems.push('عدد الحصص المثبتة أكبر من النصاب الجديد للتكليف '+id);continue}
+   if(entries.length>quota){const removable=entries.filter(e=>!e.locked).sort((x,y)=>String(y.dayId).localeCompare(String(x.dayId))||y.period-x.period);excess.push(...removable.slice(0,entries.length-quota))}
+   if(entries.length<quota)deficit.push({a,missing:quota-entries.length});
+  }
+  if(problems.length){alert('لا يمكن تعديل حصص مثبتة:\n'+problems.join('\n'));return}
+  const delta=[...proposed].filter(([id,q])=>+db.assignments.find(a=>a.id===id).weeklyPeriods!==q).length;
+  const msg='ستُحدّث خطة المواد وتكليفات '+delta+' شعبة/مادة.\nستُزال '+excess.length+' حصة زائدة من الجدول الحالي، وستبقى '+deficit.reduce((n,x)=>n+x.missing,0)+' حصة غير موزعة تحتاج إلى استكمال التوليد.\nسيُحفظ الجدول الأصلي كنسخة استرجاع. هل توافق؟';
+  if(!confirm(msg))return;
+  if(!preserveTimetable('تغيير حصص المراحل مع التكليفات والجدول'))return;
+  const original=structuredClone(db);
+  db.stageLoads=next;
+  for(const [id,quota] of proposed){const a=db.assignments.find(x=>x.id===id);if(a)a.weeklyPeriods=quota}
+  const removed=new Set(excess.map(e=>e.id));db.timetable=db.timetable.filter(e=>!removed.has(e.id));
+  // Remove fixed lesson references only for entries removed by the quota reduction.
+  const removedSlots=new Set(excess.map(e=>e.assignmentId+'|'+e.dayId+'|'+e.period));
+  db.fixedLessons=db.fixedLessons.filter(f=>!removedSlots.has(f.assignmentId+'|'+f.dayId+'|'+f.period));
+  db.manualHistory=[];
+  if(!save()){db=original;return}
+  loads();alert('حُفظت التغييرات على خطة المواد والتكليفات والجدول المشترك. '+(deficit.length?'توجد حصص ناقصة؛ افتح التدقيق ثم استكمل توزيعها.':'راجع التدقيق قبل اعتماد الجدول.'));
+ };
 }
 
 function assignments(){
@@ -1471,10 +1514,28 @@ function ttEntryInfo(e){
   const su=db.subjects.find(x=>x.id===e.subjectId),t=db.teachers.find(x=>x.id===e.teacherId),se=db.sections.find(x=>x.id===e.sectionId),g=se&&db.stages.find(x=>x.id===se.stageId);
   return {subject:su?.name||'—',teacher:teacherShort(t?.name),section:g?g.name+' '+se.name:'—',color:g?.color||'#eef4fa'};
 }
+// Mandatory daily subject repetition rule. The permitted number of extra lessons
+// equals weekly demand minus days genuinely available to the assigned teacher.
+function repeatViolationForDraft(draft){
+ const byAssignment=new Map();
+ for(const e of draft){const key=e.sectionId+'|'+e.subjectId+'|'+e.dayId;byAssignment.set(key,(byAssignment.get(key)||0)+1)}
+ for(const a of db.assignments){
+  const section=db.sections.find(s=>s.id===a.sectionId);if(!section)continue;
+  const teacherRule=rule(a.teacherId);let daysAvailable=0;
+  for(const d of db.days.filter(d=>d.active)){
+   const cap=sectionDayPeriods(section,d);
+   if(Array.from({length:cap},(_,i)=>i+1).some(period=>!(teacherRule.unavailable?.[d.id]||[]).includes(period)&&advancedAllowed(db,a,section,d.id,period)))daysAvailable++;
+  }
+  const limit=Math.max(0,(+a.weeklyPeriods||0)-daysAvailable);
+  const repeated=db.days.filter(d=>d.active).reduce((n,d)=>n+Math.max(0,(byAssignment.get(a.sectionId+'|'+a.subjectId+'|'+d.id)||0)-1),0);
+  if(repeated>limit)return `تكرار ${db.subjects.find(s=>s.id===a.subjectId)?.name||'المادة'} في ${section.name} يتجاوز الضرورة (${repeated} مقابل ${limit} مسموح)`;
+ }
+ return '';
+}
 function validateTimetableMove(e,dayId,period){
   const d=db.days.find(x=>x.id===dayId);
   if(!d||!d.active||period<1||period>sectionDayPeriods(db.sections.find(s=>s.id===e.sectionId)||{stageId:''},d))return {level:'red',message:'الخانة خارج أوقات الدوام.'};
-  const sr=db.subjectRules[e.subjectId]||{},stageId=db.sections.find(s=>s.id===e.sectionId)?.stageId;const applicable=!sr.stageId||sr.stageId===stageId;const cap=sectionDayPeriods(db.sections.find(s=>s.id===e.sectionId),d);if(applicable&&sr.strict!=='soft'&&((sr.noFirst&&period===1)||(sr.noLast&&period===cap)))return {level:'red',message:'الحصة تخالف قيد المادة الإلزامي.'};if(false&&applicable&&sr.strict!=='soft'&&sr.noRepeat&&db.timetable.some(x=>x.id!==e.id&&x.sectionId===e.sectionId&&x.subjectId===e.subjectId&&x.dayId===dayId))return {level:'red',message:'تكرار المادة في اليوم ممنوع.'};
+  const sr=db.subjectRules[e.subjectId]||{},stageId=db.sections.find(s=>s.id===e.sectionId)?.stageId;const applicable=!sr.stageId||sr.stageId===stageId;const cap=sectionDayPeriods(db.sections.find(s=>s.id===e.sectionId),d);if(applicable&&sr.strict!=='soft'&&((sr.noFirst&&period===1)||(sr.noLast&&period===cap)))return {level:'red',message:'الحصة تخالف قيد المادة الإلزامي.'};const repetitionError=repeatViolationForDraft(db.timetable.map(x=>x.id===e.id?{...x,dayId,period}:x));if(repetitionError)return {level:'red',message:repetitionError};
   const r=rule(e.teacherId);
   if((r.unavailable[dayId]||[]).includes(period))return {level:'red',message:'المدرس غير متاح في هذا الوقت.'};
   if(db.timetable.some(x=>x.id!==e.id&&x.teacherId===e.teacherId&&x.dayId===dayId&&x.period===period))return {level:'red',message:'المدرس لديه حصة أخرى في هذا الوقت.'};
@@ -1504,9 +1565,10 @@ function manualValidate(changes){
   const sr=db.subjectRules[e.subjectId]||{},applicable=!sr.stageId||sr.stageId===sec.stageId;
   if(applicable&&sr.strict!=='soft'&&((sr.noFirst&&e.period===1)||(sr.noLast&&e.period===sectionDayPeriods(sec,day))))errors.push('مخالفة قيد المادة الإلزامي');
   const repeats=draft.filter(x=>x.id!==e.id&&x.sectionId===e.sectionId&&x.subjectId===e.subjectId&&x.dayId===e.dayId).length;
-  if(repeats){warnings.push('تكرار المادة في يوم واحد؛ تحقق من الضرورة حسب الأيام المتاحة')}
+  if(repeats){const repetitionError=repeatViolationForDraft(draft);if(repetitionError)errors.push(repetitionError)}
   if((r.avoid||[]).includes(e.period))warnings.push('وقت غير مفضل للمدرس');
  }
+ const repetitionError=repeatViolationForDraft(draft);if(repetitionError)errors.push(repetitionError);
  return {errors:[...new Set(errors)],warnings:[...new Set(warnings)]};
 }
 function commitManual(changes,type){
@@ -1612,7 +1674,10 @@ function dndCommit(ev){const c=manualValidate(ev.changes),adv=dndAdvanced(ev.cha
  const before=ev.changes.map(x=>{const e=db.timetable.find(y=>y.id===x.id);return {id:e.id,dayId:e.dayId,period:e.period}});
  ev.changes.forEach(x=>Object.assign(db.timetable.find(e=>e.id===x.id),x));db.manualHistory??=[];db.manualHistory.push({id:uid('edit'),at:new Date().toISOString(),type:ev.type,before,after:ev.changes.map(x=>({...x}))});if(db.manualHistory.length>100)db.manualHistory.shift();
  if(!save()){ev.changes.forEach((x,i)=>Object.assign(db.timetable.find(e=>e.id===x.id),before[i]));db.manualHistory.pop();workspaceTT();dndToast('⛔ تعذر الحفظ؛ أُلغي التعديل في الذاكرة. صدّر نسخة احتياطية.','bad');return false}
- workspaceTT();const w=[...c.warnings,...ev.warnings.filter(x=>!c.warnings.includes(x))];dndToast((w.length?'⚠️ ':'✓ ')+ev.type+(w.length?' — '+w.join('، '):''),w.length?'warn':'ok',true);return true}
+ // All timetable views read the same db.timetable; redraw from the saved shared state.
+ const current=window.ttPreferred?{...window.ttPreferred}:{mode:'school'};
+ workspaceTT();window.ttPreferred=current;
+ const w=[...c.warnings,...ev.warnings.filter(x=>!c.warnings.includes(x))];dndToast((w.length?'⚠️ ':'✓ ')+ev.type+(w.length?' — '+w.join('، '):''),w.length?'warn':'ok',true);return true}
 function lessonSheet(id){const e=db.timetable.find(x=>x.id===id);if(!e)return;const o=document.createElement('div');o.className='edit-overlay';
  o.innerHTML=`<div class="edit-card"><div class="edit-head"><h3>خيارات الحصة</h3><button class="icon-close" type="button" aria-label="إغلاق">×</button></div><div class="notice">${esc(manualLabel(e))}</div><div class="notice">لنقل الحصة اسحبها إلى خانة أخرى (على الجوال: اضغط مطولاً ثم اسحب).</div><div class="actions"><button id="shLock">${e.locked?'🔓 فتح التثبيت':'🔒 تثبيت الحصة'}</button><button class="secondary" id="shMove">نقل/تبديل بالقوائم</button><button class="secondary" id="shClose">إغلاق</button></div></div>`;
  document.body.appendChild(o);const close=()=>o.remove();o.querySelector('.icon-close').onclick=close;o.querySelector('#shClose').onclick=close;o.querySelector('#shLock').onclick=()=>{close();toggleTimetableLock(id)};o.querySelector('#shMove').onclick=()=>{close();moveTimetableEntry(id)}}
@@ -1879,6 +1944,13 @@ function printSetup(){
  $('#workspace').innerHTML=`<h2>الطباعة وتصدير الصور</h2><div class="grid"><div class="field"><label>عنوان الجدول</label><input id="prTitle" value="${esc(p.title)}"></div><div class="field"><label>تاريخ بدء تطبيق الجدول</label><input id="prDate" type="date" value="${esc(p.startDate)}"></div></div><div class="field"><label>أسباب تغيير الجدول</label><textarea id="prReasons" rows="2">${esc(p.changeReasons)}</textarea></div><div class="field"><label>ملاحظات إضافية</label><textarea id="prFooter" rows="2">${esc(p.footer)}</textarea></div><div class="field"><label for="prPrintMode">نمط طباعة PDF</label><select id="prPrintMode"><option value="color">ملون — كحلي وذهبي</option><option value="bw">أسود وأبيض — اقتصادي وواضح</option></select></div><label><input id="prColors" type="checkbox" ${p.showColors?'checked':''}> إظهار ألوان المراحل</label><div class="field"><label>أسلوب الألوان</label><select id="prTheme"><option value="soft" ${(p.theme||'soft')==='soft'?'selected':''}>هادئ ومريح للقراءة</option><option value="contrast" ${p.theme==='contrast'?'selected':''}>تباين مرتفع</option></select></div><div class="actions"><button id="prSave">حفظ الإعدادات</button><button id="prPrint">طباعة مجموعات المدرسة (A3 أفقي)</button><button id="prPDF" class="secondary">تنزيل / حفظ PDF</button></div><div class="notice">زر حفظ PDF يفتح نافذة الطباعة؛ على iPad اختر مشاركة معاينة الطباعة ثم «حفظ في الملفات» لحفظ ملف PDF. لا توجد حاجة لاختيار طابعة.</div><h3>تصدير الصور PNG</h3><div class="grid"><div class="field"><label>نوع الجدول</label><select id="imgType"><option value="all">المدرسة كاملة — صورة واحدة</option><option value="middle">المتوسطة — صورة واحدة</option><option value="high">الإعدادية — صورة واحدة</option><option value="stage">مرحلة واحدة</option><option value="teacher">جدول مدرس</option><option value="section">جدول شعبة</option></select></div><div class="field" id="imgChoiceWrap" hidden><label>الاختيار</label><select id="imgChoice"></select></div></div><div class="actions"><button id="imgSave">حفظ الصورة PNG</button><span id="imgStatus" class="muted" aria-live="polite"></span></div><div class="notice">الصور تشمل جميع الحصص بالألوان مع اسم المدرسة والسنة الدراسية، دون أقفال. للطباعة: تُقسّم صفحات الطباعة وفق نوع المدرسة المختار، بقياس A3 أفقي.</div>${db.timetable.length?'<div class="unified-preview"><p class="muted">معاينة الصفحتين: المتوسطة ثم الإعدادية، باستخدام قالب الطباعة نفسه.</p><iframe id="printPreviewFrame" title="معاينة الطباعة الرسمية"></iframe></div>':'<div class="empty">استورد أو أنشئ الجدول أولاً.</div>'}`;
  const excelUI=`<section class="print-scope-panel"><h3>تصدير Excel بصيغة XLSX</h3><div class="grid"><div class="field"><label>نطاق ملف Excel</label><select id="excelMode"><option value="complete">ملف شامل: المدرسة والمراحل والمدرسون والشعب والتكليفات</option><option value="school">المدرسة والمراحل</option><option value="middle">المجموعة الأولى</option>${stageGroups()[1]?'<option value="high">المجموعة الثانية</option>':''}<option value="stage">مرحلة محددة</option><option value="section">شعبة محددة</option><option value="teacher">مدرس محدد</option><option value="teachers">جميع المدرسين — أوراق مستقلة</option><option value="sections">جميع الشعب — أوراق مستقلة</option><option value="assignments">التكليفات والأنصبة</option></select></div><div class="field" id="excelChoiceWrap" hidden><label>اختر</label><select id="excelChoice"></select></div></div><div class="actions"><button type="button" id="excelDownload">تنزيل ملف Excel (.xlsx)</button><span class="muted" id="excelStatus" aria-live="polite"></span></div><p class="muted">تصدير محلي دون إنترنت أو تعديل بيانات الجدول، مع أوراق عربية من اليمين إلى اليسار.</p></section>`;
  $('#workspace').insertAdjacentHTML('beforeend',excelUI);
+ const wordUI=`<section class="print-scope-panel"><h3>تصدير Word قابل للتحرير (.docx)</h3><div class="grid"><div class="field"><label>الجدول المطلوب</label><select id="wordScope"><option value="school">جداول المدرسة كاملة</option><option value="middle">المجموعة الأولى</option>${stageGroups()[1]?'<option value="high">المجموعة الثانية</option>':''}<option value="stage">مرحلة محددة</option><option value="section">شعبة محددة</option><option value="teacher">مدرس محدد</option></select></div><div class="field" id="wordEntityWrap" hidden><label>الاختيار</label><select id="wordEntity"></select></div></div><div class="actions"><button type="button" id="wordDownload">تنزيل جدول Word (.docx)</button><span id="wordStatus" class="muted" aria-live="polite"></span></div><p class="muted">ملف Word فعلي قابل للتحرير، يحافظ على الكحلي والذهبي وألوان المراحل والجداول، مع اتجاه الكتابة من اليمين إلى اليسار. قد تختلف أبعاد بعض الخلايا قليلاً بحسب إصدار Word.</p></section>`;
+ $('#workspace').insertAdjacentHTML('beforeend',wordUI);
+ const wordScope=$('#wordScope'),wordEntity=$('#wordEntity'),wordEntityWrap=$('#wordEntityWrap');
+ function refreshWord(){const mode=wordScope.value;wordEntityWrap.hidden=!['stage','section','teacher'].includes(mode);const items=mode==='stage'?db.stages.slice().sort((a,b)=>a.order-b.order):mode==='section'?db.sections.slice().sort((a,b)=>(db.stages.find(g=>g.id===a.stageId)?.order||0)-(db.stages.find(g=>g.id===b.stageId)?.order||0)||a.order-b.order):mode==='teacher'?db.teachers.slice().sort((a,b)=>a.name.localeCompare(b.name,'ar')):[];wordEntity.innerHTML=items.map(x=>`<option value="${esc(x.id)}">${esc(mode==='stage'?stageDisplayName(x):mode==='section'?exportSectionName(x.id):x.name)}</option>`).join('')}
+ wordScope.onchange=refreshWord;refreshWord();
+ $('#wordDownload').onclick=()=>{const status=$('#wordStatus');try{store();if(!db.timetable.length)throw Error('لا يوجد جدول للتصدير');if(!window.MasarWord)throw Error('ملف تصدير Word غير محمّل');window.MasarWord.download({html:wordScope.value==='teacher'?teacherCard(wordEntity.value):printScopeDocument(wordScope.value,wordEntity.value),mode:wordScope.value,school:db.school,settings:db.printSettings});status.textContent='تم تجهيز ملف Word. تحقق من التنزيلات.'}catch(err){status.textContent='تعذر تصدير Word: '+(err.message||err)}};
+
  const excelMode=$('#excelMode'),excelChoice=$('#excelChoice'),excelWrap=$('#excelChoiceWrap');
  function refreshExcel(){const mode=excelMode.value;excelWrap.hidden=!['stage','section','teacher'].includes(mode);const items=mode==='stage'?db.stages.slice().sort((a,b)=>a.order-b.order):mode==='section'?db.sections.slice().sort((a,b)=>(db.stages.find(g=>g.id===a.stageId)?.order||0)-(db.stages.find(g=>g.id===b.stageId)?.order||0)||a.order-b.order):mode==='teacher'?db.teachers.slice().sort((a,b)=>a.name.localeCompare(b.name,'ar')):[];excelChoice.innerHTML=items.map(x=>`<option value="${esc(x.id)}">${esc(mode==='stage'?stageDisplayName(x):mode==='section'?exportSectionName(x.id):x.name)}</option>`).join('')}
  excelMode.onchange=refreshExcel;refreshExcel();
@@ -1975,12 +2047,33 @@ async function exportSchedulePNG(mode,id){
 }
 
 $('#exportBtn').onclick=exportSafeBackup;
-$('#importFile').onchange=e=>{let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{const incoming=migrate(JSON.parse(r.result));
- if(!Array.isArray(incoming.sections)||!Array.isArray(incoming.assignments)||!Array.isArray(incoming.timetable))throw Error('بيانات غير مكتملة');
- const oldCount=db.timetable?.length||0,newCount=incoming.timetable.length;
- if(oldCount>0&&newCount===0&&!confirm('تحذير: النسخة المستوردة لا تحتوي أي حصة موزعة، بينما جدولك الحالي يحتوي '+oldCount+' حصة. هل تريد استبداله رغم ذلك؟'))return;
- if(!preserveTimetable('استيراد نسخة احتياطية'))return;
- db=incoming;if(!save())throw Error('تعذر حفظ الملف المستورد');render();alert('تم الاستيراد بنجاح — الحصص الموزعة: '+newCount)}catch{alert('ملف غير صالح')}};r.readAsText(f)};
+// A real, associated file input/label is required for reliable iPad Safari picking.
+const backupInput=document.getElementById('importFile');
+backupInput.addEventListener('change',async function(){
+ const file=this.files&&this.files[0];if(!file)return;
+ try{
+  if(!/\.json$/i.test(file.name))throw Error('اختر ملف نسخة احتياطية بصيغة JSON.');
+  const raw=await file.text();let parsed;
+  try{parsed=JSON.parse(raw)}catch(_){throw Error('الملف ليس JSON صالحاً.')} 
+  // Recovery downloads wrap the actual school data in a data property.
+  if(parsed&&parsed.data&&parsed.savedAt&&!parsed.sections)parsed=parsed.data;
+  if(!parsed||typeof parsed!=='object'||!Array.isArray(parsed.sections)||!Array.isArray(parsed.assignments)||!Array.isArray(parsed.timetable)||!Array.isArray(parsed.days)||!Array.isArray(parsed.stages)||!Array.isArray(parsed.subjects)||!Array.isArray(parsed.teachers))throw Error('النسخة لا تحتوي بيانات مدرسة مسار كاملة.');
+  const incoming=migrate(structuredClone(parsed));
+  const oldCount=db.timetable?.length||0,newCount=incoming.timetable.length;
+  if(!confirm('استيراد مدرسة: '+(incoming.school?.name||'بدون اسم')+'\nالحصص الحالية: '+oldCount+'\nالحصص المستوردة: '+newCount+'\nسيتم استبدال بيانات مساحة العمل الحالية. هل تريد المتابعة؟'))return;
+  if(oldCount>0&&newCount===0&&!confirm('تحذير: النسخة المستوردة خالية من الحصص الموزعة. هل تريد المتابعة؟'))return;
+  if(!preserveTimetable('استيراد نسخة احتياطية'))return;
+  const previous=db;db=incoming;
+  if(!save()){db=previous;throw Error('تعذر حفظ البيانات المستوردة. لم يتم اعتماد الاستيراد.')} 
+  render();alert('تم الاستيراد بنجاح — الحصص الموزعة: '+newCount);
+ }catch(err){alert('تعذر استيراد النسخة: '+(err?.message||String(err)))}
+ finally{this.value='';}
+});
 render();
 // A non-blocking reminder after initial UI paint.
 setTimeout(backupReminder,900);
+
+// Explicit cloud transfer hooks: no automatic replacement of local data.
+window.MASAR_CLOUD_BRIDGE={exportData:()=>structuredClone(db),importData:(data)=>{const incoming=migrate(structuredClone(data));if(!Array.isArray(incoming.sections)||!Array.isArray(incoming.assignments)||!Array.isArray(incoming.timetable))throw Error('بيانات غير مكتملة');if(!preserveTimetable('استيراد مدرسة من السحابة'))throw Error('أُلغي حفظ نسخة الأمان');db=incoming;if(!save())throw Error('فشل الحفظ المحلي');render();},refresh:()=>render()};
+
+window.addEventListener('storage',ev=>{if(ev.key===KEY&&ev.newValue){try{db=migrate(JSON.parse(ev.newValue));render()}catch(err){console.warn('Masar sync failed',err)}}});

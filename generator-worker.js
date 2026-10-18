@@ -71,7 +71,7 @@ function generate(db,limitMs,diagnosticOnly=false){
    const unavoidable=Math.max(0,+a.weeklyPeriods-availableDays);
    for(let d=0;d<D;d++){
     const jd=jobDayBase+j*D+d;
-    edge(jobBase+j,jd,hard&&sr.noRepeat?1:1+unavoidable);
+    edge(jobBase+j,jd,1+unavoidable);
     slots.forEach((sl,k)=>{
      if(sl.d!==d||sl.p>cap[sec][d]||!advancedAllowed(db,a,sections[sec],days[d].id,sl.p))return;
      if(hard&&((sr.noFirst&&sl.p===1)||(sr.noLast&&sl.p===cap[sec][d])))return;
@@ -110,7 +110,7 @@ function generate(db,limitMs,diagnosticOnly=false){
    demand+=+a.weeklyPeriods;edge(source,jobBase+j,+a.weeklyPeriods);
    let openDays=0;
    for(let d=0;d<D;d++)if(slots.some(sl=>sl.d===d&&!(r.unavailable?.[days[d].id]||[]).includes(sl.p)&&advancedAllowed(db,a,sections[sectionIndex],days[d].id,sl.p)&&!(hard&&((sr.noFirst&&sl.p===1)||(sr.noLast&&sl.p===cap[sectionIndex][d])))))openDays++;
-   const repeatAllowance=hard&&sr.noRepeat?0:Math.max(0,+a.weeklyPeriods-openDays);
+   const repeatAllowance=Math.max(0,+a.weeklyPeriods-openDays);
    for(let d=0;d<D;d++){
     const jd=jobDayBase+j*D+d;edge(jobBase+j,jd,1+repeatAllowance);
     slots.forEach((sl,k)=>{if(sl.d!==d||(r.unavailable?.[days[d].id]||[]).includes(sl.p)||!advancedAllowed(db,a,sections[sectionIndex],days[d].id,sl.p)||(hard&&((sr.noFirst&&sl.p===1)||(sr.noLast&&sl.p===cap[sectionIndex][d]))))return;edge(jd,slotBase+k,1)});
@@ -138,11 +138,10 @@ function generate(db,limitMs,diagnosticOnly=false){
   }
   return Math.max(0,+a.weeklyPeriods-availableDays);
  });
- for(let i=0;i<A;i++){const sr=subjectRule(i);if(sr.noRepeat&&+assignments[i].weeklyPeriods>days.length)return {ok:false,reason:'subject-no-repeat',message:`قيد منع تكرار المادة يمنع توزيع ${assignments[i].weeklyPeriods} حصة في ${days.length} أيام للتكليف ${assignments[i].id}.`};}
  function repeatOK(i,d){
   const sr=subjectRule(i);
   const extra=assDay[i].reduce((n,v)=>n+Math.max(0,v-1),0);
-  return assDay[i][d]===0||(!sr.noRepeat&&extra<allowedRepeat[i]);
+  return assDay[i][d]===0||extra<allowedRepeat[i];
  }
  const fixed=new Map(),fixedMax=sections.map(()=>new Int8Array(D)),entries=[];let nodes=0,bestDepth=0,stop='';
  const key=(t,d,p)=>t+'|'+d+'|'+p;
@@ -272,7 +271,7 @@ function validateExistingSchedule(db){
    if(Array.from({length:cap},(_,j)=>j+1).some(p=>!(rule.unavailable?.[d.id]||[]).includes(p)&&advancedAllowed(db,a,section,d.id,p)))availableDays++;
   }
   const actual=[...(assignmentDays.get(a.id)||new Map()).values()].reduce((n,v)=>n+Math.max(0,v-1),0);
-  if(((sr.strict!=='soft'&&sr.noRepeat)&&actual>0)||(actual>Math.max(0,+a.weeklyPeriods-availableDays)))return {ok:false,reason:'تكرار المادة يتجاوز الضرورة'};
+  if(actual>Math.max(0,+a.weeklyPeriods-availableDays))return {ok:false,reason:'تكرار المادة يتجاوز الضرورة'};
  }
  for(const [k,n] of perDay){const teacherId=k.split('|')[0],r=db.teacherRules?.[teacherId]||{};
   if(+r.maxDaily>0&&n>+r.maxDaily)return {ok:false,reason:'تجاوز الحد الأقصى اليومي'};
