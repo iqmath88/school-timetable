@@ -1,4 +1,4 @@
-const APP_VERSION='0.9.19.6';
+const APP_VERSION='0.9.19.7';
 const KEY='school-timetable-v01';
 const stageDefaults=[['الأول',1,'#587B9B'],['الثاني',2,'#6F8F72'],['الثالث',3,'#9A7B60'],['الرابع',4,'#7D7398'],['الخامس',5,'#A16F78'],['السادس',6,'#557F83']];
 const defaultDays=[['الأحد',7,true],['الاثنين',7,true],['الثلاثاء',6,true],['الأربعاء',7,true],['الخميس',5,true],['الجمعة',0,false],['السبت',0,false]];
@@ -19,26 +19,40 @@ function preserveTimetable(reason){
 }
 // Reset only the active local project, with a recovery copy. Never modify cloud schools.
 function resetLocalProject(){
- if(!confirm('إعادة ضبط المشروع الحالي؟ سيتم مسح بيانات المدرسة والجدول المحليين، ولن تتأثر المدارس السحابية.\nاحفظ نسخة JSON خارج التطبيق قبل المتابعة.'))return;
- if(!confirm('تأكيد نهائي: هل تريد بدء مشروع محلي فارغ؟'))return;
- const old=structuredClone(db);
+ if(!confirm('إعادة ضبط مساحة العمل الحالية؟ سيتم تصفير بياناتها المحلية فقط، ولن تتأثر بقية المساحات أو بيانات Supabase.\nصدّر نسخة JSON قبل المتابعة.'))return;
+ if(!confirm('تأكيد نهائي: هل تريد بدء مساحة العمل الحالية من الصفر؟'))return;
+ const old=structuredClone(db), fresh=seed();
+ const previousKey=localStorage.getItem(KEY);
+ const previousWorkspaces=localStorage.getItem(WORKSPACE_KEY);
+ const w=readWorkspaces(), active=w.items.find(x=>x.id===w.active);
+ if(!active){alert('تعذر تحديد مساحة العمل النشطة؛ لم يُحذف شيء.');return}
+ // A full recovery copy may exceed Safari's storage quota. Do not silently bypass it.
+ let recovered=false;
  try{
-  // Do not use snapshotState here: a full snapshot store can otherwise block reset.
   localStorage.setItem(RECOVERY_KEY,JSON.stringify({savedAt:new Date().toISOString(),reason:'قبل إعادة ضبط المشروع',data:old}));
-  const w=readWorkspaces(), active=w.items.find(x=>x.id===w.active);
-  if(active){active.data=seed();if(!writeWorkspaces(w))return}
-  const fresh=seed();
-  localStorage.setItem(KEY,JSON.stringify(fresh));
-  db=fresh;
-  page='schoolSettings';
-  render();
-  alert('تمت إعادة ضبط المشروع المحلي. يمكنك تنزيل البيانات السابقة من «نسخة الاسترجاع المحلية». لم تُحذف بيانات Supabase.');
+  recovered=true;
  }catch(err){
-  db=old;
-  try{localStorage.setItem(KEY,JSON.stringify(old))}catch(e){}
-  alert('تعذرت إعادة الضبط بسبب مشكلة في التخزين. لم يتم حذف بيانات المشروع. صدّر نسخة JSON وتحقق من مساحة Safari.');
+  if(!confirm('تعذر حفظ نسخة الاسترجاع المحلية بسبب امتلاء مساحة المتصفح.\n\nهل صدّرت نسخة JSON خارج التطبيق وتريد المتابعة من دون إنشاء نسخة استرجاع محلية جديدة؟\nاختر «إلغاء» للمحافظة على جميع البيانات.'))return;
  }
+ try{
+  // Commit the smaller workspace document first, then the active legacy data.
+  active.data=fresh;
+  localStorage.setItem(WORKSPACE_KEY,JSON.stringify(w));
+  localStorage.setItem(KEY,JSON.stringify(fresh));
+ }catch(err){
+  // Roll back only the keys touched by this operation.
+  try{if(previousWorkspaces===null)localStorage.removeItem(WORKSPACE_KEY);else localStorage.setItem(WORKSPACE_KEY,previousWorkspaces)}catch(e){}
+  try{if(previousKey===null)localStorage.removeItem(KEY);else localStorage.setItem(KEY,previousKey)}catch(e){}
+  db=old;
+  alert('فشلت إعادة الضبط أثناء الكتابة إلى التخزين المحلي. لم تكتمل العملية؛ أعد تحميل الصفحة وتحقق من بياناتك. صدّر نسخة JSON ثم أفرغ مساحة المتصفح.');
+  return;
+ }
+ db=fresh;
+ page='schoolSettings';
+ try{render()}catch(err){console.error('Reset rendering error:',err);alert('تم تصفير البيانات وحفظها، لكن تعذر تحديث الشاشة. أعد تحميل الصفحة.') ;return}
+ alert('تمت إعادة ضبط مساحة العمل الحالية بنجاح.'+(recovered?' نسخة الاسترجاع متاحة في إعدادات المدرسة.':' تم التنفيذ دون نسخة استرجاع محلية جديدة.')+' لم تتأثر بيانات Supabase.');
 }
+
 function downloadRecovery(){
  const raw=localStorage.getItem(RECOVERY_KEY);if(!raw)return alert('لا توجد نسخة استرجاع محفوظة على هذا الجهاز.');
  const obj=JSON.parse(raw),blob=new Blob([JSON.stringify(obj.data,null,2)],{type:'application/json'}),a=document.createElement('a');
