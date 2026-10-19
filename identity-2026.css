@@ -1,0 +1,29 @@
+/* MASAR Academic Glass — UI only; printed schedules retain their own styles. */
+@media screen {
+:root{--bg:#EDF2F7;--card:rgba(255,255,255,.78);--ink:#152A40;--muted:#61758A;--line:#CEDBE6;--accent:#176A78;--accent-dark:#123D54;--amber:#C6A46B;--good:#207C67;--warn:#A76A22;--danger:#AD4149;--glass-shadow:0 12px 38px rgba(24,51,79,.09)}
+html{background:#e9f0f6}body{background:radial-gradient(ellipse at 84% 3%,rgba(121,176,190,.23),transparent 39%),radial-gradient(ellipse at 8% 95%,rgba(198,164,107,.14),transparent 39%),linear-gradient(145deg,#F5F8FB,#E9F0F5 70%,#EDF4F4);background-attachment:fixed;color:var(--ink);font-family:Tajawal,"Segoe UI",Tahoma,sans-serif}
+header,header.topbar{background:linear-gradient(115deg,rgba(13,43,67,.97),rgba(23,82,104,.94));border-bottom:1px solid rgba(221,195,148,.6);box-shadow:0 9px 28px rgba(11,34,58,.16);color:#fff;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+header .logo{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);box-shadow:inset 0 1px 0 rgba(255,255,255,.18)}
+header .brand h1,header h1{color:#fff}header p{color:#dce7ed}
+.glass-sidebar{background:rgba(255,255,255,.76)!important;border:1px solid rgba(255,255,255,.8)!important;box-shadow:var(--glass-shadow)!important;backdrop-filter:blur(22px) saturate(130%);-webkit-backdrop-filter:blur(22px) saturate(130%)}
+.sidebar-head,.sidebar-foot{border-color:rgba(36,84,108,.12)!important}
+.glass-sidebar button,.glass-sidebar a{transition:background .18s,box-shadow .18s,transform .18s}
+.glass-sidebar button:hover,.glass-sidebar a:hover{background:rgba(45,118,139,.1)}
+.panel,.cloud-card,.workspace-top,.gen-hero,.generation-report,.gen-dashboard{background:rgba(255,255,255,.8)!important;border:1px solid rgba(255,255,255,.88)!important;box-shadow:var(--glass-shadow)!important;backdrop-filter:blur(15px);-webkit-backdrop-filter:blur(15px);border-radius:20px}
+.panel{border-top:2px solid rgba(198,164,107,.6)!important}
+#steps{background:rgba(255,255,255,.52)!important;border:1px solid rgba(255,255,255,.72);border-radius:16px;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+#steps .step{background:rgba(231,240,245,.84);color:#234d65;border:1px solid rgba(28,91,118,.1)}
+#steps .step.active{background:linear-gradient(130deg,#17465F,#247989);color:#fff;box-shadow:0 5px 15px rgba(23,87,111,.22)}
+button{background:linear-gradient(135deg,#176A78,#21536C);border-radius:12px;box-shadow:0 3px 9px rgba(15,64,89,.1);font-family:inherit}
+button:hover{background:linear-gradient(135deg,#155563,#173F55)}
+button.secondary{background:rgba(255,255,255,.87);color:#17465F;border:1px solid rgba(27,93,117,.35);box-shadow:none}
+button.secondary:hover{background:#E7F0F5}button.danger{background:#A9404B;color:#fff}button.danger:hover{background:#8D313A}
+input,select,textarea{background:rgba(255,255,255,.93);color:var(--ink);border:1px solid #C9D8E3;border-radius:10px}
+input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid rgba(198,164,107,.65);outline-offset:2px;border-color:#247989}
+h2,h3{color:#173F56}th{background:#E5EEF4;color:#183F57}table{border-color:#D2E0E9}td{border-color:#D5E1E9}
+.cloud-card{color:#17344B!important}.cloud-card button,#cloudOpen{background:linear-gradient(135deg,#176A78,#21536C)}
+.glass-icon{background:rgba(238,245,249,.6);border:1px solid rgba(102,150,173,.2);border-radius:13px}
+.live-dot{background:#1A9A83;box-shadow:0 0 0 3px rgba(26,154,131,.12)}
+@media(max-width:760px){.panel,.cloud-card,.workspace-top{border-radius:15px}header,header.topbar{backdrop-filter:none;-webkit-backdrop-filter:none}.glass-sidebar{background:rgba(248,251,253,.96)!important}}
+@media(prefers-reduced-motion:reduce){button,.glass-sidebar button,.glass-sidebar a{transition:none!important}}
+}
