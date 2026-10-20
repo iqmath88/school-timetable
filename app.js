@@ -1,4 +1,4 @@
-const APP_VERSION='0.9.20.0';
+const APP_VERSION='0.9.21.0';
 const KEY='school-timetable-v01';
 const stageDefaults=[['الأول',1,'#587B9B'],['الثاني',2,'#6F8F72'],['الثالث',3,'#9A7B60'],['الرابع',4,'#7D7398'],['الخامس',5,'#A16F78'],['السادس',6,'#557F83']];
 const defaultDays=[['الأحد',7,true],['الاثنين',7,true],['الثلاثاء',6,true],['الأربعاء',7,true],['الخميس',5,true],['الجمعة',0,false],['السبت',0,false]];
@@ -1594,28 +1594,42 @@ function manualValidate(changes){
   if(original.locked||db.fixedLessons.some(f=>f.assignmentId===original.assignmentId&&f.dayId===original.dayId&&f.period===original.period)){errors.push('الحصة مثبتة ويجب فك تثبيتها أولاً');continue}
   const day=db.days.find(d=>d.id===e.dayId),sec=db.sections.find(x=>x.id===e.sectionId),r=rule(e.teacherId);
   if(!day||!sec||!day.active||e.period<1||e.period>sectionDayPeriods(sec,day)){errors.push('خارج أوقات دوام الشعبة');continue}
-  if((r.unavailable?.[e.dayId]||[]).includes(e.period)){errors.push('المدرس غير متاح');continue}
-  if(draft.some(x=>x.id!==e.id&&x.teacherId===e.teacherId&&x.dayId===e.dayId&&x.period===e.period)){errors.push('تعارض في جدول المدرس');continue}
-  if(draft.some(x=>x.id!==e.id&&x.sectionId===e.sectionId&&x.dayId===e.dayId&&x.period===e.period)){errors.push('تعارض في جدول الشعبة');continue}
+  if((r.unavailable?.[e.dayId]||[]).includes(e.period)){warnings.push('المدرس غير متاح');continue}
+  if(draft.some(x=>x.id!==e.id&&x.teacherId===e.teacherId&&x.dayId===e.dayId&&x.period===e.period)){warnings.push('تعارض في جدول المدرس');continue}
+  if(draft.some(x=>x.id!==e.id&&x.sectionId===e.sectionId&&x.dayId===e.dayId&&x.period===e.period)){warnings.push('تعارض في جدول الشعبة');continue}
   const daily=draft.filter(x=>x.teacherId===e.teacherId&&x.dayId===e.dayId).length;
-  if(daily>Math.max(1,+r.maxDaily||99))errors.push('تجاوز الحد اليومي للمدرس');
+  if(daily>Math.max(1,+r.maxDaily||99))warnings.push('تجاوز الحد اليومي للمدرس');
   const sr=db.subjectRules[e.subjectId]||{},applicable=!sr.stageId||sr.stageId===sec.stageId;
-  if(applicable&&sr.strict!=='soft'&&((sr.noFirst&&e.period===1)||(sr.noLast&&e.period===sectionDayPeriods(sec,day))))errors.push('مخالفة قيد المادة الإلزامي');
+  if(applicable&&sr.strict!=='soft'&&((sr.noFirst&&e.period===1)||(sr.noLast&&e.period===sectionDayPeriods(sec,day))))warnings.push('مخالفة قيد المادة الإلزامي');
   const repeats=draft.filter(x=>x.id!==e.id&&x.sectionId===e.sectionId&&x.subjectId===e.subjectId&&x.dayId===e.dayId).length;
-  if(repeats){const repetitionError=repeatViolationForDraft(draft);if(repetitionError)errors.push(repetitionError)}
+  if(repeats){const repetitionError=repeatViolationForDraft(draft);if(repetitionError)warnings.push(repetitionError)}
   if((r.avoid||[]).includes(e.period))warnings.push('وقت غير مفضل للمدرس');
  }
- const repetitionError=repeatViolationForDraft(draft);if(repetitionError)errors.push(repetitionError);
+ const repetitionError=repeatViolationForDraft(draft);if(repetitionError)warnings.push(repetitionError);
  return {errors:[...new Set(errors)],warnings:[...new Set(warnings)]};
 }
+function recordManualConflicts(type,changes,warnings){
+ if(!warnings.length)return;
+ db.manualConflictLog??=[];
+ db.manualConflictLog.push({id:uid('conflict'),at:new Date().toISOString(),type,
+  changes:changes.map(c=>({...c})),warnings:[...new Set(warnings)]});
+ if(db.manualConflictLog.length>250)db.manualConflictLog.shift();
+}
 function commitManual(changes,type){
- const check=manualValidate(changes);if(check.errors.length)return alert('تعذر التعديل:\n'+check.errors.join('\n'));
- if(check.warnings.length&&!confirm('تحذيرات:\n'+check.warnings.join('\n')+'\nهل تريد المتابعة؟'))return false;
+ const check=manualValidate(changes);
+ if(check.errors.length){alert('لا يمكن تنفيذ التعديل لأسباب بنيوية:\n'+check.errors.join('\n'));return false}
+ if(check.warnings.length&&!confirm('⚠️ تعارضات أو مخالفات محتملة:\n'+check.warnings.join('\n')+'\n\nهل تريد حفظ التعديل رغم التعارض وتسجيله؟'))return false;
+ if(!preserveTimetable('قبل تعديل يدوي: '+type))return false;
+ const previous=structuredClone(db.timetable),history=structuredClone(db.manualHistory||[]),log=structuredClone(db.manualConflictLog||[]);
  const before=changes.map(c=>{const e=db.timetable.find(x=>x.id===c.id);return {id:e.id,dayId:e.dayId,period:e.period}});
  changes.forEach(c=>Object.assign(db.timetable.find(e=>e.id===c.id),c));
- db.manualHistory??=[];db.manualHistory.push({id:uid('edit'),at:new Date().toISOString(),type,before,after:changes.map(c=>({...c}))});
- if(db.manualHistory.length>100)db.manualHistory.shift();save();workspaceTT();return true;
+ db.manualHistory??=[];db.manualHistory.push({id:uid('edit'),at:new Date().toISOString(),type,before,after:changes.map(c=>({...c})),warnings:check.warnings});
+ if(db.manualHistory.length>100)db.manualHistory.shift();
+ recordManualConflicts(type,changes,check.warnings);
+ if(!save()){db.timetable=previous;db.manualHistory=history;db.manualConflictLog=log;return false}
+ workspaceTT();return true;
 }
+
 function undoManual(){const h=db.manualHistory?.at(-1);if(!h)return alert('لا توجد تعديلات للتراجع');
  const changes=h.before.map(x=>({...x}));const check=manualValidate(changes);
  if(check.errors.length)return alert('لا يمكن التراجع بسبب تعارض جديد: '+check.errors.join('، '));
@@ -1705,16 +1719,27 @@ function dndEvaluate(mode,viewId,e,dayId,period){
  // في عرض المدرس: الخانة الفارغة عنده قد تكون مشغولة بحصة أخرى لشعبة الحصة؛ فالنقل إليها يعني تبديلها مع تلك الحصة
  if(!target&&mode==='teacher')target=db.timetable.find(x=>x.id!==e.id&&x.sectionId===e.sectionId&&x.dayId===dayId&&x.period===period);
  const changes=target?[{id:e.id,dayId,period},{id:target.id,dayId:e.dayId,period:e.period}]:[{id:e.id,dayId,period}],v=manualValidate(changes),adv=dndAdvanced(changes),gap=dndGapWarning(changes);
- const errors=[...v.errors,...adv.errors],warnings=[...v.warnings,...adv.warnings,...(gap?[gap]:[])];
+ const errors=[...v.errors],warnings=[...v.warnings,...adv.errors,...adv.warnings,...(gap?[gap]:[])];
  return {changes,type:target?'تبديل حصتين':'نقل حصة',errors,warnings,level:errors.length?'bad':warnings.length?'warn':'ok'}}
-function dndCommit(ev){const c=manualValidate(ev.changes),adv=dndAdvanced(ev.changes);if(c.errors.length||adv.errors.length){dndToast('⛔ '+[...c.errors,...adv.errors].join('، '),'bad');return false}
- const before=ev.changes.map(x=>{const e=db.timetable.find(y=>y.id===x.id);return {id:e.id,dayId:e.dayId,period:e.period}});
- ev.changes.forEach(x=>Object.assign(db.timetable.find(e=>e.id===x.id),x));db.manualHistory??=[];db.manualHistory.push({id:uid('edit'),at:new Date().toISOString(),type:ev.type,before,after:ev.changes.map(x=>({...x}))});if(db.manualHistory.length>100)db.manualHistory.shift();
- if(!save()){ev.changes.forEach((x,i)=>Object.assign(db.timetable.find(e=>e.id===x.id),before[i]));db.manualHistory.pop();workspaceTT();dndToast('⛔ تعذر الحفظ؛ أُلغي التعديل في الذاكرة. صدّر نسخة احتياطية.','bad');return false}
- // All timetable views read the same db.timetable; redraw from the saved shared state.
+function dndCommit(ev){
+ const advanced=dndAdvanced(ev.changes);
+ const original=manualValidate(ev.changes);
+ if(original.errors.length){dndToast('⛔ '+original.errors.join('، '),'bad');return false}
+ const allWarnings=[...new Set([...original.warnings,...advanced.errors,...advanced.warnings,...ev.warnings])];
+ if(allWarnings.length&&!confirm('⚠️ تعارضات التعديل:\n'+allWarnings.join('\n')+'\n\nحفظ رغم التعارض مع تسجيله؟'))return false;
+ if(!preserveTimetable('قبل سحب/تبديل حصة'))return false;
+ const before=structuredClone(db.timetable),history=structuredClone(db.manualHistory||[]),log=structuredClone(db.manualConflictLog||[]);
+ const old=ev.changes.map(c=>{const e=db.timetable.find(x=>x.id===c.id);return {id:e.id,dayId:e.dayId,period:e.period}});
+ ev.changes.forEach(c=>Object.assign(db.timetable.find(e=>e.id===c.id),c));
+ db.manualHistory??=[];db.manualHistory.push({id:uid('edit'),at:new Date().toISOString(),type:ev.type,before:old,after:ev.changes.map(c=>({...c})),warnings:allWarnings});
+ if(db.manualHistory.length>100)db.manualHistory.shift();
+ recordManualConflicts(ev.type,ev.changes,allWarnings);
+ if(!save()){db.timetable=before;db.manualHistory=history;db.manualConflictLog=log;dndToast('تعذر الحفظ، أُلغي التعديل','bad');return false}
  const current=window.ttPreferred?{...window.ttPreferred}:{mode:'school'};
  workspaceTT();window.ttPreferred=current;
- const w=[...c.warnings,...ev.warnings.filter(x=>!c.warnings.includes(x))];dndToast((w.length?'⚠️ ':'✓ ')+ev.type+(w.length?' — '+w.join('، '):''),w.length?'warn':'ok',true);return true}
+ dndToast((allWarnings.length?'⚠️ ':'✓ ')+ev.type+(allWarnings.length?' — التعارض مسجل':''),allWarnings.length?'warn':'ok',true);return true;
+}
+
 function lessonSheet(id){const e=db.timetable.find(x=>x.id===id);if(!e)return;const o=document.createElement('div');o.className='edit-overlay';
  o.innerHTML=`<div class="edit-card"><div class="edit-head"><h3>خيارات الحصة</h3><button class="icon-close" type="button" aria-label="إغلاق">×</button></div><div class="notice">${esc(manualLabel(e))}</div><div class="notice">لنقل الحصة اسحبها إلى خانة أخرى (على الجوال: اضغط مطولاً ثم اسحب).</div><div class="actions"><button id="shLock">${e.locked?'🔓 فتح التثبيت':'🔒 تثبيت الحصة'}</button><button class="secondary" id="shMove">نقل/تبديل بالقوائم</button><button class="secondary" id="shClose">إغلاق</button></div></div>`;
  document.body.appendChild(o);const close=()=>o.remove();o.querySelector('.icon-close').onclick=close;o.querySelector('#shClose').onclick=close;o.querySelector('#shLock').onclick=()=>{close();toggleTimetableLock(id)};o.querySelector('#shMove').onclick=()=>{close();moveTimetableEntry(id)}}
@@ -1798,7 +1823,7 @@ function daysForGaps(){return db.days.filter(d=>d.active).sort((a,b)=>a.order-b.
 function workspaceTT(){
  if(!db.timetable.length){$('#workspace').innerHTML='<h2>مساحة عمل الجدول</h2><div class="empty">أنشئ الجدول أولاً.</div>';return}
  const pref=window.ttPreferred||{mode:'school'},counts=timetableIssueCounts();
- $('#workspace').innerHTML=`<h2>مساحة عمل الجدول</h2><div class="workspace-toolbar"><div class="field"><label>نوع العرض</label><select id="ttMode"><option value="school">المدرسة كاملة</option><option value="teacher">جدول مدرس</option><option value="section">جدول شعبة</option></select></div><div class="field" id="ttEntityWrap"></div><button class="secondary" id="manualBatch">تعديل متعدد بين المدرسين</button><button class="secondary" id="manualUndo">تراجع عن آخر تعديل</button><button class="secondary" id="manualLog">سجل التعديلات</button><button class="secondary" id="gapGo">تشخيص الفراغات</button><button class="problems-btn" id="ttProblems">${counts.errors} أخطاء — ${counts.warnings} تحذيرات</button><button class="secondary" id="ttImage">حفظ العرض كصورة PNG</button><span id="ttImageStatus" class="muted" aria-live="polite"></span><button class="secondary" id="ttPrint">طباعة العرض الحالي</button><button class="secondary" id="ttPrintAllTeachers">طباعة بطاقات جميع المدرسين</button></div><div class="notice">اختر المدرس أو الشعبة. اسحب الحصة إلى خانة أخرى لنقلها (أو فوق حصة لتبديلهما) — على الجوال اضغط مطولاً ثم اسحب. اضغط الحصة لتثبيتها أو لخيارات أخرى. الطباعة تتبع العرض المختار.</div><div id="ttWorkspaceView"></div>`;
+ $('#workspace').innerHTML=`<h2>مساحة عمل الجدول</h2><div class="workspace-toolbar"><div class="field"><label>نوع العرض</label><select id="ttMode"><option value="school">المدرسة كاملة</option><option value="teacher">جدول مدرس</option><option value="section">جدول شعبة</option></select></div><div class="field" id="ttEntityWrap"></div><button class="secondary" id="manualBatch">تعديل متعدد بين المدرسين</button><button class="secondary" id="manualUndo">تراجع عن آخر تعديل</button><button class="secondary" id="manualLog">سجل التعديلات</button><button class="secondary" id="manualConflicts">تعارضات التعديل اليدوي</button><button class="secondary" id="gapGo">تشخيص الفراغات</button><button class="problems-btn" id="ttProblems">${counts.errors} أخطاء — ${counts.warnings} تحذيرات</button><button class="secondary" id="ttImage">حفظ العرض كصورة PNG</button><span id="ttImageStatus" class="muted" aria-live="polite"></span><button class="secondary" id="ttPrint">طباعة العرض الحالي</button><button class="secondary" id="ttPrintAllTeachers">طباعة بطاقات جميع المدرسين</button></div><div class="notice">اختر المدرس أو الشعبة. اسحب الحصة إلى خانة أخرى لنقلها (أو فوق حصة لتبديلهما) — على الجوال اضغط مطولاً ثم اسحب. اضغط الحصة لتثبيتها أو لخيارات أخرى. الطباعة تتبع العرض المختار.</div><div id="ttWorkspaceView"></div>`;
  const mode=$('#ttMode'),wrap=$('#ttEntityWrap'),view=$('#ttWorkspaceView');mode.value=pref.mode;
  function bindCells(){enableTimetableDnD(view)}
  function draw(){const m=mode.value;window.ttPreferred={mode:m};if(m==='school'){wrap.innerHTML='';view.innerHTML=timetableTable();return}
@@ -1807,7 +1832,12 @@ function workspaceTT(){
  const sel=$('#ttEntity');if(pref.mode===m&&list.some(x=>x.id===pref.id))sel.value=pref.id;
  const redraw=()=>{window.ttPreferred={mode:m,id:sel.value};view.innerHTML=focusedTimetable(m,sel.value);bindCells()};sel.onchange=redraw;redraw()}
  mode.onchange=draw;draw();$('#ttImage').onclick=async()=>{const pick=window.ttPreferred||{mode:'school'};const btn=$('#ttImage'),status=$('#ttImageStatus');if((pick.mode==='teacher'||pick.mode==='section')&&!pick.id){status.textContent='اختر المدرس أو الشعبة أولاً';return}btn.disabled=true;status.textContent='جارٍ إعداد الصورة…';try{await exportSchedulePNG(pick.mode==='school'?'all':pick.mode,pick.id||'');status.textContent='تم إرسال الصورة للتنزيل أو المشاركة.'}catch(e){status.textContent='تعذر حفظ الصورة: '+String(e.message||e)}finally{btn.disabled=false}};$('#gapGo').onclick=()=>{page='gapDiagnosis';render()};$('#ttProblems').onclick=()=>alert(`${counts.errors} أخطاء — ${counts.warnings} تحذيرات`);
- $('#manualBatch').onclick=batchManualEditor;$('#manualUndo').onclick=undoManual;$('#manualLog').onclick=()=>alert((db.manualHistory||[]).slice(-15).reverse().map(h=>`${new Date(h.at).toLocaleString('ar-IQ')} — ${h.type} (${h.before.length} حصة)`).join('\n')||'لا توجد تعديلات بعد');$('#ttPrint').onclick=()=>printSelectedTimetable(window.ttPreferred);$('#ttPrintAllTeachers').onclick=printAllTeacherCards;
+ $('#manualBatch').onclick=batchManualEditor;$('#manualUndo').onclick=undoManual;$('#manualConflicts').onclick=()=>{
+ const log=db.manualConflictLog||[];
+ const lines=log.slice(-30).reverse().map(x=>`${new Date(x.at).toLocaleString('ar-IQ')} — ${x.type}\n${x.warnings.join('، ')}`);
+ alert(lines.join('\n\n')||'لا توجد تعارضات مسجلة من التعديلات اليدوية.');
+ };
+ $('#manualLog').onclick=()=>alert((db.manualHistory||[]).slice(-15).reverse().map(h=>`${new Date(h.at).toLocaleString('ar-IQ')} — ${h.type} (${h.before.length} حصة)`).join('\n')||'لا توجد تعديلات بعد');$('#ttPrint').onclick=()=>printSelectedTimetable(window.ttPreferred);$('#ttPrintAllTeachers').onclick=printAllTeacherCards;
 }
 function formalHeader(label){const p=db.printSettings;return `<div class="formal-head"><div class="formal-side">جمهورية العراق<br>وزارة التربية<br><small>العام الدراسي: ${esc(db.school.year||'—')}</small></div><div class="formal-center">${p.logo&&p.logoPosition==='center'?`<img class="school-logo" src="${p.logo}" alt="شعار المدرسة">`:''}<h1>${esc(db.school.name||'اسم المدرسة')}</h1><h2>${esc(p.title||'جدول الحصص الأسبوعية')}</h2><h3>${esc(label)}</h3></div><div class="formal-side">${p.logo&&p.logoPosition==='left'?`<img class="school-logo" src="${p.logo}" alt="شعار المدرسة">`:''}تاريخ بدء التطبيق<br><b>${esc(p.startDate||'____ / ____ / ____')}</b>${p.logo&&p.logoPosition==='right'?`<img class="school-logo" src="${p.logo}" alt="شعار المدرسة">`:''}</div></div>`}
 function formalFooter(){const p=db.printSettings;return `<footer class="print-footer">${p.showNotes?`<div class="print-reasons"><strong>أسباب تغيير الجدول والملاحظات:</strong><p>${esc(p.changeReasons||'—')}</p>${p.footer?`<p>${esc(p.footer)}</p>`:''}</div>`:''}${p.showSignatures?`<div class="print-signatures">${[p.signature1,p.signature2,p.signature3].map(x=>`<div><b>${esc(x)}</b><span>التوقيع: ______________</span></div>`).join('')}</div>`:''}</footer>`}
