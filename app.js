@@ -1,4 +1,4 @@
-const APP_VERSION='0.9.21.0';
+const APP_VERSION='0.9.21.1';
 const KEY='school-timetable-v01';
 const stageDefaults=[['الأول',1,'#587B9B'],['الثاني',2,'#6F8F72'],['الثالث',3,'#9A7B60'],['الرابع',4,'#7D7398'],['الخامس',5,'#A16F78'],['السادس',6,'#557F83']];
 const defaultDays=[['الأحد',7,true],['الاثنين',7,true],['الثلاثاء',6,true],['الأربعاء',7,true],['الخميس',5,true],['الجمعة',0,false],['السبت',0,false]];
@@ -202,8 +202,8 @@ const navigationGroups=[
  ['الإعداد الأساسي',['school','schoolSettings','days','sections','subjects','loads']],
  ['المدرسون والتكليفات',['teachers','assignments','matrix','audit']],
  ['القيود',['constraints','advanced','fixed']],
- ['التوليد والتشخيص',['feasibility','generator','gapDiagnosis']],
- ['الجداول والطباعة',['workspaceTT','printSetup']]
+ ['التوليد والتشخيص',['feasibility','generator','workspaceTT','gapDiagnosis']],
+ ['الجداول والطباعة',['printSetup']]
 ];
 const glassIcons={school:'✧',schoolSettings:'⚙',days:'◷',sections:'▦',subjects:'◈',loads:'▤',teachers:'♙',assignments:'⇄',matrix:'▦',audit:'✓',constraints:'⛭',advanced:'◇',fixed:'♧',feasibility:'◎',generator:'✦',gapDiagnosis:'⌕',workspaceTT:'▦',printSetup:'▧'};
 function closeMobileMenu(){document.body.classList.remove('sidebar-open');const toggle=document.getElementById('menuToggle'),shade=document.getElementById('sidebarBackdrop');if(toggle)toggle.setAttribute('aria-expanded','false');if(shade)shade.hidden=true}
@@ -228,6 +228,8 @@ function nav(){
  if(selector){selector.innerHTML=navigationGroups.map((g,i)=>`<option value="${i}" ${g===group?'selected':''}>${g[0]}</option>`).join('');selector.onchange=()=>{page=navigationGroups[+selector.value][1][0];render()}}
  $('#steps').innerHTML=group[1].map(id=>{const item=pages.find(x=>x[0]===id);return `<button class="step ${page===id?'active':''}" data-p="${id}" aria-current="${page===id?'page':'false'}">${item[1].replace(/^\d+\.\s*/, '')}</button>`}).join('');
  document.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{page=b.dataset.p;render()});
+ const quick=document.getElementById('masarQuickManual');
+ if(quick){quick.hidden=page==='workspaceTT';quick.onclick=()=>{page='workspaceTT';navOpenGroup=navigationGroups.findIndex(g=>g[1].includes(page));render();document.getElementById('workspace')?.scrollIntoView({block:'start'});};}
  const current=document.getElementById('currentPage');if(current)current.textContent=(pages.find(x=>x[0]===page)||[])[1]?.replace(/^\d+\.\s*/, '')||'';
 }
 
