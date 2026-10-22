@@ -1,4 +1,4 @@
-const APP_VERSION='0.9.19.4-manual.1';
+const APP_VERSION='0.9.19.5-live-board';
 const KEY='school-timetable-v01';
 const stageDefaults=[['الأول',1,'#587B9B'],['الثاني',2,'#6F8F72'],['الثالث',3,'#9A7B60'],['الرابع',4,'#7D7398'],['الخامس',5,'#A16F78'],['السادس',6,'#557F83']];
 const defaultDays=[['الأحد',7,true],['الاثنين',7,true],['الثلاثاء',6,true],['الأربعاء',7,true],['الخميس',5,true],['الجمعة',0,false],['السبت',0,false]];
@@ -160,15 +160,16 @@ function wireBackupProtection(){
  showStorageProtection();
 }
 
-const pages=[['school','لوحة التحكم'],['schoolSettings','إعدادات المدرسة'],['days','2. الأيام والحصص'],['sections','3. المراحل والشعب'],['subjects','4. المواد'],['teachers','5. المدرسون'],['loads','6. حصص المراحل'],['assignments','7. إدارة التكليفات'],['audit','8. تدقيق التكليفات'],['matrix','مصفوفة الحصص'],['constraints','9. قيود المدرسين'],['advanced','10. القيود المتقدمة'],['fixed','11. الحصص المثبتة'],['feasibility','12. فحص الجدوى'],['generator','13. توليد الجدول'],['workspaceTT','14. مساحة عمل الجدول'],['gapDiagnosis','15. تشخيص الفراغات'],['printSetup','16. التصميم والطباعة']];
+const pages=[['school','لوحة التحكم'],['liveBoard','الدوام اليومي والشواغر'],['schoolSettings','إعدادات المدرسة'],['days','2. الأيام والحصص'],['sections','3. المراحل والشعب'],['subjects','4. المواد'],['teachers','5. المدرسون'],['loads','6. حصص المراحل'],['assignments','7. إدارة التكليفات'],['audit','8. تدقيق التكليفات'],['matrix','مصفوفة الحصص'],['constraints','9. قيود المدرسين'],['advanced','10. القيود المتقدمة'],['fixed','11. الحصص المثبتة'],['feasibility','12. فحص الجدوى'],['generator','13. توليد الجدول'],['workspaceTT','14. مساحة عمل الجدول'],['gapDiagnosis','15. تشخيص الفراغات'],['printSetup','16. التصميم والطباعة']];
 const navigationGroups=[
  ['الإعداد الأساسي',['school','schoolSettings','days','sections','subjects','loads']],
+ ['إدارة الدوام اليومي',['liveBoard']],
  ['المدرسون والتكليفات',['teachers','assignments','matrix','audit']],
  ['القيود',['constraints','advanced','fixed']],
  ['التوليد والتشخيص',['feasibility','generator','gapDiagnosis']],
  ['الجداول والطباعة',['workspaceTT','printSetup']]
 ];
-const glassIcons={school:'✧',schoolSettings:'⚙',days:'◷',sections:'▦',subjects:'◈',loads:'▤',teachers:'♙',assignments:'⇄',matrix:'▦',audit:'✓',constraints:'⛭',advanced:'◇',fixed:'♧',feasibility:'◎',generator:'✦',gapDiagnosis:'⌕',workspaceTT:'▦',printSetup:'▧'};
+const glassIcons={school:'✧',liveBoard:'◷',schoolSettings:'⚙',days:'◷',sections:'▦',subjects:'◈',loads:'▤',teachers:'♙',assignments:'⇄',matrix:'▦',audit:'✓',constraints:'⛭',advanced:'◇',fixed:'♧',feasibility:'◎',generator:'✦',gapDiagnosis:'⌕',workspaceTT:'▦',printSetup:'▧'};
 function closeMobileMenu(){document.body.classList.remove('sidebar-open');const toggle=document.getElementById('menuToggle'),shade=document.getElementById('sidebarBackdrop');if(toggle)toggle.setAttribute('aria-expanded','false');if(shade)shade.hidden=true}
 const NAV_GROUP_KEY='masar-nav-group-v1';
 let navOpenGroup=(()=>{try{return Math.max(0,Math.min(navigationGroups.length-1,Number(sessionStorage.getItem(NAV_GROUP_KEY))||0))}catch(e){return 0}})();
@@ -196,7 +197,7 @@ function nav(){
 
 function completeness(){let c=[!!db.school.name,db.days.some(d=>d.active&&d.periods>0),db.sections.length,db.subjects.length,db.teachers.length,db.assignments.length];return Math.round(c.filter(Boolean).length/c.length*100)}
 function renderSummary(){if(!$('#summary'))return;let configured=db.teachers.filter(t=>db.teacherRules[t.id]).length;$('#summary').innerHTML=`<div class="cards"><div class="stat">اكتمال البيانات<b>${completeness()}%</b></div><div class="stat">الشعب<b>${db.sections.length}</b></div><div class="stat">المواد<b>${db.subjects.length}</b></div><div class="stat">المدرسون<b>${db.teachers.length}</b></div><div class="stat">قيود مضبوطة<b>${configured}</b></div><div class="stat">حصص مثبتة<b>${db.fixedLessons.length}</b></div></div><div class="progress" style="margin-top:12px"><i style="width:${completeness()}%"></i></div>`}
-function render(){nav();renderSummary();document.body.classList.toggle('dashboard-page',page==='school');({school,schoolSettings,days,sections,subjects,teachers,loads,assignments,audit,matrix,constraints,advanced,fixed,feasibility,generator,workspaceTT,gapDiagnosis,printSetup}[page])()}
+function render(){nav();renderSummary();document.body.classList.toggle('dashboard-page',page==='school');({school,liveBoard,schoolSettings,days,sections,subjects,teachers,loads,assignments,audit,matrix,constraints,advanced,fixed,feasibility,generator,workspaceTT,gapDiagnosis,printSetup}[page])()}
 // Independent dashboard verification is ephemeral and tied to the exact input snapshot.
 let homeAudit=null;
 function homeAuditSignature(){return JSON.stringify([db.timetable,db.assignments,db.teacherRules,db.subjectRules,db.advancedRules,db.fixedLessons,db.days,db.stageDayPeriods]);}
@@ -225,7 +226,7 @@ function school(){
  const auditClass=placed===0?'neutral':auditCurrent?(auditCurrent.passed?'pass':'fail'):'pending';
  const auditDetail=auditCurrent?(auditCurrent.passed?'فحص بتاريخ '+auditCurrent.checkedAt:(auditCurrent.reason||'يوجد اختلاف أو مخالفة تستدعي المراجعة')):'اضغط على زر الفحص للحصول على نتيجة موثقة للجدول الحالي.';
 
- const actions=[['feasibility','◎','فحص الجدوى','فحص القيود والسعة'],['generator','✦','توليد الجدول','تشغيل محرك الجدولة'],['workspaceTT','▦','مساحة عمل الجدول','التعديل والتبادل اليدوي'],['gapDiagnosis','⌕','التشخيص','فحص الفراغات والمشكلات'],['printSetup','▧','الطباعة والتصميم','تصدير الجداول'],['schoolSettings','⚙','إعدادات المدرسة','الاسم والنسخ الاحتياطية']];
+ const actions=[['liveBoard','◷','الدوام اليومي والشواغر','متابعة الحصة الحالية والمدرسين المتاحين'],['feasibility','◎','فحص الجدوى','فحص القيود والسعة'],['generator','✦','توليد الجدول','تشغيل محرك الجدولة'],['workspaceTT','▦','مساحة عمل الجدول','التعديل والتبادل اليدوي'],['gapDiagnosis','⌕','التشخيص','فحص الفراغات والمشكلات'],['printSetup','▧','الطباعة والتصميم','تصدير الجداول'],['schoolSettings','⚙','إعدادات المدرسة','الاسم والنسخ الاحتياطية']];
  $('#workspace').innerHTML=`<div class="home-dash">
  <div class="home-hero glass-surface"><div class="home-hero-text"><div class="home-kicker">✦ مركز التحكم المدرسي</div><h2>${esc(db.school.name||'مرحباً بك في مسار')}</h2><p>العام الدراسي ${esc(db.school.year||'—')} · إدارة الجداول من مكان واحد</p><div class="home-status ${status}"><span class="home-status-dot"></span>${esc(state)}</div></div><div class="home-hero-symbol" aria-hidden="true">▦</div></div>
  <div class="home-metrics" aria-label="مؤشرات الجدول">
@@ -1738,6 +1739,40 @@ function timetableGapReport(){
  }));
  return result;
 }
+function liveBoard(){
+ const days=db.days.filter(d=>d.active&&d.periods>0);
+ if(!db.timetable.length){$('#workspace').innerHTML=`<h2>الدوام اليومي والشواغر</h2><div class="notice warning">لا يوجد جدول مولّد بعد. أنشئ الجدول أولاً حتى يمكن عرض الدروس الحالية والمدرسين الشاغرين.</div><div class="actions"><button id="liveGoGenerator">الانتقال إلى توليد الجدول</button></div>`;$('#liveGoGenerator').onclick=()=>{page='generator';render()};return}
+ const prev=window.liveBoardSelection||{};
+ const dayId=days.some(d=>d.id===prev.dayId)?prev.dayId:days[0]?.id;
+ const day=days.find(d=>d.id===dayId)||days[0];
+ const maxP=day?.periods||1;const period=Math.max(1,Math.min(maxP,+prev.period||1));
+ const key=`${dayId}|${period}`;
+ const entries=db.timetable.filter(e=>e.dayId===dayId&&+e.period===period);
+ const labelSection=id=>{const sec=db.sections.find(x=>x.id===id),stage=db.stages.find(x=>x.id===sec?.stageId);return `${stage?.name||''} ${sec?.name||'شعبة محذوفة'}`.trim()};
+ const teacherName=id=>db.teachers.find(t=>t.id===id)?.name||'مدرس غير معروف';
+ const subjectName=id=>db.subjects.find(x=>x.id===id)?.name||'مادة غير معروفة';
+ const scheduledTeachers=new Set(entries.map(e=>e.teacherId));
+ const available=db.teachers.filter(t=>!scheduledTeachers.has(t.id)&&!((db.teacherRules?.[t.id]?.unavailable?.[dayId]||[]).map(Number).includes(period)));
+ const unavailable=db.teachers.filter(t=>(db.teacherRules?.[t.id]?.unavailable?.[dayId]||[]).map(Number).includes(period));
+ const sectionRows=db.sections.slice().sort((a,b)=>{const sa=db.stages.find(x=>x.id===a.stageId),sb=db.stages.find(x=>x.id===b.stageId);return (sa?.order||0)-(sb?.order||0)||String(a.name).localeCompare(String(b.name),'ar')}).map(sec=>{
+  const e=entries.find(x=>x.sectionId===sec.id);const teacher=e?teacherName(e.teacherId):'';
+  return `<article class="live-lesson ${e?'is-running':'is-empty'}"><div class="live-section">${esc(labelSection(sec.id))}</div>${e?`<div class="live-subject">${esc(subjectName(e.subjectId))}</div><div class="live-teacher">${esc(teacher)}</div>`:'<div class="live-free">لا توجد حصة مسجلة</div>'}</article>`;
+ }).join('');
+ $('#workspace').innerHTML=`<style>
+ .live-toolbar{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:14px 0}.live-toolbar .field{margin:0}.live-counters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:14px 0}.live-counter{padding:15px;border:1px solid var(--line,#dce4eb);border-radius:14px;background:var(--surface,#fff)}.live-counter b{display:block;font-size:1.8rem;margin-top:4px}.live-sections{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:10px}.live-lesson{border:1px solid var(--line,#dce4eb);border-radius:13px;padding:12px;min-height:100px}.live-lesson.is-running{border-inline-start:4px solid #16877d;background:rgba(22,135,125,.07)}.live-lesson.is-empty{border-style:dashed;opacity:.82}.live-section{font-weight:800}.live-subject{margin-top:8px;font-weight:700}.live-teacher,.live-free{font-size:.88rem;color:var(--muted,#667085);margin-top:5px}.live-list{display:flex;flex-wrap:wrap;gap:8px}.live-chip{padding:8px 10px;border-radius:10px;background:var(--surface,#f4f7f9);border:1px solid var(--line,#dce4eb)}.live-chip small{display:block;color:var(--muted,#667085)}@media(max-width:560px){.live-toolbar{grid-template-columns:1fr}.live-counters{grid-template-columns:1fr 1fr}.live-counters .live-counter:last-child{grid-column:1/-1}}
+ </style><h2>لوحة الدوام اليومي والشواغر</h2><p class="muted">اختر اليوم ورقم الحصة لمشاهدة الدروس المسجلة والشعب التي لديها حصة، والمدرسين الذين لا يظهر لهم تكليف في هذه الفترة.</p>
+ <div class="live-toolbar"><div class="field"><label for="liveDay">اليوم</label><select id="liveDay">${days.map(d=>`<option value="${d.id}" ${d.id===dayId?'selected':''}>${esc(d.name)}</option>`).join('')}</select></div><div class="field"><label for="livePeriod">رقم الحصة</label><select id="livePeriod">${Array.from({length:maxP},(_,i)=>`<option value="${i+1}" ${i+1===period?'selected':''}>الحصة ${i+1}</option>`).join('')}</select></div></div>
+ <div class="notice">الفترة المختارة: <strong>${esc(day?.name||'—')} — الحصة ${period}</strong>. هذه النسخة تعتمد اختيار اليوم والحصة يدوياً؛ لا تُظهر توقيتاً تلقائياً لأن أوقات بدء وانتهاء الحصص غير معرفة حالياً في بيانات المشروع.</div>
+ <div class="live-counters"><div class="live-counter">الشعب التي لديها درس<b>${new Set(entries.map(e=>e.sectionId)).size}</b></div><div class="live-counter">المدرسون المشغولون<b>${scheduledTeachers.size}</b></div><div class="live-counter">المدرسون المتاحون وفق الجدول<b>${available.length}</b></div></div>
+ <h3>الدروس لجميع الشعب</h3><div class="live-sections">${sectionRows||'<div class="empty">لا توجد شعب مسجلة.</div>'}</div>
+ <h3 style="margin-top:22px">المدرسون الشاغرون في هذه الحصة</h3><p class="muted">الأسماء التالية لا تظهر لها حصة في الجدول في الفترة المختارة، ولا يوجد قيد عدم توافر مسجل لها.</p><div class="live-list">${available.map(t=>`<span class="live-chip">${esc(t.name)}<small>متاح حسب الجدول</small></span>`).join('')||'<div class="empty">لا يوجد مدرسون متاحون وفق البيانات الحالية.</div>'}</div>
+ <h3 style="margin-top:22px">مدرسون غير متاحين حسب القيود</h3><div class="live-list">${unavailable.map(t=>`<span class="live-chip">${esc(t.name)}<small>قيد عدم توافر مسجل</small></span>`).join('')||'<span class="muted">لا توجد قيود عدم توافر لهذه الفترة.</span>'}</div>
+ <div class="actions" style="margin-top:18px"><button id="liveRefresh" class="secondary">تحديث العرض</button><button id="livePrint">طباعة كشف الحصة</button></div>`;
+ const update=()=>{window.liveBoardSelection={dayId:$('#liveDay').value,period:+$('#livePeriod').value};liveBoard()};
+ $('#liveDay').onchange=()=>{window.liveBoardSelection={dayId:$('#liveDay').value,period:1};liveBoard()};$('#livePeriod').onchange=update;$('#liveRefresh').onclick=liveBoard;
+ $('#livePrint').onclick=()=>{const content=$('#workspace').innerHTML;const w=window.open('','_blank');if(!w)return alert('يرجى السماح بفتح نافذة الطباعة.');w.document.write(`<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><title>كشف الحصة</title><style>body{font-family:Arial,sans-serif;padding:20px}button,select,.live-toolbar,.actions{display:none!important}.live-sections{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.live-lesson{border:1px solid #999;padding:10px;break-inside:avoid}h2,h3{color:#173552} .live-counter{display:inline-block;border:1px solid #999;padding:10px;margin:5px}.live-counters{display:flex;gap:10px}.live-chip{display:inline-block;border:1px solid #aaa;padding:6px;margin:4px}</style><h1>${esc(db.school.name||'المدرسة')}</h1><h2>كشف الدوام — ${esc(day?.name||'')} / الحصة ${period}</h2>${content}<script>window.onload=()=>window.print()<\/script></html>`);w.document.close()};
+}
+
 function gapDiagnosis(){
  if(!db.timetable.length){$('#workspace').innerHTML='<h2>تشخيص الفراغات</h2><div class="empty">ولّد الجدول أولاً.</div>';return}
  const gaps=timetableGapReport(),internal=gaps.filter(x=>x.kind==='teacher'),section=gaps.filter(x=>x.kind==='section');
