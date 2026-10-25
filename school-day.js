@@ -166,7 +166,7 @@ function staffRows(){
   });
 }
 function printStaff(){
-  const all=staffRows(),PER=20,pages=Math.max(1,Math.ceil(all.length/PER));
+  const all=staffRows(),PER=15,pages=Math.max(1,Math.ceil(all.length/PER));
   const logo=db.printSettings?.logo?`<img src="${db.printSettings.logo}" style="height:16mm">`:'';
   const head='<tr><th style="width:6%">ت</th><th style="width:22%">الاسم</th><th style="width:13%">التخصص</th><th style="width:9%">الحالة</th><th style="width:29%">أيام التدريس</th><th style="width:12%">يوم التفرغ</th><th style="width:9%">الحصص</th></tr>';
   let out='';
@@ -175,11 +175,11 @@ function printStaff(){
     out+=`<section class="pg${p<pages-1?' brk':''}"><div class="hd">${logo}<div><h1>${H(db.school.name||'المدرسة')}</h1><h2>كشف الكادر التدريسي وحالة الدوام</h2></div><span class="yr">${H(db.school.year||'')}<br>صفحة ${p+1} من ${pages}</span></div><table class="bt"><thead>${head}</thead><tbody>${rows}</tbody></table></section>`;
   }
   openPrint(out,`*{-webkit-print-color-adjust:exact;print-color-adjust:exact}html,body{margin:0;padding:0}
-.pg{width:176mm;margin:0 auto;padding-top:6mm;box-sizing:border-box}.pg.brk{break-after:page;page-break-after:always}
+.pg{width:176mm;margin:0 auto;padding-top:4mm;box-sizing:border-box}.pg.brk{break-after:page;page-break-after:always}
 .hd{display:flex;align-items:center;gap:12px;border-bottom:2px solid #7B1E3A;padding-bottom:5px;margin-bottom:6px}.hd h1{font-size:16pt;color:#561228}.hd h2{font-size:11pt;font-weight:600;color:#444}.yr{margin-inline-start:auto;font-size:10pt;color:#555;text-align:left}
 .bt{width:100%;table-layout:fixed;font-size:10pt}
 .bt th{background:#561228;color:#fff;padding:5px 2px;border:1px solid #561228;font-size:10pt;white-space:nowrap}
-.bt td{border:1px solid #cfc3b8;padding:2px 4px;text-align:center;vertical-align:middle;height:10.5mm;overflow:hidden}
+.bt td{border:1px solid #cfc3b8;padding:2px 4px;text-align:center;vertical-align:middle;height:11mm;overflow:hidden}
 .bt tbody tr:nth-child(even) td{background:#f7f1ea}.bt td.nm{text-align:right;font-weight:600;font-size:9.5pt}.bt td.dy{font-size:9pt}.bt td.off{font-weight:700;color:#561228}
 .st{display:inline-block;padding:1px 7px;border-radius:9px;font-size:9pt;font-weight:700}.st-a{background:#e5efe8;color:#245a3f}.st-b{background:#f4e3e8;color:#7B1E3A}.st-c{background:#f6ead2;color:#7a5410}
 @page{margin:8mm}`,'portrait');
