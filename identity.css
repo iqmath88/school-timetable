@@ -71,4 +71,33 @@ html body button.secondary,html body .actions button.secondary{color:var(--accen
 .home-progress i,[class*=progress-fill]{background:linear-gradient(90deg,var(--accent),var(--amber))!important}
 .home-progress-head>*:first-child,.home-progress-head strong{color:var(--accent)!important}
 .home-progress .progress{background:#eadfd2!important}
+
+/* ===== لغة الأشكال الموحّدة: ثلاثة أنصاف أقطار، حد رفيع، ظل واحد ===== */
+:root{--r-lg:20px;--r-md:12px;--r-sm:8px;--shadow:0 8px 26px #4a1a2a14}
+.panel,.glass-surface,.home-hero,.home-metric,.home-action,.today-strip,.workspace-top{border-radius:var(--r-lg)!important;box-shadow:var(--shadow)!important;border-top-width:1px!important;border-top-color:rgba(255,255,255,.95)!important}
+.home-hero{border-top:3px solid var(--accent)!important;border-top-color:var(--accent)!important}
+button,.side-link,input,select,textarea,.notice,table,.live-chip,.sd-chip{border-radius:var(--r-md)!important}
+.home-status,.home-audit-tag,#steps .step{border-radius:999px!important}
+.masar-logo-wrap{display:inline-flex;width:44px;height:44px;flex:none;filter:drop-shadow(0 3px 8px #0006)}
+.home-hero-symbol{background:none!important;border:0!important;box-shadow:none!important;width:auto!important;height:auto!important;filter:drop-shadow(0 8px 18px #56122833)}
+.home-hero{padding-block:14px!important}.home-hero h2{font-size:1.9rem!important}
+/* شريط اليوم */
+.today-strip{display:grid;grid-template-columns:auto 1fr auto auto;gap:18px;align-items:center;padding:14px 18px;margin:12px 0;background:linear-gradient(135deg,rgba(123,30,58,.10),rgba(184,137,59,.14))!important}
+.today-time{text-align:center;padding-inline-end:18px;border-inline-end:1px solid var(--line)}
+.today-time small{display:block;color:var(--muted)}.today-time b{font:700 1.9rem Amiri,serif;color:var(--accent-dark)}
+.today-label{display:block;color:var(--amber);font-weight:700;font-size:.8rem}.today-main strong{font:700 1.3rem Amiri,serif;color:var(--accent-dark)}
+.today-facts{display:flex;gap:14px;color:var(--muted)}.today-facts b{color:var(--accent-dark);font-size:1.15rem;margin-inline-start:4px}.today-facts b.warn{color:#B3261E}
+.today-actions{display:flex;gap:8px}
+@media(max-width:900px){.today-strip{grid-template-columns:1fr 1fr}.today-time{border:0}.today-facts,.today-actions{grid-column:1/-1}}
+.status-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:0 0 12px}.status-grid>*{margin:0!important}
+@media(max-width:900px){.status-grid{grid-template-columns:1fr}}
+.home-metrics{margin-bottom:12px}
+/* بقايا الأخضر */
+.home-status.ready{background:rgba(184,137,59,.16)!important;color:#5a3d0a!important}
+.home-status.ready .home-status-dot{background:var(--amber)!important}
+.home-progress-head span,.home-progress-head>*:last-child,.home-audit-facts strong{color:var(--accent)!important}
+.home-track{background:#eadfd2!important}.home-track i{background:linear-gradient(90deg,var(--accent),var(--amber))!important}
+.home-action-icon{background:rgba(123,30,58,.09)!important;color:var(--accent)!important;border-radius:var(--r-md)!important}
+.home-action-arrow{color:var(--amber)!important}
+.table-focus-toggle{background:rgba(255,255,255,.8)!important;border:1px solid rgba(123,30,58,.4)!important}
 }

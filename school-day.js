@@ -129,7 +129,7 @@ window.liveBoard=function(){
   const host=$('#workspace');if(!host||!db.timetable.length)return;
   const notice=host.querySelector('.notice');
   const t=new Date(),cur=info.cur;
-  const msg=!info.day?'اليوم ليس يوم دوام حسب إعدادات الأيام.':cur?`الآن: <b>الحصة ${cur.period}</b> (${toTxt(cur.start)} – ${toTxt(cur.end)}) — متبقٍ ${cur.end-info.mins} دقيقة`:info.next?`الآن استراحة/قبل الدوام — القادمة: <b>الحصة ${info.next.period}</b> الساعة ${toTxt(info.next.start)}`:'انتهى الدوام لهذا اليوم.';
+  const msg=!info.day?'اليوم ليس يوم دوام حسب إعدادات الأيام.':cur?`الآن: <b>الحصة ${cur.period}</b> (${toTxt(cur.start)} – ${toTxt(cur.end)}) — متبقٍ ${cur.end-info.mins} دقيقة`:info.next?`الآن استراحة/قبل الدوام — القادمة: <b>الحصة ${info.next.period}</b> الساعة ${toTxt(info.next.start)}`:'انتهى الدوام لهذا اليوم — تعرض اللوحة الحصة الأولى كمعاينة فقط.';
   const box=document.createElement('div');box.className='sd-now';
   box.innerHTML=css+`${pad(t.getHours())}:${pad(t.getMinutes())} — ${H(WD[t.getDay()])}<b>${msg}</b><div class="actions" style="margin-top:10px"><label class="sd-day"><input type="checkbox" id="liveAuto" ${window.liveBoardAuto?'checked':''}> متابعة الحصة تلقائياً حسب الساعة</label><button class="secondary" id="liveBell">ضبط التواقيت</button></div>`;
   (notice||host.firstChild).before(box);
