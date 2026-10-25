@@ -1,0 +1,74 @@
+/* هوية «حبر وعاج» — عنابي أكاديمي + عاج دافئ + نحاسي، مع الإبقاء على الطابع الزجاجي. للشاشة فقط. */
+@media screen{
+:root{--masar-title:#4a1424;--masar-text:#3b2a31;--masar-secondary:#7a6a70;--masar-number:#561228;--masar-action:#7B1E3A;--bg:#F6F1E8;--card:#FFFDF9;--ink:#2B1B22;--muted:#7A6A70;--line:#E3D7CA;--accent:#7B1E3A;--accent-dark:#561228;--amber:#B8893B;--good:#2F6B4F;--warn:#A35A12;--danger:#B3261E;--glass-stroke:rgba(255,255,255,.85)}
+html body{font-family:"IBM Plex Sans Arabic",Tajawal,system-ui,Tahoma,Arial,sans-serif;background:
+ radial-gradient(900px 420px at 85% -10%,rgba(184,137,59,.16),transparent 60%),
+ radial-gradient(800px 500px at -5% 20%,rgba(123,30,58,.10),transparent 60%),#F6F1E8;color:var(--ink)}
+h1,h2,h3,.workspace-top h2,.brand h1{font-family:Amiri,"Noto Naskh Arabic","IBM Plex Sans Arabic",serif;letter-spacing:0}
+h2{color:var(--accent-dark);font-weight:700}h3{color:#4a2a36}
+/* الشريط العلوي */
+.topbar,header.topbar{background:rgba(58,18,34,.93)!important;border-bottom:3px solid var(--amber)!important;box-shadow:0 6px 24px #3a12222e}
+.topbar .logo{background:rgba(255,255,255,.12);border-radius:12px}
+.topbar button,header button{background:rgba(255,255,255,.14)!important;color:#fff!important;border:1px solid rgba(255,255,255,.32)!important}
+.topbar button:hover{background:rgba(255,255,255,.24)!important}
+.topbar #exportBtn,.topbar #exportBtn *{color:#fff!important;background:rgba(255,255,255,.16)!important;text-shadow:none}
+.topbar .cloud-btn,.topbar #cloudBtn{background:var(--amber)!important;color:#2b1b22!important;border-color:transparent!important}
+/* القائمة الجانبية الزجاجية */
+.glass-sidebar{background:rgba(255,252,246,.72)!important;border:1px solid rgba(255,255,255,.9)!important;box-shadow:0 16px 44px #4a1a2a14}
+.side-group-trigger{color:#3b2430}
+.side-group-trigger.group-active,.side-link.selected{background:linear-gradient(135deg,rgba(123,30,58,.13),rgba(184,137,59,.14))!important;color:var(--accent-dark)!important;border-color:rgba(123,30,58,.25)!important}
+.glass-icon{background:rgba(255,255,255,.8);color:var(--accent)}
+.side-link.selected .glass-icon{background:var(--accent)!important;color:#fff!important}
+.sidebar-foot .live-dot{background:var(--amber)}
+/* بطاقات وأقسام */
+.panel,.glass-surface{background:rgba(255,253,249,.82)!important;border:1px solid rgba(255,255,255,.95)!important;border-top:3px solid var(--accent)!important;border-radius:20px;box-shadow:0 10px 30px #4a1a2a12}
+.workspace-top{background:rgba(255,253,249,.7)!important;border:1px solid rgba(255,255,255,.9)!important}
+.eyebrow{color:var(--amber);font-weight:700}
+button,button:not(.danger):not(.secondary):not(.warn){background:var(--accent);color:#fff;border-radius:12px}
+button:not(.danger):not(.secondary):not(.warn):hover,button:hover{background:var(--accent-dark)}
+button.secondary{background:rgba(255,255,255,.8)!important;color:var(--accent-dark)!important;border:1.5px solid rgba(123,30,58,.45)!important}
+button.secondary:hover{background:#fff!important}
+input,select,textarea{border-color:var(--line);background:#fffefb;border-radius:11px}
+input:focus,select:focus,textarea:focus,button:focus-visible{outline:3px solid rgba(184,137,59,.5);border-color:var(--accent)}
+.notice{background:rgba(123,30,58,.07);color:#4a1a2a;border-inline-start:4px solid var(--accent);border-radius:12px}
+.notice.warning{background:rgba(184,137,59,.14);color:#5a3d0a;border-inline-start-color:var(--amber)}
+table th{background:#F1E6DA!important;color:var(--accent-dark)!important}
+table td,table th{border-color:var(--line)}
+.quality-grid>div,.stat{background:rgba(255,253,249,.9)!important;border:1px solid var(--line)!important}
+.progress i{background:linear-gradient(90deg,var(--accent),var(--amber))!important}
+/* ===== تبسيط التخطيط ===== */
+body:not(.dashboard-page) #summary{display:none}                 /* الإحصاءات في الرئيسية فقط */
+body:not(.dashboard-page) #workspace>h2:first-child,
+body:not(.dashboard-page) #workspace>style+h2{display:none}      /* العنوان المكرر */
+#steps{background:transparent!important;border:0!important;padding-block:6px}
+#steps .step{background:rgba(255,253,249,.85)!important;color:var(--accent-dark)!important;border:1px solid var(--line)!important}
+#steps .step.active{background:var(--accent)!important;color:#fff!important}
+.cards{gap:10px}.stat{padding:10px 12px;border-radius:14px}.stat b{font-size:1.25rem}
+/* لوحة الدوام الحالي */
+.sd-now{background:linear-gradient(135deg,rgba(123,30,58,.12),rgba(184,137,59,.16))!important;border:1px solid rgba(123,30,58,.2)!important;font-family:inherit}
+.sd-now b{font-family:Amiri,serif;font-size:1.7rem;color:var(--accent-dark)}
+.sd-banner{background:var(--accent)!important}
+.live-lesson.is-running{border-inline-start:4px solid var(--accent)!important;background:rgba(123,30,58,.06)!important}
+.live-counters{grid-template-columns:repeat(3,minmax(0,1fr))}.live-counter{padding:10px 14px!important}.live-counter b{font-size:1.35rem!important}
+.live-toolbar{grid-template-columns:repeat(2,minmax(0,260px))!important}
+.live-section{color:var(--accent-dark)}
+
+.progress{background:#eadfd2!important}
+.dashboard-page [class*=eyebrow],.dashboard-page [class*=kicker]{color:var(--amber)!important}
+.live-dot{background:var(--amber)!important}
+
+html body button.secondary,html body .actions button.secondary{color:var(--accent-dark)!important}
+.progress,.progress.big,[class*=coverage] .bar{background:#eadfd2!important}
+.progress>i,.progress i{background:linear-gradient(90deg,var(--accent),var(--amber))!important}
+.dashboard-page .percent,.dashboard-page [class*=percent],.dashboard-page [class*=pct]{color:var(--accent)!important}
+
+.group-symbol,.side-icon,.glass-icon{color:var(--accent)!important}
+.group-chevron,.side-group-trigger,.group-label,.home-status.neutral,.home-note,.home-note *,.home-audit-tag.neutral,.home-action,.home-action-text,.table-focus-toggle{color:#4a2a36!important}
+.side-active-dot,.home-status-dot{background:var(--amber)!important}
+.dashboard-page b,.home-card b,.home-hero b{color:var(--accent-dark)!important}
+.dashboard-page #workspace button:not(.secondary):not(.danger):not(.home-action):not(.side-link){background:var(--accent)!important;color:#fff!important}
+.home-note{border-color:var(--line)!important}
+.home-progress i,[class*=progress-fill]{background:linear-gradient(90deg,var(--accent),var(--amber))!important}
+.home-progress-head>*:first-child,.home-progress-head strong{color:var(--accent)!important}
+.home-progress .progress{background:#eadfd2!important}
+}
