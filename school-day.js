@@ -154,12 +154,34 @@ function fullBlockedDays(tid){
   const r=db.teacherRules?.[tid];if(!r)return [];
   return db.days.filter(d=>d.active&&d.periods>0&&Array.from({length:d.periods},(_,i)=>i+1).every(p=>(r.unavailable?.[d.id]||[]).map(Number).includes(p))).map(d=>d.id);
 }
+function staffRows(){
+  const days=db.days.filter(d=>d.active&&d.periods>0);
+  return db.teachers.map(t=>{const st=tStatus(t.id);
+    const blocked=fullBlockedDays(t.id);
+    const teach=st.type==='regular'?days.filter(d=>!blocked.includes(d.id)):days.filter(d=>st.days.includes(d.id));
+    const off=days.filter(d=>!teach.some(x=>x.id===d.id));
+    const loads=db.timetable.filter(e=>e.teacherId===t.id).length||db.assignments.filter(a=>a.teacherId===t.id).reduce((n,a)=>n+(+a.weeklyPeriods||0),0);
+    return {name:t.name,spec:t.specialty||'',status:STATUS[st.type].replace(' (كل أيام الدوام)',''),teach:teach.map(d=>d.name).join('، '),off:off.map(d=>d.name).join('، ')||'—',load:loads};
+  });
+}
+function printStaff(){
+  const rows=staffRows().map((r,i)=>`<tr><td>${i+1}</td><td style="text-align:right">${H(r.name)}</td><td>${H(r.spec)}</td><td>${H(r.status)}</td><td>${H(r.teach)}</td><td><b>${H(r.off)}</b></td><td>${r.load}</td></tr>`).join('');
+  const logo=db.printSettings?.logo?`<img src="${db.printSettings.logo}" style="height:20mm">`:'';
+  openPrint(`<div style="text-align:center">${logo}<h1>${H(db.school.name||'المدرسة')}</h1><h2>كشف الكادر التدريسي وحالة الدوام</h2><p>${H(db.school.year||'')}</p></div><table class="bt"><thead><tr><th>ت</th><th>الاسم</th><th>التخصص</th><th>الحالة</th><th>أيام التدريس</th><th>يوم التفرغ</th><th>الحصص</th></tr></thead><tbody>${rows}</tbody></table>`,
+   `.bt{width:100%;margin:6mm 0;font-size:12pt}.bt th{background:#102C50;color:#fff}.bt th,.bt td{border:1px solid #444;padding:5px;text-align:center}.bt tr{break-inside:avoid}`,'portrait');
+}
+function csvStaff(){
+  const q=v=>'"'+String(v).replace(/"/g,'""')+'"';
+  const txt='\ufeff'+[['الاسم','التخصص','الحالة','أيام التدريس','يوم التفرغ','الحصص'].map(q).join(',')].concat(staffRows().map(r=>[r.name,r.spec,r.status,r.teach,r.off,r.load].map(q).join(','))).join('\r\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:'text/csv;charset=utf-8'}));a.download='masar-staff-status.csv';document.body.appendChild(a);a.click();a.remove();
+}
 masarPages.teacherStatus=function(){
   const days=db.days.filter(d=>d.active&&d.periods>0);
   $('#workspace').innerHTML=css+`<h2>حالة المدرسين (مفرّغ / متعاقد)</h2><div class="notice">حدّد أيام تدريس المفرّغ أو المتعاقد. تُحجب بقية الأيام تلقائياً في التوليد، وتُستبعد من قوائم الشاغرين وسد الشاغر.</div>
   <div class="tt-wrap"><table class="sd-tbl"><thead><tr><th>المدرس</th><th>الحالة</th><th>أيام التدريس</th></tr></thead><tbody>${db.teachers.map(t=>{const s=tStatus(t.id);return `<tr><td>${H(t.name)}</td><td><select data-ts="${t.id}">${Object.entries(STATUS).map(([k,v])=>`<option value="${k}" ${s.type===k?'selected':''}>${v}</option>`).join('')}</select></td><td>${(()=>{const fb=fullBlockedDays(t.id).filter(x=>!(rule(t.id).statusBlocked||[]).includes(x));return s.type==='regular'&&fb.length?`<div class="muted">في القيود: محجوب كل اليوم في ${fb.map(x=>H(db.days.find(d=>d.id===x).name)).join('، ')}</div>`:''})()}${days.map(d=>`<label class="sd-day"><input type="checkbox" data-td="${t.id}|${d.id}" ${s.days.includes(d.id)?'checked':''} ${s.type==='regular'?'disabled':''}> ${H(d.name)}</label>`).join('')}</td></tr>`}).join('')||'<tr><td colspan="3" class="empty">لا يوجد مدرسون</td></tr>'}</tbody></table></div>
-  <div class="actions"><button class="secondary" id="tsImport">استيراد الأيام من القيود الحالية</button><button id="tsSave">حفظ وتطبيق على القيود</button></div><div id="tsMsg"></div>`;
+  <div class="actions"><button class="secondary" id="tsImport">استيراد الأيام من القيود الحالية</button><button id="tsSave">حفظ وتطبيق على القيود</button><button class="secondary" id="tsPrint">طباعة كشف الكادر</button><button class="secondary" id="tsCsv">تصدير Excel (CSV)</button></div><div id="tsMsg"></div>`;
   document.querySelectorAll('[data-ts]').forEach(sel=>sel.onchange=()=>{document.querySelectorAll(`[data-td^="${sel.dataset.ts}|"]`).forEach(c=>c.disabled=sel.value==='regular')});
+  $('#tsPrint').onclick=printStaff;$('#tsCsv').onclick=csvStaff;
   $('#tsImport').onclick=()=>{
     let n=0;
     for(const t of db.teachers){
@@ -276,7 +298,7 @@ function tick(date=new Date()){
   out.forEach(notify);return out;
 }
 function scheduleAlerts(){clearInterval(timer);const a=bell().alerts;if(a.start||a.end)timer=setInterval(()=>tick(),15000)}
-window.MASAR_SCHOOLDAY={bellTimes,nowInfo,tick,candidatesFor,teachesOn,applyStatusToRules,autoCover,toTxt,toMin,paper,_fired:fired};
+window.MASAR_SCHOOLDAY={staffRows,bellTimes,nowInfo,tick,candidatesFor,teachesOn,applyStatusToRules,autoCover,toTxt,toMin,paper,_fired:fired};
 
 /* ---------- ورق الطباعة A4/A3 ---------- */
 const origPS=window.printSetup;
