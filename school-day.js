@@ -150,12 +150,26 @@ window.liveBoard=function(){
 setInterval(()=>{if(page==='liveBoard'&&window.liveBoardAuto!==false&&document.visibilityState==='visible'){const a=document.activeElement;if(a&&/SELECT|INPUT/.test(a.tagName))return;liveBoard()}},60000);
 
 /* 3) حالة المدرس */
+function fullBlockedDays(tid){
+  const r=db.teacherRules?.[tid];if(!r)return [];
+  return db.days.filter(d=>d.active&&d.periods>0&&Array.from({length:d.periods},(_,i)=>i+1).every(p=>(r.unavailable?.[d.id]||[]).map(Number).includes(p))).map(d=>d.id);
+}
 masarPages.teacherStatus=function(){
   const days=db.days.filter(d=>d.active&&d.periods>0);
   $('#workspace').innerHTML=css+`<h2>حالة المدرسين (مفرّغ / متعاقد)</h2><div class="notice">حدّد أيام تدريس المفرّغ أو المتعاقد. تُحجب بقية الأيام تلقائياً في التوليد، وتُستبعد من قوائم الشاغرين وسد الشاغر.</div>
-  <div class="tt-wrap"><table class="sd-tbl"><thead><tr><th>المدرس</th><th>الحالة</th><th>أيام التدريس</th></tr></thead><tbody>${db.teachers.map(t=>{const s=tStatus(t.id);return `<tr><td>${H(t.name)}</td><td><select data-ts="${t.id}">${Object.entries(STATUS).map(([k,v])=>`<option value="${k}" ${s.type===k?'selected':''}>${v}</option>`).join('')}</select></td><td>${days.map(d=>`<label class="sd-day"><input type="checkbox" data-td="${t.id}|${d.id}" ${s.days.includes(d.id)?'checked':''} ${s.type==='regular'?'disabled':''}> ${H(d.name)}</label>`).join('')}</td></tr>`}).join('')||'<tr><td colspan="3" class="empty">لا يوجد مدرسون</td></tr>'}</tbody></table></div>
-  <div class="actions"><button id="tsSave">حفظ وتطبيق على القيود</button></div><div id="tsMsg"></div>`;
+  <div class="tt-wrap"><table class="sd-tbl"><thead><tr><th>المدرس</th><th>الحالة</th><th>أيام التدريس</th></tr></thead><tbody>${db.teachers.map(t=>{const s=tStatus(t.id);return `<tr><td>${H(t.name)}</td><td><select data-ts="${t.id}">${Object.entries(STATUS).map(([k,v])=>`<option value="${k}" ${s.type===k?'selected':''}>${v}</option>`).join('')}</select></td><td>${(()=>{const fb=fullBlockedDays(t.id).filter(x=>!(rule(t.id).statusBlocked||[]).includes(x));return s.type==='regular'&&fb.length?`<div class="muted">في القيود: محجوب كل اليوم في ${fb.map(x=>H(db.days.find(d=>d.id===x).name)).join('، ')}</div>`:''})()}${days.map(d=>`<label class="sd-day"><input type="checkbox" data-td="${t.id}|${d.id}" ${s.days.includes(d.id)?'checked':''} ${s.type==='regular'?'disabled':''}> ${H(d.name)}</label>`).join('')}</td></tr>`}).join('')||'<tr><td colspan="3" class="empty">لا يوجد مدرسون</td></tr>'}</tbody></table></div>
+  <div class="actions"><button class="secondary" id="tsImport">استيراد الأيام من القيود الحالية</button><button id="tsSave">حفظ وتطبيق على القيود</button></div><div id="tsMsg"></div>`;
   document.querySelectorAll('[data-ts]').forEach(sel=>sel.onchange=()=>{document.querySelectorAll(`[data-td^="${sel.dataset.ts}|"]`).forEach(c=>c.disabled=sel.value==='regular')});
+  $('#tsImport').onclick=()=>{
+    let n=0;
+    for(const t of db.teachers){
+      const fb=fullBlockedDays(t.id);if(!fb.length)continue;
+      const sel=document.querySelector(`[data-ts="${t.id}"]`);if(sel.value!=='regular')continue;
+      sel.value='released';n++;
+      document.querySelectorAll(`[data-td^="${t.id}|"]`).forEach(c=>{c.disabled=false;c.checked=!fb.includes(c.dataset.td.split('|')[1])});
+    }
+    $('#tsMsg').innerHTML=`<div class="notice">حُدّد ${n} مدرس (الحالة «مفرّغ» مبدئياً — غيّرها إلى متعاقد عند الحاجة) من أيام الحجب الكامل في القيود. راجع ثم اضغط «حفظ».</div>`;
+  };
   $('#tsSave').onclick=()=>{
     const snap=structuredClone({s:db.teacherStatus||{},r:db.teacherRules});
     document.querySelectorAll('[data-ts]').forEach(sel=>{const s=tStatus(sel.dataset.ts);s.type=sel.value;s.days=[...document.querySelectorAll(`[data-td^="${sel.dataset.ts}|"]`)].filter(c=>c.checked).map(c=>c.dataset.td.split('|')[1])});
