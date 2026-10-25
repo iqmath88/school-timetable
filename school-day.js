@@ -154,6 +154,7 @@ function fullBlockedDays(tid){
   const r=db.teacherRules?.[tid];if(!r)return [];
   return db.days.filter(d=>d.active&&d.periods>0&&Array.from({length:d.periods},(_,i)=>i+1).every(p=>(r.unavailable?.[d.id]||[]).map(Number).includes(p))).map(d=>d.id);
 }
+function dayText(list,all){return list.length===all.length&&all.length?'كل الأيام':list.map(d=>d.name).join('، ')}
 function staffRows(){
   const days=db.days.filter(d=>d.active&&d.periods>0);
   return db.teachers.map(t=>{const st=tStatus(t.id);
@@ -161,17 +162,17 @@ function staffRows(){
     const teach=st.type==='regular'?days.filter(d=>!blocked.includes(d.id)):days.filter(d=>st.days.includes(d.id));
     const off=days.filter(d=>!teach.some(x=>x.id===d.id));
     const loads=db.timetable.filter(e=>e.teacherId===t.id).length||db.assignments.filter(a=>a.teacherId===t.id).reduce((n,a)=>n+(+a.weeklyPeriods||0),0);
-    return {name:t.name,spec:t.specialty||'',status:STATUS[st.type].replace(' (كل أيام الدوام)',''),teach:teach.map(d=>d.name).join('، '),off:off.map(d=>d.name).join('، ')||'—',load:loads};
+    return {name:t.name,spec:t.specialty||'',status:STATUS[st.type].replace(' (كل أيام الدوام)',''),teach:dayText(teach,days),off:off.map(d=>d.name).join('، ')||'—',load:loads};
   });
 }
 function printStaff(){
   const rows=staffRows().map((r,i)=>`<tr><td class="n">${i+1}</td><td class="nm">${H(r.name)}</td><td>${H(r.spec)}</td><td><span class="st st-${r.status==='ملاك'?'a':r.status==='مفرّغ'?'b':'c'}">${H(r.status)}</span></td><td class="dy">${H(r.teach)}</td><td class="off">${H(r.off)}</td><td class="n">${r.load}</td></tr>`).join('');
   const logo=db.printSettings?.logo?`<img src="${db.printSettings.logo}" style="height:18mm">`:'';
-  openPrint(`<div class="hd">${logo}<div><h1>${H(db.school.name||'المدرسة')}</h1><h2>كشف الكادر التدريسي وحالة الدوام</h2></div><span class="yr">${H(db.school.year||'')}</span></div><table class="bt"><colgroup><col style="width:5%"><col style="width:22%"><col style="width:14%"><col style="width:9%"><col style="width:30%"><col style="width:12%"><col style="width:8%"></colgroup><thead><tr><th>ت</th><th>الاسم</th><th>التخصص</th><th>الحالة</th><th>أيام التدريس</th><th>يوم التفرغ</th><th>الحصص</th></tr></thead><tbody>${rows}</tbody></table>`,
+  openPrint(`<div class="hd">${logo}<div><h1>${H(db.school.name||'المدرسة')}</h1><h2>كشف الكادر التدريسي وحالة الدوام</h2></div><span class="yr">${H(db.school.year||'')}</span></div><table class="bt"><colgroup><col style="width:5%"><col style="width:19%"><col style="width:12%"><col style="width:9%"><col style="width:33%"><col style="width:12%"><col style="width:8%"></colgroup><thead><tr><th>ت</th><th>الاسم</th><th>التخصص</th><th>الحالة</th><th>أيام التدريس</th><th>يوم التفرغ</th><th>الحصص</th></tr></thead><tbody>${rows}</tbody></table>`,
    `*{-webkit-print-color-adjust:exact;print-color-adjust:exact}.hd{display:flex;align-items:center;gap:14px;border-bottom:2px solid #7B1E3A;padding-bottom:6px;margin-bottom:8px}.hd h1{font-size:17pt;color:#561228}.hd h2{font-size:12pt;font-weight:600;color:#444}.yr{margin-inline-start:auto;font-size:11pt;color:#555}
-.bt{width:100%;table-layout:fixed;font-size:10.5pt}.bt thead{display:table-header-group}.bt tr{break-inside:avoid;page-break-inside:avoid}
-.bt th{background:#561228;color:#fff;padding:6px 4px;border:1px solid #561228;font-size:10.5pt}.bt td{border:1px solid #cfc3b8;padding:4px 6px;text-align:center;vertical-align:middle;height:8.2mm}
-.bt tbody tr:nth-child(even) td{background:#f7f1ea}.bt td.nm{text-align:right;font-weight:600}.bt td.dy{font-size:9.5pt}.bt td.off{font-weight:700;color:#561228}.bt td.n{width:1%}
+.bt{width:98%;margin:0 auto;table-layout:fixed;font-size:10pt}html,body{margin:0;padding:0;width:100%}body{padding:0 2mm;box-sizing:border-box}.bt thead{display:table-header-group}.bt tr{break-inside:avoid;page-break-inside:avoid}
+.bt th{background:#561228;color:#fff;padding:6px 2px;border:1px solid #561228;font-size:10pt;white-space:nowrap}.bt td{border:1px solid #cfc3b8;padding:4px 6px;text-align:center;vertical-align:middle;height:8.2mm}
+.bt tbody tr:nth-child(even) td{background:#f7f1ea}.bt td.nm{text-align:right;font-weight:600}.bt td.dy{font-size:9pt;white-space:nowrap}.bt td.off{font-weight:700;color:#561228}.bt td.n{width:1%}
 .st{display:inline-block;padding:1px 8px;border-radius:9px;font-size:9.5pt;font-weight:700}.st-a{background:#e5efe8;color:#245a3f}.st-b{background:#f4e3e8;color:#7B1E3A}.st-c{background:#f6ead2;color:#7a5410}
 @page{margin:10mm 10mm 12mm}`,'landscape');
 }
