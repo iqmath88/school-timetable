@@ -3,7 +3,7 @@
 (function(){
 'use strict';
 const VER='0925st';
-const SCRIPTS=['excel-export.js','word-export.js','excel-import.js','app.js','school-day.js','identity.js','manual-editor.js','storage-ui.js','ui-enhancements.js','cloud-config.js','cloud.js'];
+const SCRIPTS=['excel-export.js','word-export.js','excel-import.js','app.js','school-day.js','identity.js','output-identity.js','manual-editor.js','storage-ui.js','ui-enhancements.js','cloud-config.js','cloud.js'];
 const DB_NAME='masar-store',STORE='kv';
 const cache=new Map();let idb=null,mode='localStorage',listeners=[],lastError=null,pending=0;
 const ls=(()=>{try{return window.localStorage}catch(e){return null}})();
