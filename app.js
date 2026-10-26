@@ -1,24 +1,24 @@
-const APP_VERSION='0.9.24.0-manual-edit-full';
+const APP_VERSION='0.9.25.0-idb-storage';
 const KEY='school-timetable-v01';
 const stageDefaults=[['الأول',1,'#587B9B'],['الثاني',2,'#6F8F72'],['الثالث',3,'#9A7B60'],['الرابع',4,'#7D7398'],['الخامس',5,'#A16F78'],['السادس',6,'#557F83']];
 const defaultDays=[['الأحد',7,true],['الاثنين',7,true],['الثلاثاء',6,true],['الأربعاء',7,true],['الخميس',5,true],['الجمعة',0,false],['السبت',0,false]];
 const seed=()=>({version:APP_VERSION,school:{name:'',year:'2026-2027',type:'secondary'},days:defaultDays.map((x,i)=>({id:'d'+i,name:x[0],periods:x[1],active:x[2],order:i+1})),stages:stageDefaults.map(x=>({id:'g'+x[1],name:x[0],order:x[1],color:x[2]})),sections:[],subjects:[],teachers:[],assignments:[],teacherRules:{},fixedLessons:[],timetable:[],manualHistory:[],stageLoads:{},stageDayPeriods:{},subjectRules:{},advancedRules:[],printSettings:{title:'جدول الحصص الأسبوعية',startDate:'',changeReasons:'',footer:'',showColors:true,printMode:'color',theme:'formal',logo:'',logoPosition:'center',showTeachers:true,showNotes:true,showSignatures:true,density:'compact',signature1:'منظّم الجدول',signature2:'معاون المدير',signature3:'مدير المدرسة'}});
 function migrate(x){x=x||seed();for(const k of ['days','stages','sections','subjects','teachers','assignments','fixedLessons','timetable','advancedRules'])if(x[k]!==undefined&&!Array.isArray(x[k]))throw Error('بنية غير صالحة: '+k);const okColor=c=>/^#[0-9a-f]{3,8}$/i.test(String(c||''));(x.stages||[]).forEach(g=>{g.name=String(g.name??'');if(!okColor(g.color))g.color='#587B9B'});(x.subjects||[]).forEach(u=>{u.name=String(u.name??'');if(!okColor(u.color))u.color='#DCE8F2'});(x.days||[]).forEach(d=>{d.name=String(d.name??'')});x.school=x.school||{};if(!['primary','secondary','middle','preparatory'].includes(x.school.type))x.school.type='secondary';x.version=APP_VERSION;x.teacherRules=x.teacherRules||{};x.fixedLessons=x.fixedLessons||[];x.timetable=x.timetable||[];x.stageLoads=x.stageLoads||{};x.stageDayPeriods=x.stageDayPeriods||{};x.subjectRules=x.subjectRules||{};x.advancedRules=x.advancedRules||[];x.printSettings={title:'جدول الحصص الأسبوعية',startDate:'',changeReasons:'',footer:'',showColors:true,printMode:'color',theme:'formal',logo:'',logoPosition:'center',showTeachers:true,showNotes:true,showSignatures:true,density:'compact',signature1:'منظّم الجدول',signature2:'معاون المدير',signature3:'مدير المدرسة',...(x.printSettings||{})};if(x.printSettings.logo&&!/^data:image\/(png|jpeg);base64,[A-Za-z0-9+\/=]+$/.test(x.printSettings.logo))x.printSettings.logo='';x.manualHistory=x.manualHistory||[];x.teachers=x.teachers||[];x.assignments=x.assignments||[];return x}
-function load(){try{return migrate(JSON.parse(localStorage.getItem(KEY)))}catch{return seed()}}
+function load(){try{return migrate(JSON.parse(MStore.getItem(KEY)))}catch{return seed()}}
 let db=load(),page='school';
 const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),uid=p=>p+'_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
-function save(){try{localStorage.setItem(KEY,JSON.stringify(db));const w=readWorkspaces();if(w.items.length>1){const active=w.items.find(x=>x.id===w.active);if(active){active.data=structuredClone(db);if(!writeWorkspaces(w))return false}}renderSummary();return true}catch(err){alert('فشل حفظ بيانات المدرسة على الجهاز. صدّر نسخة احتياطية الآن؛ لا تعتمد على استمرار هذه الجلسة.');return false}}
+function save(){try{MStore.setItem(KEY,JSON.stringify(db));const w=readWorkspaces();if(w.items.length>1){const active=w.items.find(x=>x.id===w.active);if(active){active.data=structuredClone(db);if(!writeWorkspaces(w))return false}}renderSummary();return true}catch(err){alert('فشل حفظ بيانات المدرسة على الجهاز. صدّر نسخة احتياطية الآن؛ لا تعتمد على استمرار هذه الجلسة.');return false}}
 // Every change that makes the generated timetable invalid goes through here: confirm, keep a recovery copy, then clear.
 function invalidateTimetable(reason){if(!Array.isArray(db.timetable)||!db.timetable.length)return true;if(!confirm('هذا التغيير سيمسح الجدول المولد ('+db.timetable.length+' حصة) ويلزم إعادة التوليد.\nسيُحفظ نسخة استرجاع قبل المسح. هل تريد المتابعة؟'))return false;if(!preserveTimetable(reason))return false;db.timetable=[];db.manualHistory=[];return true}
 // Keep a recoverable copy before every operation that could discard a generated timetable.
 const RECOVERY_KEY=KEY+'-recovery';
 function preserveTimetable(reason){
  if(!db)return true;
- try{localStorage.setItem(RECOVERY_KEY,JSON.stringify({savedAt:new Date().toISOString(),reason,data:db}));if(!snapshotState('تلقائية: '+reason,'before-change'))return false;return true}
+ try{MStore.setItem(RECOVERY_KEY,JSON.stringify({savedAt:new Date().toISOString(),reason,data:db}));if(!snapshotState('تلقائية: '+reason,'before-change'))return false;return true}
  catch(err){alert('تعذر حفظ نسخة الاسترجاع. صدّر نسخة احتياطية قبل المتابعة.');return false}
 }
 function downloadRecovery(){
- const raw=localStorage.getItem(RECOVERY_KEY);if(!raw)return alert('لا توجد نسخة استرجاع محفوظة على هذا الجهاز.');
+ const raw=MStore.getItem(RECOVERY_KEY);if(!raw)return alert('لا توجد نسخة استرجاع محفوظة على هذا الجهاز.');
  const obj=JSON.parse(raw),blob=new Blob([JSON.stringify(obj.data,null,2)],{type:'application/json'}),a=document.createElement('a');
  a.href=URL.createObjectURL(blob);a.download='masar-recovery-'+(obj.savedAt||'').slice(0,10)+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
 }
@@ -36,22 +36,22 @@ function downloadJsonData(data,filename){
 function exportSafeBackup(){
  const stamp=new Date().toISOString().replace(/[:.]/g,'-');
  downloadJsonData(db,'masar-backup-'+stamp+'.json');
- try{localStorage.setItem(BACKUP_DATE_KEY,new Date().toISOString());localStorage.removeItem(BACKUP_SNOOZE_KEY)}catch(e){}
+ try{MStore.setItem(BACKUP_DATE_KEY,new Date().toISOString());MStore.removeItem(BACKUP_SNOOZE_KEY)}catch(e){}
  if(page==='schoolSettings')schoolSettings();
 }
 function backupIsDue(){
  if(!db.sections.length&&!db.teachers.length&&!db.assignments.length)return false;
- let last;try{last=localStorage.getItem(BACKUP_DATE_KEY)}catch(e){}
+ let last;try{last=MStore.getItem(BACKUP_DATE_KEY)}catch(e){}
  return !last||Date.now()-new Date(last).getTime()>7*86400000;
 }
 function backupReminder(){
  if(!backupIsDue()||document.getElementById('masar-backup-reminder'))return;
- try{if(Date.now()-new Date(localStorage.getItem(BACKUP_SNOOZE_KEY)).getTime()<86400000)return}catch(e){}
+ try{if(Date.now()-new Date(MStore.getItem(BACKUP_SNOOZE_KEY)).getTime()<86400000)return}catch(e){}
  const n=document.createElement('div');n.id='masar-backup-reminder';n.className='backup-reminder';
  n.setAttribute('role','status');n.innerHTML='<div><strong>حماية بيانات المدرسة</strong><p>مرّ وقت على آخر تصدير احتياطي، أو لم يُصدّر ملف بعد. احتفظ بنسخة خارج المتصفح.</p></div><div class="backup-reminder-actions"><button type="button" id="backupReminderExport">تصدير نسخة الآن</button><button type="button" class="secondary" id="backupReminderLater">تذكيري غداً</button></div>';
  document.body.appendChild(n);
  n.querySelector('#backupReminderExport').onclick=()=>{exportSafeBackup();n.remove()};
- n.querySelector('#backupReminderLater').onclick=()=>{try{localStorage.setItem(BACKUP_SNOOZE_KEY,new Date().toISOString())}catch(e){}n.remove()};
+ n.querySelector('#backupReminderLater').onclick=()=>{try{MStore.setItem(BACKUP_SNOOZE_KEY,new Date().toISOString())}catch(e){}n.remove()};
 }
 async function requestPersistentStorage(){
  const status=document.getElementById('storageProtectionStatus');
@@ -71,17 +71,17 @@ async function showStorageProtection(){
 const SNAPSHOT_KEY=KEY+'-timetable-versions-v1';
 const SNAPSHOT_LIMIT=8;
 function readVersions(){
- try{const value=JSON.parse(localStorage.getItem(SNAPSHOT_KEY)||'[]');return Array.isArray(value)?value.filter(v=>v&&v.id&&v.data&&Array.isArray(v.data.timetable)):[]}
+ try{const value=JSON.parse(MStore.getItem(SNAPSHOT_KEY)||'[]');return Array.isArray(value)?value.filter(v=>v&&v.id&&v.data&&Array.isArray(v.data.timetable)):[]}
  catch(e){return []}
 }
 function snapshotState(label,reason='manual'){
  const current=readVersions(),record={
   id:uid('version'),label:String(label||'نسخة جدول').slice(0,100),
   createdAt:new Date().toISOString(),reason,lessonCount:db.timetable.length,
-  data:structuredClone(db)
+  data:(()=>{const c=structuredClone(db);if(c.printSettings)c.printSettings.logo='';return c})()
  };
  const next=[record,...current].slice(0,SNAPSHOT_LIMIT);
- try{localStorage.setItem(SNAPSHOT_KEY,JSON.stringify(next));return true}
+ try{MStore.setItem(SNAPSHOT_KEY,JSON.stringify(next));return true}
  catch(e){alert('تعذر حفظ نسخة الجدول: مساحة التخزين المحلية غير كافية. صدّر نسخة JSON إلى الملفات قبل المتابعة.');return false}
 }
 function timetableVersionDiff(a,b){
@@ -100,8 +100,8 @@ function timetableVersionDiff(a,b){
 }
 // Named independent workspaces; the active workspace remains in the original KEY for compatibility.
 const WORKSPACE_KEY=KEY+'-workspaces-v1';
-function readWorkspaces(){try{const v=JSON.parse(localStorage.getItem(WORKSPACE_KEY)||'null');return v&&Array.isArray(v.items)?v:{active:'main',items:[{id:'main',label:'الجدول الأساسي',data:null}]}}catch{return {active:'main',items:[{id:'main',label:'الجدول الأساسي',data:null}]}}}
-function writeWorkspaces(v){try{localStorage.setItem(WORKSPACE_KEY,JSON.stringify(v));return true}catch(e){alert('تعذر حفظ مساحة العمل. قد تكون مساحة Safari ممتلئة؛ صدّر نسخة JSON أولاً.');return false}}
+function readWorkspaces(){try{const v=JSON.parse(MStore.getItem(WORKSPACE_KEY)||'null');return v&&Array.isArray(v.items)?v:{active:'main',items:[{id:'main',label:'الجدول الأساسي',data:null}]}}catch{return {active:'main',items:[{id:'main',label:'الجدول الأساسي',data:null}]}}}
+function writeWorkspaces(v){try{MStore.setItem(WORKSPACE_KEY,JSON.stringify(v));return true}catch(e){alert('تعذر حفظ مساحة العمل. قد تكون مساحة Safari ممتلئة؛ صدّر نسخة JSON أولاً.');return false}}
 function workspaceUI(){const v=readWorkspaces();return `<section class="backup-protection glass-surface" id="workspacesPanel"><h3>مساحات عمل الجداول المستقلة</h3><p>أنشئ نسخة تجريبية مستقلة، وغيّر حصصها وتكليفاتها دون تعديل النسخة الأصلية. التبديل يحفظ الحالية أولاً؛ يُنصح بتصدير نسخ JSON خارج Safari.</p><div class="actions"><button type="button" id="duplicateWorkspace">إنشاء نسخة من الجدول الحالي</button><button type="button" class="secondary" id="saveWorkspaceNow">حفظ مساحة العمل الحالية</button></div><div class="versions-list">${v.items.map(w=>`<article class="version-item"><strong>${esc(w.label)}</strong> ${w.id===v.active?'— النشطة':''}<small> · ${w.id===v.active?db.timetable.length:(w.data?.timetable?.length||0)} حصة</small><div class="actions">${w.id!==v.active?`<button class="secondary" data-switch-workspace="${esc(w.id)}">فتح النسخة</button>`:''}<button class="secondary" data-export-workspace="${esc(w.id)}">تصدير JSON</button>${w.id!=='main'&&w.id!==v.active?`<button class="danger" data-delete-workspace="${esc(w.id)}">حذف</button>`:''}</div></article>`).join('')}</div></section>`}
 function wireWorkspaces(){const create=document.getElementById('duplicateWorkspace');if(!create)return;
  create.onclick=()=>{const label=prompt('اسم نسخة العمل الجديدة','نسخة تجريبية');if(label===null)return;const v=readWorkspaces();if(v.items.length>=5)return alert('الحد الحالي خمس مساحات عمل؛ صدّر نسخة قبل حذف غير الضروري.');const id=uid('workspace');const next=structuredClone(v);next.items.find(w=>w.id===next.active).data=structuredClone(db);next.items.push({id,label:label.trim().slice(0,80)||'نسخة جديدة',data:structuredClone(db)});next.active=id;if(!writeWorkspaces(next))return;schoolSettings();alert('تم إنشاء نسخة مستقلة وتفعيلها. عدّل خطة الحصص في هذه النسخة فقط.');};
@@ -124,7 +124,7 @@ function wireVersions(){
   const list=readVersions();if(!list.length)return alert('لا توجد نسخ محفوظة.');
   downloadJsonData({type:'masar-version-history',version:1,exportedAt:new Date().toISOString(),versions:list},'masar-timetable-versions-'+new Date().toISOString().slice(0,10)+'.json');
  };
- document.querySelectorAll('.version-item').forEach(row=>{
+ document.querySelectorAll('.version-item[data-version]').forEach(row=>{
   const id=row.dataset.version;
   const get=()=>readVersions().find(v=>v.id===id);
   row.querySelector('.version-compare').onclick=()=>{
@@ -139,19 +139,19 @@ function wireVersions(){
    if(!confirm(`استعادة "${v.label}"؟ ستستبدل جميع بيانات المدرسة الحالية، وليس الجدول فقط. سنحفظ نسخة من الوضع الحالي قبل الاستعادة.`))return;
    if(!snapshotState('قبل استعادة '+v.label,'before-restore'))return;
    const previous=db;
-   try{db=migrate(structuredClone(v.data));if(!save()){db=previous;return}schoolSettings();alert('تمت الاستعادة. يُنصح بتصدير نسخة احتياطية خارج المتصفح.')}
+   try{db=migrate(structuredClone(v.data));if(!db.printSettings.logo&&previous&&previous.printSettings)db.printSettings.logo=previous.printSettings.logo||'';if(!save()){db=previous;return}schoolSettings();alert('تمت الاستعادة. يُنصح بتصدير نسخة احتياطية خارج المتصفح.')}
    catch(e){db=previous;alert('تعذرت الاستعادة: '+String(e))}
   };
   row.querySelector('.version-delete').onclick=()=>{
    const v=get();if(!v||!confirm('حذف النسخة "'+v.label+'" نهائياً من هذا المتصفح؟'))return;
-   try{localStorage.setItem(SNAPSHOT_KEY,JSON.stringify(readVersions().filter(x=>x.id!==id)));schoolSettings()}
+   try{MStore.setItem(SNAPSHOT_KEY,JSON.stringify(readVersions().filter(x=>x.id!==id)));schoolSettings()}
    catch(e){alert('تعذر حذف النسخة: '+String(e))}
   };
  });
 }
 
 function backupProtectionUI(){
- const last=(()=>{try{return localStorage.getItem(BACKUP_DATE_KEY)}catch(e){return null}})();
+ const last=(()=>{try{return MStore.getItem(BACKUP_DATE_KEY)}catch(e){return null}})();
  return `<section class="backup-protection glass-surface"><h3>حماية بيانات المدرسة</h3><p>يُحفظ العمل في هذا المتصفح. حذف بيانات Safari أو تبديل الجهاز قد يفقد النسخة المحلية؛ احفظ ملف JSON خارج الجهاز بانتظام.</p><p><strong>آخر تصدير بدأ من التطبيق:</strong> ${last?esc(new Date(last).toLocaleString('ar-IQ')):'لا يوجد تصدير مسجل'}</p><p class="backup-disclaimer">التاريخ يعني بدء تنزيل الملف، وليس تأكيد حفظه في «الملفات» أو iCloud.</p><div class="actions"><button type="button" id="backupNow">تصدير نسخة مؤرخة</button><button type="button" class="secondary" id="storagePersist">طلب تخزين دائم</button></div><p id="storageProtectionStatus" role="status"></p></section>`;
 }
 function wireBackupProtection(){
@@ -442,9 +442,9 @@ function auditRows(){
 function matrix(){
  const stages=[...db.stages].sort((a,b)=>a.order-b.order),secs=[...db.sections].sort((a,b)=>{const x=stages.findIndex(g=>g.id===a.stageId),y=stages.findIndex(g=>g.id===b.stageId);return x-y||(a.order||0)-(b.order||0)});
  const subs=db.subjects,expected=db.assignments.reduce((n,a)=>n+Math.max(0,+a.weeklyPeriods||0),0);
- const savedSize=localStorage.getItem('masar-matrix-size')||'medium',size=['compact','medium','large'].includes(savedSize)?savedSize:'medium';
- const selectedStage=localStorage.getItem('masar-matrix-stage')||'all',stage=selectedStage==='all'||stages.some(g=>g.id===selectedStage)?selectedStage:'all';
- const selectedSection=localStorage.getItem('masar-matrix-section')||'all';
+ const savedSize=MStore.getItem('masar-matrix-size')||'medium',size=['compact','medium','large'].includes(savedSize)?savedSize:'medium';
+ const selectedStage=MStore.getItem('masar-matrix-stage')||'all',stage=selectedStage==='all'||stages.some(g=>g.id===selectedStage)?selectedStage:'all';
+ const selectedSection=MStore.getItem('masar-matrix-section')||'all';
  const stageSecs=secs.filter(x=>stage==='all'||x.stageId===stage),section=selectedSection==='all'||stageSecs.some(x=>x.id===selectedSection)?selectedSection:'all';
  const visible=stageSecs.filter(x=>section==='all'||x.id===section);
  const cols=visible.map(sec=>{const as=db.assignments.filter(a=>a.sectionId===sec.id);return {sec,as,total:as.reduce((n,a)=>n+(+a.weeklyPeriods||0),0),capacity:dayCapacity(sec)}});
@@ -455,9 +455,9 @@ function matrix(){
  <div class="matrix-kpis"><div>الشعب المعروضة <b>${cols.length} / ${secs.length}</b></div><div>المواد <b>${subs.length}</b></div><div>الحصص المكلفة <b>${expected}</b></div><div>تجاوز السعة <b>${mismatch}</b></div></div>
  <div class="tt-wrap matrix-scroll matrix-size-${size}" tabindex="0" aria-label="مصفوفة توزيع الحصص، مرر أفقياً لعرض باقي الشعب"><table class="matrix-table"><thead><tr><th>المادة / الشعبة</th>${cols.map(c=>`<th style="border-top:4px solid ${esc(stages.find(g=>g.id===c.sec.stageId)?.color||'#496e87')}">${esc(stages.find(g=>g.id===c.sec.stageId)?.name||'')}<small>${esc(c.sec.name)}</small></th>`).join('')}</tr></thead><tbody>${subs.map(sub=>`<tr><th>${esc(sub.name)}</th>${cols.map(c=>{const a=c.as.filter(x=>x.subjectId===sub.id),n=a.reduce((v,x)=>v+(+x.weeklyPeriods||0),0),planned=loadFor(c.sec.stageId,sub.id),bad=planned>0&&n!==planned;return `<td class="${bad?'matrix-alert':n?'matrix-set':''}"><button type="button" class="matrix-cell" data-sub="${esc(sub.id)}" data-sec="${esc(c.sec.id)}" aria-label="${esc(sub.name)}، ${esc(c.sec.name)}، المكلف ${n} والمخطط ${planned}">${n||'—'}${bad?'<span class="matrix-mark">!</span>':''}</button></td>`}).join('')}</tr>`).join('')}<tr class="matrix-total"><th>المجموع / السعة</th>${cols.map(c=>`<td class="${c.total>c.capacity?'matrix-alert':''}">${c.total} / ${c.capacity}</td>`).join('')}</tr></tbody></table></div><div id="matrixDetails" class="matrix-details" hidden aria-live="polite"></div><div class="notice">مطابقة أعداد الحصص لا تثبت إمكانية التوليد؛ يجب فحص قيود المدرسين وتدقيق الجدول النهائي.</div>`;
  $('#matrixAudit').onclick=()=>{page='audit';render()};$('#matrixDiagnose').onclick=()=>{page='feasibility';render()};
- $('#matrixStage').onchange=e=>{localStorage.setItem('masar-matrix-stage',e.target.value);localStorage.setItem('masar-matrix-section','all');matrix()};
- $('#matrixSection').onchange=e=>{localStorage.setItem('masar-matrix-section',e.target.value);matrix()};
- document.querySelectorAll('[data-matrix-size]').forEach(btn=>btn.onclick=()=>{localStorage.setItem('masar-matrix-size',btn.dataset.matrixSize);const wrap=document.querySelector('.matrix-scroll');wrap.classList.remove('matrix-size-compact','matrix-size-medium','matrix-size-large');wrap.classList.add('matrix-size-'+btn.dataset.matrixSize);document.querySelectorAll('[data-matrix-size]').forEach(b=>{const on=b===btn;b.classList.toggle('active',on);b.setAttribute('aria-pressed',String(on))})});
+ $('#matrixStage').onchange=e=>{MStore.setItem('masar-matrix-stage',e.target.value);MStore.setItem('masar-matrix-section','all');matrix()};
+ $('#matrixSection').onchange=e=>{MStore.setItem('masar-matrix-section',e.target.value);matrix()};
+ document.querySelectorAll('[data-matrix-size]').forEach(btn=>btn.onclick=()=>{MStore.setItem('masar-matrix-size',btn.dataset.matrixSize);const wrap=document.querySelector('.matrix-scroll');wrap.classList.remove('matrix-size-compact','matrix-size-medium','matrix-size-large');wrap.classList.add('matrix-size-'+btn.dataset.matrixSize);document.querySelectorAll('[data-matrix-size]').forEach(b=>{const on=b===btn;b.classList.toggle('active',on);b.setAttribute('aria-pressed',String(on))})});
  document.querySelectorAll('.matrix-cell').forEach(btn=>btn.onclick=()=>{const sub=db.subjects.find(x=>x.id===btn.dataset.sub),sec=db.sections.find(x=>x.id===btn.dataset.sec);if(!sub||!sec)return;const assignments=db.assignments.filter(a=>a.subjectId===sub.id&&a.sectionId===sec.id),planned=loadFor(sec.stageId,sub.id),actual=assignments.reduce((v,a)=>v+(+a.weeklyPeriods||0),0),details=$('#matrixDetails');details.hidden=false;details.innerHTML=`<div class="matrix-detail-head"><strong>${esc(sub.name)} — ${esc(stages.find(g=>g.id===sec.stageId)?.name||'')} / ${esc(sec.name)}</strong><button type="button" id="matrixCloseDetails" class="secondary">إغلاق ×</button></div><p>المخطط: <b>${planned}</b> | المكلف: <b>${actual}</b> | الفرق: <b>${actual-planned}</b></p>${assignments.length?`<ul>${assignments.map(a=>`<li>${esc(db.teachers.find(t=>t.id===a.teacherId)?.name||'مدرس غير معروف')} — ${+a.weeklyPeriods||0} حصة</li>`).join('')}</ul>`:'<p>لا توجد تكليفات لهذه المادة في هذه الشعبة.</p>'}<button type="button" id="matrixGoAssignments">فتح إدارة التكليفات</button>`;$('#matrixCloseDetails').onclick=()=>details.hidden=true;$('#matrixGoAssignments').onclick=()=>{page='assignments';render()};details.scrollIntoView({block:'nearest',behavior:'smooth'})});
 }
 function audit(){
