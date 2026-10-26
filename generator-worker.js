@@ -10,8 +10,8 @@ self.onmessage=async e=>{if(e.data.type!=='start')return;const diag=!!e.data.dia
    const m=await mipSolve(e.data.db,left,x=>self.postMessage(x));
    if(m.ok){const chk=validateExistingSchedule({...e.data.db,timetable:m.entries});
     if(chk.ok)res={ok:true,entries:m.entries,nodes:0,bestDepth:m.entries.length,total:m.entries.length,engine:'mip',message:`تم توليد ${m.entries.length} حصة بالمحرك الرياضي الاحتياطي واجتاز الجدول فحصاً مستقلاً لجميع القيود.`};
-    else res.mipRejected=chk.reason}
-  }catch(err){res.mipError=String(err&&err.message||err)}
+    else{res.mipRejected=chk.reason;res.message=(res.message||'')+' | رفض الفحص نتيجة المحرك الاحتياطي: '+chk.reason}}else res.message=(res.message||'')+' | المحرك الاحتياطي لم يجد حلاً ('+(m.status||'؟')+')'
+  }catch(err){res.mipError=String(err&&err.message||err);res.message=(res.message||'')+' | تعذر تشغيل المحرك الاحتياطي: '+res.mipError+' — تأكد من رفع الملفات mip-engine.js وhighs-engine.js وhighs.wasm إلى نفس مجلد التطبيق.'}
  }
  self.postMessage({type:'result',result:res})}catch(err){self.postMessage({type:'result',result:{ok:false,reason:'exception',message:String(err.stack||err)}})}};
 

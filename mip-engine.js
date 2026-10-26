@@ -4,7 +4,7 @@
 let __highsP=null;
 function loadHighs(){
  if(__highsP)return __highsP;
- __highsP=(async()=>{importScripts('vendor/highs.js');return await Module({locateFile:f=>'vendor/'+f})})();
+ __highsP=(async()=>{importScripts('highs-engine.js');return await Module({locateFile:f=>f})})();
  __highsP.catch(()=>{__highsP=null});
  return __highsP;
 }
