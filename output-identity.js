@@ -55,6 +55,14 @@ html,body{color:${C.ink}!important}
 .teacher-card:not(.tc-bw) .tc-reasons{border-top-color:${C.gold}!important}
 .teacher-card:not(.tc-bw) .tc-signatures b{color:${C.wine}!important}
 .teacher-card:not(.tc-bw) .tc-bottom{color:${C.muted}!important}
+.teacher-card{height:164mm!important;max-height:164mm!important;overflow:hidden!important;break-inside:avoid!important}
+.teacher-card .tc-head{min-height:26mm!important;padding:2mm 6mm!important}
+.teacher-card .tc-person{min-height:20mm!important;margin:2mm 0!important;padding:2mm 5mm!important}
+.teacher-card .tc-signatures{min-height:12mm!important;padding:1mm 0!important}
+.teacher-card .tc-signatures span{margin-top:2mm!important}
+.teacher-card .tc-reasons{min-height:8mm!important}
+.teacher-card .tc-table tbody tr{height:10.5mm!important}
+.teacher-card .tc-bottom .mo-mark svg{width:4.5mm!important;height:4.5mm!important}
 `;
 
 /* ملاءمة تلقائية للطباعة (Safari/iPad): منع التفاف الحصص وإبقاء كل مرحلة في صفحة واحدة */
