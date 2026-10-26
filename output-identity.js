@@ -56,7 +56,49 @@ html,body{color:${C.ink}!important}
 .teacher-card:not(.tc-bw) .tc-signatures b{color:${C.wine}!important}
 .teacher-card:not(.tc-bw) .tc-bottom{color:${C.muted}!important}
 `;
-window.MASAR_OUT={C,css:()=>CSS,mark};
+
+/* ملاءمة تلقائية للطباعة (Safari/iPad): منع التفاف الحصص وإبقاء كل مرحلة في صفحة واحدة */
+const FIT=`function masarFit(){
+ var st=document.createElement('style');st.textContent='.school-print-page table.compact-timetable td.lesson .lesson-inline b,.school-print-page table.compact-timetable td.lesson small,.school-print-page table.compact-timetable td.lesson .lesson-sep{font-size:var(--lf,12px)!important}.school-print-page table.compact-timetable td.lesson{white-space:nowrap!important}';document.head.appendChild(st);
+ var limit=Math.round(285*3.7795);
+ document.querySelectorAll('.school-print-page').forEach(function(sh){
+  var cells=[].slice.call(sh.querySelectorAll('td.lesson'));
+  function over(){for(var i=0;i<cells.length;i++){if(cells[i].scrollWidth>cells[i].clientWidth+1)return true}return false}
+  var size=12.4;sh.style.setProperty('--lf',size+'px');
+  while(over()&&size>6){size-=.25;sh.style.setProperty('--lf',size+'px')}
+  var rh=6.6;sh.style.setProperty('--row-h',rh+'mm');
+  var hd=document.documentElement.style;
+  while(sh.getBoundingClientRect().height>limit&&rh>4.2){rh-=.2;sh.style.setProperty('--row-h',rh+'mm')}
+ });
+}`;
+
+/* ===== هوية جدول الحصص على الشاشة + ألوان مراحل متناغمة ===== */
+const STAGE_PAL=['#7B1E3A','#B8893B','#2F6B66','#6F7A3A','#6A4C7D','#8A5A44'];
+window.MASAR_STAGE_PAL=STAGE_PAL;
+const SCREEN=`@media screen{
+.tt-wrap table.timetable{border-collapse:separate;border-spacing:0;background:#fff;border:1px solid ${C.line};border-radius:14px;overflow:hidden;box-shadow:0 8px 24px #4a142412}
+.tt-wrap table.timetable thead th{background:${C.wine}!important;color:#fff!important;border:0!important;border-inline-start:1px solid #ffffff26!important;font-weight:800}
+.tt-wrap table.timetable thead tr.section-names th{background:${C.tint}!important;color:${C.wine}!important;border-bottom:2px solid ${C.gold}!important;border-inline-start:1px solid ${C.line}!important}
+.tt-wrap table.timetable tbody th,.tt-wrap table.timetable tbody td{border-color:${C.line}!important}
+.tt-wrap table.timetable td.lesson{color:${C.ink};background-color:${C.tint2};}
+.tt-wrap table.timetable td.lesson b{color:${C.ink};font-weight:800}
+.tt-wrap table.timetable td.lesson small{color:${C.muted};font-weight:600}
+.tt-wrap table.timetable td.lesson .lesson-sep{display:none}
+.tt-wrap table.timetable .day-label,.tt-wrap table.timetable th.day-label{background:${C.wine2}!important;color:#fff!important}
+.tt-wrap table.timetable .period-number{background:${C.tint}!important;color:${C.wine}!important;font-weight:900}
+.tt-wrap table.timetable td:not(.lesson){background:#fff}
+}`;
+const stl=document.createElement('style');stl.id='mo-screen';stl.textContent=SCREEN;document.head.appendChild(stl);
+const otb=window.timetableTable;
+if(typeof otb==='function')window.timetableTable=function(){let h=otb.apply(this,arguments);
+ try{(db.stages||[]).slice().sort((a,b)=>(a.order||0)-(b.order||0)).forEach((g,i)=>{if(g.color){const re=new RegExp(g.color.replace(/[#.]/g,'\\$&'),'gi');h=h.replace(re,STAGE_PAL[i%STAGE_PAL.length])}})}catch(e){}
+ return h};
+window.MASAR_OUT={C,css:()=>CSS,mark,FIT};
+const OPEN=window.open;
+window.open=function(){const w=OPEN.apply(this,arguments);
+ try{if(w&&w.document&&!w.__masarFit){w.__masarFit=1;const dw=w.document.write.bind(w.document);
+  w.document.write=function(h){if(typeof h==='string'&&h.includes('school-print-page')&&h.includes('window.print()'))h=h.replace('<script>window.onload=()=>setTimeout(()=>window.print(),350)','<script>'+FIT+'window.onload=()=>setTimeout(()=>{try{masarFit()}catch(e){}window.print()},350)');return dw(h)}}}catch(e){}
+ return w};
 const wrap=(n)=>{const o=window[n];if(typeof o!=='function')return;window[n]=function(){return o.apply(this,arguments)+CSS}};
 wrap('premiumPrintCSS');wrap('premiumTeacherCSS');
 const oh=window.formalHeader;
