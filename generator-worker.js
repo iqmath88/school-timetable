@@ -1,5 +1,19 @@
 'use strict';
-self.onmessage=e=>{if(e.data.type!=='start')return;try{self.postMessage({type:'result',result:generate(e.data.db,e.data.deadlineMs,!!e.data.diagnosticOnly)})}catch(err){self.postMessage({type:'result',result:{ok:false,reason:'exception',message:String(err.stack||err)}})}};
+self.onmessage=async e=>{if(e.data.type!=='start')return;const diag=!!e.data.diagnosticOnly,limit=+e.data.deadlineMs||240000;try{
+ const dfsMs=(!diag&&limit>=60000)?Math.min(30000,Math.round(limit*0.25)):limit;
+ let res=generate(e.data.db,dfsMs,diag);
+ if(!diag&&!res.ok&&limit>=60000&&['time','exhausted','validation-mismatch'].includes(res.reason)){
+  const left=Math.max(10000,limit-dfsMs-5000);
+  try{
+   self.postMessage({type:'phase',phase:'البحث العادي لم ينجح؛ تشغيل المحرك الرياضي الاحتياطي'});
+   if(typeof mipSolve!=='function')importScripts('mip-engine.js?v=0.9.26.0');
+   const m=await mipSolve(e.data.db,left,x=>self.postMessage(x));
+   if(m.ok){const chk=validateExistingSchedule({...e.data.db,timetable:m.entries});
+    if(chk.ok)res={ok:true,entries:m.entries,nodes:0,bestDepth:m.entries.length,total:m.entries.length,engine:'mip',message:`تم توليد ${m.entries.length} حصة بالمحرك الرياضي الاحتياطي واجتاز الجدول فحصاً مستقلاً لجميع القيود.`};
+    else res.mipRejected=chk.reason}
+  }catch(err){res.mipError=String(err&&err.message||err)}
+ }
+ self.postMessage({type:'result',result:res})}catch(err){self.postMessage({type:'result',result:{ok:false,reason:'exception',message:String(err.stack||err)}})}};
 
 function advancedMatch(r,a,sec,dayId,p){
  if(r.dayId&&r.dayId!==dayId)return false;
@@ -190,7 +204,10 @@ function generate(db,limitMs,diagnosticOnly=false){
  const slots=[];for(let s=0;s<sections.length;s++)for(let d=0;d<D;d++)for(let p=1;p<=quota[s][d];p++)slots.push({s,d,p});
  const ordered=slots.map((x,i)=>({...x,idx:i})),assignmentBySection=sections.map((_,s)=>assignments.map((a,i)=>as[i]===s?i:-1).filter(i=>i>=0));
  let failed=false;
- function dfs(left){if(!left)return teacherDay.every((row,t)=>row.every(n=>!n||n>=minDaily[t]));if((++nodes&31)===0){if(Date.now()>deadline){stop='time';return false}if(nodes%2048===0)self.postMessage({type:'progress',nodes,bestDepth:best,placed:entries.length,total})}if(entries.length>best)best=entries.length;
+ const tAss=teachers.map(()=>[]);for(let i=0;i<A;i++)tAss[at[i]].push(i);
+ // قص مبكر للحد الأدنى اليومي: كل يوم فيه حصص أقل من الحد يحتاج حصصاً إضافية، فإن زاد المطلوب عن المتبقي للمدرس فالفرع مستحيل.
+ function minOk(t){let need=0;const row=teacherDay[t];for(let d=0;d<D;d++){const n=row[d];if(n>0&&n<minDaily[t])need+=minDaily[t]-n}if(!need)return true;let rem=0;for(const i of tAss[t])rem+=remaining[i];return need<=rem}
+ function dfs(left){if(!left)return teacherDay.every((row,t)=>row.every(n=>!n||n>=minDaily[t]));if(entries.length){const lt=at[entries[entries.length-1]._i];if(minDaily[lt]>1&&!minOk(lt)){deadEndTeacher++;return false}}if((++nodes&31)===0){if(Date.now()>deadline){stop='time';return false}if(nodes%2048===0)self.postMessage({type:'progress',nodes,bestDepth:best,placed:entries.length,total})}if(entries.length>best)best=entries.length;
  let chosen=null,choices=null;
  for(const sl of ordered){if(used[sl.s][sl.d].has(sl.p))continue;// MRV across all remaining slots: quota already guarantees a contiguous final day.
  const pinned=fixed.get(sl.s+'|'+sl.d+'|'+sl.p);const choicesHere=(pinned!==undefined?[pinned]:assignmentBySection[sl.s]).filter(i=>can(i,sl.d,sl.p,quota));
