@@ -1,4 +1,4 @@
-const APP_VERSION='0.9.28.1-teacher-cards';
+const APP_VERSION='0.9.29.0-pwa';
 const KEY='school-timetable-v01';
 const stageDefaults=[['الأول',1,'#587B9B'],['الثاني',2,'#6F8F72'],['الثالث',3,'#9A7B60'],['الرابع',4,'#7D7398'],['الخامس',5,'#A16F78'],['السادس',6,'#557F83']];
 const defaultDays=[['الأحد',7,true],['الاثنين',7,true],['الثلاثاء',6,true],['الأربعاء',7,true],['الخميس',5,true],['الجمعة',0,false],['السبت',0,false]];
@@ -1424,6 +1424,7 @@ function startGeneration(){
      else{const previous=db.timetable;db.manualHistory=[];db.timetable=result.entries.map((e,i)=>({...e,id:'ent_'+Date.now().toString(36)+'_'+i}));if(!save()){db.timetable=previous;result={ok:false,reason:'storage-failed',message:'لم يُحفظ الجدول الجديد بسبب خطأ في التخزين.'}}}}
    }
    window.generationReport={...result,seconds:((Date.now()-began)/1000).toFixed(1)};
+   if(!result.ok&&['exception','worker-error','validation-failed','storage-failed','backup-failed'].includes(result.reason)&&window.MasarLog)MasarLog.add('generate',result.reason+': '+String(result.message||'').slice(0,300));
    if(page==='generator')generator();
  };
  worker.onmessage=e=>{const data=e.data||{};lastUpdate=Date.now();if(data.type==='phase'){phase=data.phase||phase;return}if(data.type==='progress'){phase='البحث عن توزيع متوافق';lastProgress={nodes:data.nodes||0,bestDepth:data.bestDepth||0,total:data.total||0,placed:data.placed||0};return}if(data.type==='result')finish(data.result)};
