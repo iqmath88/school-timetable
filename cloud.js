@@ -1,40 +1,160 @@
-/* MASAR 0.9.19.0: explicit, isolated cloud account bridge. No secret keys in frontend. */
+/* مسار 0.9.30 — الحساب السحابي مع مزامنة تلقائية بين الأجهزة.
+   المبدأ: لا يُكتب فوق بيانات أحد بصمت. كل رفع مشروط برقم المراجعة (يرفضه الخادم إن تغيّرت السحابة)،
+   وكل استبدال محلي يسبقه نسخة أمان، والتعارض يُعرض عليك لتختار. لا مفاتيح سرية في المتصفح. */
 (()=>{'use strict';
-const cfg=window.MASAR_CLOUD_CONFIG||{},base=String(cfg.url||'').replace(/\/$/,''),key=String(cfg.anonKey||'');
+const M=window.MStore;
+const rd=k=>{try{return JSON.parse(M.getItem(k)||'null')}catch{return null}},wr=(k,v)=>{try{v==null?M.removeItem(k):M.setItem(k,JSON.stringify(v))}catch{}};
+const cfg0=window.MASAR_CLOUD_CONFIG||{},cfgS=rd('masar-cloud-cfg')||{};
+const base=String(cfg0.url||cfgS.url||'').replace(/\/$/,''),key=String(cfg0.anonKey||cfgS.anonKey||'');
 const configured=/^https:\/\/[^/]+\.supabase\.co$/.test(base)&&key.length>20;
-let session=null,school=null,revision=null,schools=[];
-const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const SK='masar-cloud-session-v1',YK='masar-sync-state';
+let session=rd(SK),sync=rd(YK)||{school:null,rev:null,hash:null,auto:true,last:0,name:'',role:''};
+let schools=[],status='off',statusMsg='',conflict=null,pushing=false,pulling=false,timer=null,applying=false,historyOK=true;
+const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const log=(k,m)=>{try{window.MasarLog&&MasarLog.add(k,m)}catch{}};
+const saveSync=()=>wr(YK,sync),persist=()=>wr(SK,session);
+const fnv=s=>{let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return (h>>>0).toString(36)+s.length.toString(36)};
+const bridge=()=>window.MASAR_CLOUD_BRIDGE;
+const hashNow=()=>fnv(JSON.stringify(bridge().exportData()));
+const canWrite=()=>sync.role==='owner'||sync.role==='admin';
+const active=()=>configured&&session&&sync.school&&sync.auto&&!conflict;
+
 const shell=document.createElement('div');shell.id='masar-cloud-panel';shell.hidden=true;document.body.appendChild(shell);
-const openBtn=document.createElement('button');openBtn.id='cloudOpen';openBtn.type='button';openBtn.textContent='☁ الحساب والمدارس';document.querySelector('.topbar')?.appendChild(openBtn);openBtn.onclick=show;
-const storeKey='masar-cloud-session-v1';try{session=JSON.parse(sessionStorage.getItem(storeKey)||'null')}catch{}
-const persist=()=>{if(session)sessionStorage.setItem(storeKey,JSON.stringify(session));else sessionStorage.removeItem(storeKey)};
+const openBtn=document.createElement('button');openBtn.id='cloudOpen';openBtn.type='button';document.querySelector('.topbar')?.appendChild(openBtn);openBtn.onclick=()=>show();
+const toast=(t,bad)=>{const d=document.createElement('div');d.setAttribute('role','status');d.style.cssText='position:fixed;inset-inline:12px;bottom:14px;z-index:10000;background:'+(bad?'#FFF1EF':'#FFFDF9')+';color:#2B1B22;border:1px solid #E3D7CA;border-top:3px solid '+(bad?'#B3261E':'#B8893B')+';border-radius:12px;box-shadow:0 10px 30px #4a142433;padding:10px 14px;font:14px/1.6 Tajawal,Tahoma,sans-serif;max-width:560px;margin-inline:auto';d.textContent=t;document.body.appendChild(d);setTimeout(()=>d.remove(),5200)};
+function setStatus(s,m=''){status=s;statusMsg=m;
+ const L={off:'☁ الحساب والمدارس',ok:'☁ متزامن ✓',busy:'☁ جارٍ المزامنة…',dirty:'☁ بانتظار الرفع',offline:'☁ غير متصل',conflict:'⚠ تعارض — اضغط للحل',err:'⚠ تعذرت المزامنة',login:'☁ سجّل الدخول',ro:'☁ قراءة فقط ✓'};
+ openBtn.textContent=L[s]||L.off;openBtn.dataset.sync=s;openBtn.title=m||'';
+ if(!shell.hidden&&shell.dataset.screen==='main')paintStatus()}
+function paintStatus(){const e=shell.querySelector('#syncLine');if(!e)return;const T={ok:'متزامن مع السحابة',busy:'جارٍ المزامنة…',dirty:'توجد تعديلات ستُرفع خلال لحظات',offline:'غير متصل — سترفع التعديلات عند عودة الاتصال',conflict:'تعارض: تغيّر الجدول من جهاز آخر',err:'تعذرت المزامنة',ro:'حسابك للقراءة فقط: تصلك التحديثات ولا ترفع',off:'غير مرتبط'};e.textContent=(T[status]||'')+(statusMsg?' — '+statusMsg:'')+(sync.last?' · آخر مزامنة '+new Date(sync.last).toLocaleTimeString('ar-IQ'):'')}
+
 async function req(path,method='GET',data,auth=true,extra={}){
  const headers={'apikey':key,'Content-Type':'application/json',...extra};if(auth&&session?.access_token)headers.Authorization='Bearer '+session.access_token;
- const res=await fetch(base+path,{method,headers,body:data===undefined?undefined:JSON.stringify(data)});const raw=await res.text();let val;try{val=raw?JSON.parse(raw):null}catch{val=raw}if(!res.ok)throw Error(val?.msg||val?.error_description||val?.message||val?.error||('HTTP '+res.status));return {value:val,headers:res.headers};
-}
+ const res=await fetch(base+path,{method,headers,body:data===undefined?undefined:JSON.stringify(data)});const raw=await res.text();let val;try{val=raw?JSON.parse(raw):null}catch{val=raw}
+ if(!res.ok)throw Error(val?.msg||val?.error_description||val?.message||val?.error||('HTTP '+res.status));return {value:val,headers:res.headers}}
 async function refresh(){if(!session?.refresh_token)throw Error('يرجى تسجيل الدخول');const r=await req('/auth/v1/token?grant_type=refresh_token','POST',{refresh_token:session.refresh_token},false);session=r.value;persist()}
-async function authed(path,method='GET',data,extra={}){try{return await req(path,method,data,true,extra)}catch(e){if(/JWT expired|invalid JWT|token is expired/i.test(e.message)&&session?.refresh_token){await refresh();return req(path,method,data,true,extra)}throw e}}
-function msg(t,bad=false){const e=shell.querySelector('#cloudMsg');if(e){e.className=bad?'error':'success';e.textContent=t}}
+async function authed(path,method='GET',data,extra={}){try{return await req(path,method,data,true,extra)}catch(e){
+ if(/JWT expired|invalid JWT|token is expired/i.test(e.message)&&session?.refresh_token){try{await refresh()}catch(e2){session=null;persist();setStatus('login');throw Error('انتهت الجلسة، سجّل الدخول من جديد')}return req(path,method,data,true,extra)}throw e}}
+const online=()=>navigator.onLine!==false;
+
+async function list(){const r=await authed('/rest/v1/school_members?select=school_id,role,schools(id,name)&order=created_at.asc');
+ schools=(r.value||[]).filter(x=>x.schools).map(x=>({id:x.school_id,name:x.schools.name,role:x.role}));
+ const cur=schools.find(x=>x.id===sync.school);if(cur){sync.role=cur.role;sync.name=cur.name;saveSync()}else if(sync.school&&schools.length&&online()){/* لم تعد عضواً */sync.school=null;sync.rev=null;sync.hash=null;saveSync()}}
+async function remoteMeta(){const r=await authed('/rest/v1/school_states?school_id=eq.'+encodeURIComponent(sync.school)+'&select=revision,updated_at');return r.value?.[0]||null}
+async function remoteFull(){const r=await authed('/rest/v1/school_states?school_id=eq.'+encodeURIComponent(sync.school)+'&select=payload,revision,updated_at');return r.value?.[0]||null}
+
+/* ---------- الرفع ---------- */
+function schedulePush(){if(applying||!active())return;if(!canWrite()){return}setStatus(online()?'dirty':'offline');clearTimeout(timer);timer=setTimeout(push,4000)}
+async function push(){
+ if(!active()||pushing||!canWrite())return;if(!online()){setStatus('offline');return}
+ const data=bridge().exportData(),h=fnv(JSON.stringify(data));if(h===sync.hash){setStatus('ok');return}
+ pushing=true;setStatus('busy');
+ try{const r=await authed('/rest/v1/rpc/save_masar_school_state','POST',{p_school_id:sync.school,p_expected_revision:sync.rev,p_payload:data});
+  sync.rev=r.value;sync.hash=h;sync.last=Date.now();saveSync();setStatus('ok')}
+ catch(e){if(/Revision conflict/i.test(e.message))await raiseConflict();else{setStatus(online()?'err':'offline',e.message);log('sync','push: '+e.message)}}
+ finally{pushing=false;if(active()&&canWrite()&&!conflict&&hashNow()!==sync.hash&&status==='ok')schedulePush()}}
+
+/* ---------- السحب ---------- */
+async function pull(){
+ if(!configured||!session||!sync.school||pulling||pushing||applying)return;if(!online()){if(sync.auto)setStatus('offline');return}
+ pulling=true;
+ try{const rem=await remoteMeta();if(!rem){if(canWrite())schedulePush();return}
+  if(rem.revision===sync.rev){if(canWrite()&&hashNow()!==sync.hash&&sync.auto&&!conflict)schedulePush();else if(!conflict)setStatus(canWrite()?'ok':'ro');return}
+  if(!sync.auto)return;
+  const dirty=sync.hash==null||hashNow()!==sync.hash;
+  if(!dirty||!canWrite()){await applyRemote(true)}else{conflict={rev:rem.revision};setStatus('conflict');showConflict()}}
+ catch(e){setStatus(online()?'err':'offline',e.message);log('sync','pull: '+e.message)}finally{pulling=false}}
+async function applyRemote(announce){
+ const rem=await remoteFull();if(!rem)throw Error('لا توجد بيانات سحابية');
+ applying=true;try{bridge().importData(rem.payload)}finally{applying=false}
+ sync.rev=rem.revision;sync.hash=hashNow();sync.last=Date.now();saveSync();conflict=null;setStatus(canWrite()?'ok':'ro');
+ if(announce)toast('حُدّث الجدول من السحابة (تعديل من جهاز آخر). حُفظت نسخة أمان من بياناتك السابقة.')}
+
+/* ---------- التعارض ---------- */
+async function raiseConflict(){try{const rem=await remoteMeta();conflict={rev:rem?rem.revision:null}}catch{conflict={rev:null}}setStatus('conflict');showConflict()}
+function ask(title,body,buttons){return new Promise(res=>{shell.hidden=false;shell.dataset.screen='ask';
+ shell.innerHTML=`<div class="cloud-card"><h2>${esc(title)}</h2><div>${body}</div><div class="actions">${buttons.map((b,i)=>`<button data-i="${i}" class="${b.cls||''}">${esc(b.t)}</button>`).join('')}</div></div>`;
+ shell.querySelectorAll('button[data-i]').forEach(b=>b.onclick=()=>res(+b.dataset.i))})}
+async function showConflict(){
+ const c=await ask('تعارض بين هذا الجهاز والسحابة','<p>تغيّر الجدول في السحابة من جهاز آخر، وفي هذا الجهاز تعديلات لم تُرفع بعد. لن يُكتب فوق أيٍّ منهما دون اختيارك.</p><p class="muted">اعتماد السحابة: تُحفظ نسخة من بيانات هذا الجهاز في «نسخ الجدول» قبل الاستبدال.<br>اعتماد نسختك: تحل محل السحابة (وتبقى نسخة السحابة السابقة في السجل السحابي إن فعّلت ملف الترقية).</p>',
+  [{t:'اعتماد نسخة السحابة',cls:''},{t:'اعتماد نسختي (استبدال السحابة)',cls:'secondary'},{t:'قرر لاحقاً',cls:'secondary'}]);
+ if(c===0){try{await applyRemote(false);toast('تم اعتماد نسخة السحابة.');shell.hidden=true}catch(e){toast(e.message,true);shell.hidden=true}}
+ else if(c===1){try{const rem=await remoteMeta();sync.rev=rem?rem.revision:null;conflict=null;saveSync();shell.hidden=true;await push();toast('اعتُمدت نسختك ورُفعت إلى السحابة.')}catch(e){toast(e.message,true);shell.hidden=true}}
+ else shell.hidden=true}
+
+/* ---------- الربط ---------- */
+async function linkSchool(id){
+ sync={...sync,school:id,rev:null,hash:null,auto:true};const s=schools.find(x=>x.id===id);sync.role=s?.role||'';sync.name=s?.name||'';saveSync();conflict=null;
+ let rem=null;try{rem=await remoteFull()}catch(e){toast(e.message,true);return}
+ const localHas=(()=>{const d=bridge().exportData();return (d.timetable||[]).length>0||(d.sections||[]).length>0||(d.teachers||[]).length>0})();
+ if(!rem){if(!canWrite()){toast('لا توجد بيانات سحابية بعد، وحسابك للقراءة فقط.',true);return}
+  const c=await ask('رفع بيانات هذا الجهاز','<p>المدرسة السحابية فارغة. سترفع بيانات هذا الجهاز لتصير هي الأصل، وتتزامن بقية الأجهزة معها.</p>',[{t:'رفع بيانات هذا الجهاز'},{t:'إلغاء',cls:'secondary'}]);
+  if(c!==0){sync.school=null;saveSync();shell.hidden=true;return}
+  shell.hidden=true;await push();return}
+ if(!localHas||!canWrite()){await applyRemote(false);toast('رُبط الجهاز وسُحبت بيانات المدرسة.');shell.hidden=true;return}
+ const c=await ask('أي نسخة تعتمد؟','<p>في السحابة بيانات لهذه المدرسة، وفي هذا الجهاز بيانات أيضاً. اختر الأصل؛ الأخرى لن تضيع: تُحفظ نسخة محلية قبل السحب، أو يبقى سجل سحابي قبل الرفع.</p>',[{t:'اعتماد بيانات السحابة'},{t:'اعتماد بيانات هذا الجهاز',cls:'secondary'},{t:'إلغاء الربط',cls:'secondary'}]);
+ if(c===0){await applyRemote(false);toast('رُبط الجهاز وسُحبت بيانات السحابة.');shell.hidden=true}
+ else if(c===1){sync.rev=rem.revision;saveSync();shell.hidden=true;await push();toast('رُفعت بيانات هذا الجهاز.')}
+ else{sync.school=null;sync.rev=null;sync.hash=null;saveSync();setStatus(session?'off':'login');shell.hidden=true}}
+function unlink(){sync={school:null,rev:null,hash:null,auto:true,last:0,name:'',role:''};conflict=null;saveSync();setStatus(session?'off':'login')}
+
+/* ---------- السجل السحابي ---------- */
+async function showHistory(){
+ let rows=[];try{const r=await authed('/rest/v1/school_state_history?school_id=eq.'+encodeURIComponent(sync.school)+'&select=id,revision,saved_at&order=revision.desc&limit=20');rows=r.value||[]}catch(e){historyOK=false;toast('السجل السحابي غير مفعّل: شغّل ملف SUPABASE_UPGRADE_0.9.30.sql',true);return}
+ shell.dataset.screen='hist';
+ shell.innerHTML=`<div class="cloud-card"><h2>نسخ سحابية سابقة</h2><p class="muted">كل مرة تُستبدل فيها نسخة السحابة تُحفظ السابقة هنا (آخر 20). الاستعادة تسحبها إلى هذا الجهاز بعد حفظ نسخة أمان.</p>${rows.length?`<div style="max-height:46vh;overflow:auto">${rows.map(r=>`<div class="actions" style="justify-content:space-between"><span>مراجعة ${esc(r.revision)} — ${esc(new Date(r.saved_at).toLocaleString('ar-IQ'))}</span><button class="secondary" data-h="${esc(r.id)}">استعادة</button></div>`).join('')}</div>`:'<div class="notice">لا توجد نسخ سابقة بعد.</div>'}<div class="actions"><button id="hBack" class="secondary">رجوع</button></div></div>`;
+ shell.querySelector('#hBack').onclick=()=>show();
+ shell.querySelectorAll('[data-h]').forEach(b=>b.onclick=async()=>{try{const r=await authed('/rest/v1/school_state_history?id=eq.'+encodeURIComponent(b.dataset.h)+'&select=payload');const p=r.value?.[0]?.payload;if(!p)throw Error('تعذر قراءة النسخة');if(!confirm('استعادة هذه النسخة؟ تُحفظ نسخة أمان من بياناتك الحالية أولاً، ثم تُرفع المستعادة كمراجعة جديدة.'))return;
+  applying=true;try{bridge().importData(p)}finally{applying=false}shell.hidden=true;await push();toast('تمت الاستعادة.')}catch(e){toast(e.message,true)}})}
+
+/* ---------- الواجهة ---------- */
 function show(){shell.hidden=false;draw()}
 function close(){shell.hidden=true}
-function draw(){if(!configured){shell.innerHTML=`<div class="cloud-card"><h2>إعداد منصة مسار السحابية</h2><p class="warning">لم يُربط التطبيق بمشروع Supabase بعد. أكمل إعداد <code>cloud-config.js</code> وشغّل ملف SQL المرفق. البيانات المحلية لم تتغير.</p><button id="cloudClose">إغلاق</button></div>`;shell.querySelector('#cloudClose').onclick=close;return}
+function msg(t,bad=false){const e=shell.querySelector('#cloudMsg');if(e){e.className=bad?'error':'success';e.textContent=t}}
+function draw(){
+ shell.dataset.screen='main';
+ if(!configured){shell.innerHTML=`<div class="cloud-card"><h2>ربط مسار بالسحابة</h2><p>أدخل بيانات مشروع Supabase (انظر CLOUD_SETUP.md). تُحفظ على هذا الجهاز فلا تضيع عند تحديث الملفات. استخدم المفتاح العام (anon/publishable) فقط، لا السري أبداً.</p><label>Project URL<input id="cfgUrl" dir="ltr" placeholder="https://xxxx.supabase.co"></label><label>المفتاح العام (anon / publishable)<input id="cfgKey" dir="ltr"></label><div class="actions"><button id="cfgSave">حفظ وإعادة التحميل</button><button id="cloudClose" class="secondary">إغلاق</button></div><p id="cloudMsg" role="status"></p></div>`;
+  shell.querySelector('#cloudClose').onclick=close;
+  shell.querySelector('#cfgSave').onclick=()=>{const u=shell.querySelector('#cfgUrl').value.trim().replace(/\/$/,''),k=shell.querySelector('#cfgKey').value.trim();if(!/^https:\/\/[^/]+\.supabase\.co$/.test(u)||k.length<20){msg('الرابط أو المفتاح غير صحيح',true);return}if(/service_role|sb_secret/i.test(k)){msg('هذا مفتاح سري! لا تضعه في المتصفح. استخدم المفتاح العام.',true);return}wr('masar-cloud-cfg',{url:u,anonKey:k});location.reload()};return}
  if(!session?.access_token){shell.innerHTML=`<div class="cloud-card"><h2>مسار — حساب المدرسة</h2><p>حساب لكل مستخدم وبيانات مستقلة لكل مدرسة. التسجيل يتطلب بريداً إلكترونياً.</p><label>البريد الإلكتروني<input id="cloudEmail" type="email" autocomplete="email"></label><label>كلمة المرور<input id="cloudPass" type="password" autocomplete="current-password" minlength="8"></label><div class="actions"><button id="cloudLogin">دخول</button><button id="cloudSignup">إنشاء حساب</button><button id="cloudReset" class="secondary">استعادة كلمة المرور</button><button id="cloudClose" class="secondary">متابعة محلياً</button></div><p id="cloudMsg" role="status"></p></div>`;
- const email=()=>shell.querySelector('#cloudEmail').value.trim(),password=()=>shell.querySelector('#cloudPass').value;
- shell.querySelector('#cloudClose').onclick=close;
- shell.querySelector('#cloudLogin').onclick=async()=>{try{const r=await req('/auth/v1/token?grant_type=password','POST',{email:email(),password:password()},false);session=r.value;persist();await list();draw()}catch(e){msg(e.message,true)}};
- shell.querySelector('#cloudSignup').onclick=async()=>{try{if(password().length<8)throw Error('كلمة المرور 8 أحرف على الأقل');await req('/auth/v1/signup','POST',{email:email(),password:password()},false);msg('تم إرسال طلب إنشاء الحساب. تحقق من البريد الإلكتروني لتأكيده ثم سجّل الدخول.')}catch(e){msg(e.message,true)}};
- shell.querySelector('#cloudReset').onclick=async()=>{try{await req('/auth/v1/recover','POST',{email:email()},false);msg('إذا كان البريد مسجلاً فستصلك رسالة استعادة كلمة المرور.')}catch(e){msg(e.message,true)}};return}
- shell.innerHTML=`<div class="cloud-card"><h2>☁ حساب مسار</h2><p>الحساب: ${esc(session.user?.email||'—')}</p><p class="warning">البيانات المحلية لا تُرفع تلقائياً. اختر مدرسة ثم استخدم الرفع أو التنزيل صراحةً. احفظ نسخة JSON قبل أي استبدال.</p><label>المدرسة السحابية<select id="cloudSchools"><option value="">— اختر مدرسة —</option>${schools.map(x=>`<option value="${esc(x.id)}" ${school===x.id?'selected':''}>${esc(x.name)} (${esc(x.role)})</option>`).join('')}</select></label><label>إنشاء مدرسة جديدة<input id="cloudNewSchool" maxlength="120" placeholder="اسم المدرسة"></label><div class="actions"><button id="cloudCreate">إنشاء مدرسة</button><button id="cloudUpload">رفع بيانات هذا الجهاز</button><button id="cloudDownload">تنزيل بيانات المدرسة</button><button id="cloudRefresh" class="secondary">تحديث القائمة</button><button id="cloudLogout" class="secondary">خروج</button><button id="cloudClose" class="secondary">إغلاق</button></div><p id="cloudMsg" role="status"></p></div>`;
- shell.querySelector('#cloudSchools').onchange=e=>{school=e.target.value||null;revision=null};shell.querySelector('#cloudClose').onclick=close;
- shell.querySelector('#cloudLogout').onclick=async()=>{try{await authed('/auth/v1/logout','POST',{})}catch{}session=null;school=null;revision=null;persist();draw()};
- shell.querySelector('#cloudRefresh').onclick=async()=>{try{await list();draw();msg('تم تحديث المدارس')}catch(e){msg(e.message,true)}};
- shell.querySelector('#cloudCreate').onclick=async()=>{try{const name=shell.querySelector('#cloudNewSchool').value.trim();if(name.length<2)throw Error('أدخل اسم مدرسة صحيحاً');const r=await authed('/rest/v1/rpc/create_masar_school','POST',{school_name:name});await list();school=r.value;draw();msg('تم إنشاء المدرسة بنجاح')}catch(e){msg(e.message,true)}};
- shell.querySelector('#cloudUpload').onclick=async()=>{try{if(!school)throw Error('اختر مدرسة أولاً');const data=window.MASAR_CLOUD_BRIDGE.exportData();if(!confirm('هل تريد رفع بيانات هذا الجهاز إلى المدرسة المختارة؟ سيُستبدل الجدول السحابي السابق إن وجد، ولن تتغير البيانات المحلية.'))return;
- // Compare-and-swap RPC: reject stale writes from another device.
- const r=await authed('/rest/v1/rpc/save_masar_school_state','POST',{p_school_id:school,p_expected_revision:revision,p_payload:data});revision=r.value;msg('تم الحفظ السحابي بنجاح. رقم المراجعة: '+revision)}catch(e){msg(e.message+' — حدّث/نزّل بيانات المدرسة قبل إعادة المحاولة.',true)}};
- shell.querySelector('#cloudDownload').onclick=async()=>{try{if(!school)throw Error('اختر مدرسة أولاً');const r=await authed('/rest/v1/school_states?school_id=eq.'+encodeURIComponent(school)+'&select=payload,revision');const item=r.value?.[0];if(!item)throw Error('لا توجد بيانات سحابية محفوظة لهذه المدرسة');if(!confirm('سيتم استبدال بيانات المدرسة المحلية ببيانات السحابة. صدّر نسخة JSON احتياطية أولاً. هل تريد المتابعة؟'))return;window.MASAR_CLOUD_BRIDGE.importData(item.payload);revision=item.revision;msg('تم تنزيل البيانات واستعادتها محلياً بنجاح')}catch(e){msg(e.message,true)}};
-}
-async function list(){const r=await authed('/rest/v1/school_members?select=school_id,role,schools(id,name)&order=created_at.asc');schools=(r.value||[]).filter(x=>x.schools).map(x=>({id:x.school_id,name:x.schools.name,role:x.role}));if(!schools.some(x=>x.id===school)){school=null;revision=null}}
-// Never load or overwrite a local timetable at startup.
-if(configured&&session?.access_token){list().catch(()=>{}).finally(()=>{});}
+  const email=()=>shell.querySelector('#cloudEmail').value.trim(),password=()=>shell.querySelector('#cloudPass').value;
+  shell.querySelector('#cloudClose').onclick=close;
+  shell.querySelector('#cloudLogin').onclick=async()=>{try{const r=await req('/auth/v1/token?grant_type=password','POST',{email:email(),password:password()},false);session=r.value;persist();await list();setStatus(sync.school?'busy':'off');draw();startLoop()}catch(e){msg(e.message,true)}};
+  shell.querySelector('#cloudSignup').onclick=async()=>{try{if(password().length<8)throw Error('كلمة المرور 8 أحرف على الأقل');await req('/auth/v1/signup','POST',{email:email(),password:password()},false);msg('تم إرسال طلب إنشاء الحساب. تحقق من البريد الإلكتروني لتأكيده ثم سجّل الدخول.')}catch(e){msg(e.message,true)}};
+  shell.querySelector('#cloudReset').onclick=async()=>{try{await req('/auth/v1/recover','POST',{email:email()},false);msg('إذا كان البريد مسجلاً فستصلك رسالة استعادة كلمة المرور.')}catch(e){msg(e.message,true)}};return}
+ const linked=!!sync.school;
+ shell.innerHTML=`<div class="cloud-card"><h2>☁ حساب مسار</h2><p>الحساب: ${esc(session.user?.email||'—')}</p>
+ ${linked?`<div class="notice"><b>${esc(sync.name||'المدرسة')}</b> (${esc(sync.role==='owner'?'مالك':sync.role==='admin'?'مشرف':'مدرس')})<br><span id="syncLine"></span></div>
+ <label><input type="checkbox" id="autoSync" ${sync.auto?'checked':''}> مزامنة تلقائية (رفع التعديلات وسحب تعديلات الأجهزة الأخرى)</label>
+ <div class="actions"><button id="syncNow">مزامنة الآن</button>${canWrite()?'<button id="histBtn" class="secondary">نسخ سحابية سابقة</button>':''}<button id="unlinkBtn" class="secondary">فك الربط</button></div>`
+ :`<p class="warning">هذا الجهاز غير مرتبط بمدرسة. اختر مدرسة ثم اربط الجهاز فتتزامن بياناته تلقائياً مع بقية أجهزتك.</p>
+ <label>المدرسة السحابية<select id="cloudSchools"><option value="">— اختر مدرسة —</option>${schools.map(x=>`<option value="${esc(x.id)}">${esc(x.name)} (${esc(x.role)})</option>`).join('')}</select></label>
+ <div class="actions"><button id="linkBtn">ربط هذا الجهاز بالمدرسة</button></div>
+ <label>إنشاء مدرسة جديدة<input id="cloudNewSchool" maxlength="120" placeholder="اسم المدرسة"></label><div class="actions"><button id="cloudCreate" class="secondary">إنشاء مدرسة</button><button id="cloudRefresh" class="secondary">تحديث القائمة</button></div>`}
+ <div class="actions"><button id="cloudLogout" class="secondary">خروج</button><button id="cloudClose" class="secondary">إغلاق</button></div><p id="cloudMsg" role="status"></p></div>`;
+ const $=s=>shell.querySelector(s);$('#cloudClose').onclick=close;
+ $('#cloudLogout').onclick=async()=>{try{await authed('/auth/v1/logout','POST',{})}catch{}session=null;persist();stopLoop();setStatus('login');draw()};
+ if(linked){paintStatus();
+  $('#autoSync').onchange=e=>{sync.auto=e.target.checked;saveSync();if(sync.auto){pull().then(push)}else setStatus('off','المزامنة التلقائية متوقفة')};
+  $('#syncNow').onclick=async()=>{await pull();await push();paintStatus()};
+  if($('#histBtn'))$('#histBtn').onclick=showHistory;
+  $('#unlinkBtn').onclick=()=>{if(confirm('فك الربط؟ تبقى بياناتك على هذا الجهاز كما هي، وتتوقف المزامنة.')){unlink();draw()}}}
+ else{
+  $('#linkBtn').onclick=async()=>{const id=$('#cloudSchools').value;if(!id){msg('اختر مدرسة أولاً',true);return}await linkSchool(id);startLoop();draw()};
+  $('#cloudRefresh').onclick=async()=>{try{await list();draw();msg('تم تحديث المدارس')}catch(e){msg(e.message,true)}};
+  $('#cloudCreate').onclick=async()=>{try{const name=$('#cloudNewSchool').value.trim();if(name.length<2)throw Error('أدخل اسم مدرسة صحيحاً');await authed('/rest/v1/rpc/create_masar_school','POST',{school_name:name});await list();draw();msg('تم إنشاء المدرسة. اخترها ثم اربط الجهاز.')}catch(e){msg(e.message,true)}}}}
+
+/* ---------- الحلقة ---------- */
+let loop=null;
+function startLoop(){if(loop||!configured)return;loop=setInterval(()=>{if(document.visibilityState==='visible'&&active())pull()},45000)}
+function stopLoop(){clearInterval(loop);loop=null}
+window.addEventListener('online',()=>{if(active())pull().then(push)});
+window.addEventListener('offline',()=>{if(active())setStatus('offline')});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&active())pull()});
+/* التقاط كل حفظ محلي */
+const origSave=window.save;
+if(typeof origSave==='function'){window.save=function(){const r=origSave.apply(this,arguments);try{if(r!==false)schedulePush()}catch(e){log('sync',e.message)}return r}}
+if(configured&&session?.access_token){list().catch(()=>{}).finally(()=>{setStatus(sync.school?(online()?'busy':'offline'):'off');if(sync.school){startLoop();setTimeout(()=>pull().then(push),1200)}})}
+else setStatus(configured?'login':'off');
+window.MASAR_SYNC={push,pull,state:()=>({status,sync,conflict}),hashNow};
 })();
