@@ -36,6 +36,7 @@ async function refresh(){if(!session?.refresh_token)throw Error('يرجى تسج
 async function authed(path,method='GET',data,extra={}){try{return await req(path,method,data,true,extra)}catch(e){
  if(/JWT expired|invalid JWT|token is expired/i.test(e.message)&&session?.refresh_token){try{await refresh()}catch(e2){session=null;persist();setStatus('login');throw Error('انتهت الجلسة، سجّل الدخول من جديد')}return req(path,method,data,true,extra)}throw e}}
 const online=()=>navigator.onLine!==false;
+const back=()=>encodeURIComponent(location.origin+location.pathname.replace(/[^/]*$/,''));
 
 async function list(){const r=await authed('/rest/v1/school_members?select=school_id,role,schools(id,name)&order=created_at.asc');
  schools=(r.value||[]).filter(x=>x.schools).map(x=>({id:x.school_id,name:x.schools.name,role:x.role}));
@@ -120,8 +121,8 @@ function draw(){
   const email=()=>shell.querySelector('#cloudEmail').value.trim(),password=()=>shell.querySelector('#cloudPass').value;
   shell.querySelector('#cloudClose').onclick=close;
   shell.querySelector('#cloudLogin').onclick=async()=>{try{const r=await req('/auth/v1/token?grant_type=password','POST',{email:email(),password:password()},false);session=r.value;persist();await list();setStatus(sync.school?'busy':'off');draw();startLoop()}catch(e){msg(e.message,true)}};
-  shell.querySelector('#cloudSignup').onclick=async()=>{try{if(password().length<8)throw Error('كلمة المرور 8 أحرف على الأقل');await req('/auth/v1/signup','POST',{email:email(),password:password()},false);msg('تم إرسال طلب إنشاء الحساب. تحقق من البريد الإلكتروني لتأكيده ثم سجّل الدخول.')}catch(e){msg(e.message,true)}};
-  shell.querySelector('#cloudReset').onclick=async()=>{try{await req('/auth/v1/recover','POST',{email:email()},false);msg('إذا كان البريد مسجلاً فستصلك رسالة استعادة كلمة المرور.')}catch(e){msg(e.message,true)}};return}
+  shell.querySelector('#cloudSignup').onclick=async()=>{try{if(password().length<8)throw Error('كلمة المرور 8 أحرف على الأقل');await req('/auth/v1/signup?redirect_to='+back(),'POST',{email:email(),password:password()},false);msg('تم إرسال طلب إنشاء الحساب. تحقق من البريد الإلكتروني لتأكيده ثم سجّل الدخول.')}catch(e){msg(e.message,true)}};
+  shell.querySelector('#cloudReset').onclick=async()=>{try{await req('/auth/v1/recover?redirect_to='+back(),'POST',{email:email()},false);msg('إذا كان البريد مسجلاً فستصلك رسالة استعادة كلمة المرور.')}catch(e){msg(e.message,true)}};return}
  const linked=!!sync.school;
  shell.innerHTML=`<div class="cloud-card"><h2>☁ حساب مسار</h2><p>الحساب: ${esc(session.user?.email||'—')}</p>
  ${linked?`<div class="notice"><b>${esc(sync.name||'المدرسة')}</b> (${esc(sync.role==='owner'?'مالك':sync.role==='admin'?'مشرف':'مدرس')})<br><span id="syncLine"></span></div>
