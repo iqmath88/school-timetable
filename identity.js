@@ -1,7 +1,7 @@
 /* هوية «مسار» — الشعار + إعادة ترتيب الصفحة الرئيسية (v0.9.22.0) */
 (function(){
 'use strict';
-const MARK=(size=44)=>`<svg class="masar-mark" width="${size}" height="${size}" viewBox="0 0 64 64" role="img" aria-label="شعار مسار"><defs><linearGradient id="mmG${size}" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#561228"/><stop offset="1" stop-color="#9B2C50"/></linearGradient></defs><rect x="2" y="2" width="60" height="60" rx="17" fill="url(#mmG${size})"/><g fill="none" stroke="#F6E7C8" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" opacity=".95"><path d="M16 46h10V34h10V22h12"/></g><g fill="#D7A94B"><circle cx="16" cy="46" r="4.2"/><circle cx="36" cy="34" r="4.2" fill="#F6E7C8"/><circle cx="48" cy="22" r="4.6"/></g></svg>`;
+const MARK=(size=44)=>`<svg class="masar-mark" width="${size}" height="${size}" viewBox="0 0 64 64" role="img" aria-label="شعار مسار"><defs><linearGradient id="mmG${size}" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#0F2A75"/><stop offset="1" stop-color="#3B6FE0"/></linearGradient></defs><rect x="2" y="2" width="60" height="60" rx="17" fill="url(#mmG${size})"/><g fill="none" stroke="#F3E6BF" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" opacity=".95"><path d="M16 46h10V34h10V22h12"/></g><g fill="#E3C46E"><circle cx="16" cy="46" r="4.2"/><circle cx="36" cy="34" r="4.2" fill="#F3E6BF"/><circle cx="48" cy="22" r="4.6"/></g></svg>`;
 window.MASAR_MARK=MARK;
 /* شعار الرأس + أيقونة التبويب */
 function brand(){

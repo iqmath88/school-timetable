@@ -1,5 +1,5 @@
 /* مسار — Service Worker: يعمل التطبيق بلا إنترنت. الشبكة أولاً (لتصل التحديثات فور رفعها) ثم النسخة المخزنة. */
-const V='masar-0.9.30.1';
+const V='masar-0.9.31.0';
 const FILES=[
   "./",
   "app.js",
@@ -11,6 +11,17 @@ const FILES=[
   "errorlog.js",
   "excel-export.js",
   "excel-import.js",
+  "font-messiri-ar-500.woff2",
+  "font-messiri-ar-700.woff2",
+  "font-messiri-la-500.woff2",
+  "font-messiri-la-700.woff2",
+  "font-plex-ar-400.woff2",
+  "font-plex-ar-500.woff2",
+  "font-plex-ar-700.woff2",
+  "font-plex-la-400.woff2",
+  "font-plex-la-500.woff2",
+  "font-plex-la-700.woff2",
+  "fonts.css",
   "generator-worker.js",
   "highs-engine.js",
   "highs.wasm",
