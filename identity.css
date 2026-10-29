@@ -180,3 +180,59 @@ button.secondary,.table-focus-toggle{background:rgba(255,255,255,.55)!important;
  .backup-reminder p{display:none}
  #pwaUpdate{padding:10px 12px!important}
 }
+
+/* ===== 0.9.31.3 — شريط سفلي + ضغط المحتوى + خطوط أوضح ===== */
+#mobileNav{display:none}
+@media screen and (max-width:780px){
+ body{padding-bottom:calc(66px + env(safe-area-inset-bottom))}
+ #mobileNav{display:grid;grid-template-columns:repeat(5,1fr);position:fixed;inset-inline:0;bottom:0;z-index:50;
+  background:linear-gradient(180deg,rgba(255,255,255,.86),rgba(240,245,253,.94));-webkit-backdrop-filter:blur(18px) saturate(1.6);backdrop-filter:blur(18px) saturate(1.6);
+  border-top:1px solid rgba(30,63,163,.18);box-shadow:0 -6px 22px rgba(10,31,77,.14);padding:6px 6px calc(6px + env(safe-area-inset-bottom))}
+ #mobileNav button{all:unset;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:50px;border-radius:14px;color:#5B6B8C;cursor:pointer;-webkit-tap-highlight-color:transparent}
+ #mobileNav .mn-i{font-size:20px;line-height:1}
+ #mobileNav .mn-t{font-size:12px;font-weight:700;line-height:1.2}
+ #mobileNav button.on{color:#0F2A75;background:linear-gradient(145deg,rgba(30,63,163,.14),rgba(200,162,74,.22));box-shadow:inset 0 0 0 1px rgba(30,63,163,.22)}
+ #mobileNav button:focus-visible{outline:2px solid #1E3FA3}
+ .glass-sidebar{bottom:76px!important;top:76px!important}
+ .sidebar-backdrop:not([hidden]){z-index:45}
+ .glass-sidebar{z-index:60!important}
+ .backup-reminder,div[id^="pwa"],div[role="status"][style*="z-index:10000"]{bottom:calc(72px + env(safe-area-inset-bottom))!important}
+ .topbar{transition:transform .22s ease}
+ .topbar.topbar-hidden{transform:translateY(-110%)}
+ /* ملخص المؤشرات يظهر في اللوحة فقط */
+ body:not(.dashboard-page) #mobileStatsToggle{display:none!important}
+ /* طيّ الفقرات الطويلة */
+ .m-clamp{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;position:relative;cursor:pointer}
+ .m-clamp:not(.m-open)::after{content:"المزيد ▾";position:absolute;inset-inline-start:0;bottom:0;padding:0 8px 0 14px;font-size:12px;font-weight:700;color:#1E3FA3;background:linear-gradient(90deg,rgba(255,255,255,0),#EAF1FC 40%)}
+ .m-clamp.m-open{display:block;overflow:visible}
+ /* خطوط أوضح */
+ .muted,.hint,.field label,.matrix-table th small,.lesson small,.live-free{font-size:13px!important}
+ .stat,.live-counter,th,td{font-size:13px}
+ .eyebrow,.badge,.tag{font-size:12px}
+ /* الدوام اليومي: كثافة أعلى */
+ .live-toolbar{grid-template-columns:1fr 1fr!important;gap:8px!important}
+ .live-counters{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:6px!important}
+ .live-counter{padding:9px 6px!important;font-size:12px!important;text-align:center;line-height:1.3}
+ .live-counter b{display:block;font-size:22px}
+ .live-sections{grid-template-columns:1fr 1fr!important;gap:8px!important}
+ .live-lesson{min-height:0!important;padding:9px 10px!important;border-radius:12px!important}
+ .live-section{font-size:13px;line-height:1.3}
+ .live-subject{margin-top:4px!important;font-size:14px}
+ .live-teacher{font-size:12.5px;color:#5B6B8C;line-height:1.3}
+ .live-list{display:grid!important;grid-template-columns:1fr 1fr;gap:6px!important}
+ .live-chip{padding:7px 8px!important;font-size:13px;line-height:1.3;min-width:0;overflow-wrap:anywhere}
+ .live-chip small{display:none}
+ .live-sections+h3,.live-list+h3{margin-top:16px!important}
+ /* لا نريد جدول فاصل يتجاوز العرض */
+ .tt-wrap{border-radius:12px}
+}
+@media screen and (max-width:780px){
+ .sd-now{padding:12px 14px!important;font-size:14px!important}
+ .sd-now b{display:block;font-size:17px!important;line-height:1.5!important;margin:4px 0 8px!important}
+ .sd-now .actions{margin-top:6px!important}
+ .backup-reminder{padding:8px 12px!important;gap:6px!important;border-radius:14px!important}
+ .backup-reminder strong{font-size:14px}
+ .backup-reminder button{min-height:38px!important;font-size:13px!important;padding:6px 10px!important}
+ .backup-reminder-actions{gap:6px!important}
+}
+@media screen and (max-width:780px){.live-counters>.live-counter{grid-column:auto!important}}
