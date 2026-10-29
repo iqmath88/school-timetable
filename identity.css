@@ -152,3 +152,31 @@ button.secondary,.table-focus-toggle{background:rgba(255,255,255,.55)!important;
 .side-link.selected,.side-group-trigger.group-active{background:linear-gradient(135deg,rgba(30,63,163,.22),rgba(200,162,74,.22))!important;border-color:rgba(30,63,163,.35)!important}
 .glass-icon{background:linear-gradient(145deg,rgba(255,255,255,.95),rgba(255,255,255,.6))!important;box-shadow:inset 0 1px 0 #fff,0 3px 8px rgba(15,42,117,.12)}
 }
+
+/* ===== 0.9.31.2 — تحسين الهاتف ===== */
+@media screen and (max-width:780px){
+ .topbar{grid-template-columns:44px minmax(0,1fr) 44px!important;row-gap:6px!important;padding:8px 12px 8px!important}
+ .topbar #exportBtn{grid-column:3!important;grid-row:1!important;width:44px!important;height:42px!important;min-height:0!important;padding:0!important}
+ .topbar #cloudOpen{grid-column:1/-1!important;grid-row:2!important;width:100%!important;min-height:34px!important;height:34px!important;padding:0 12px!important;display:flex!important;align-items:center!important;justify-content:center!important;writing-mode:horizontal-tb!important;white-space:nowrap!important;font-size:13px!important;border-radius:10px!important;margin:0!important}
+ .topbar .brand p{display:none}
+ .app-shell{padding:10px!important}
+ /* القائمة الجانبية: معتمة وواضحة على الهاتف */
+ .glass-sidebar{background:linear-gradient(180deg,#F7F9FE,#E9F0FC)!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important;overflow-y:auto!important;-webkit-overflow-scrolling:touch}
+ .glass-sidebar .side-link{min-height:44px}
+ /* رأس الصفحة وأزرار الأدوات */
+ .workspace-top{padding:10px 14px!important;gap:8px!important}
+ .workspace-top .eyebrow{display:none}
+ .workspace-top .table-focus-toggle{display:none!important}
+ .workspace-toolbar{display:grid!important;grid-template-columns:1fr 1fr;gap:8px!important;align-items:stretch!important}
+ .workspace-toolbar>*{width:auto!important;min-width:0!important}
+ .workspace-toolbar>.field{grid-column:1/-1}
+ .workspace-toolbar button{font-size:13px!important;padding:8px 6px!important;min-height:44px;line-height:1.35;white-space:normal}
+ .workspace-toolbar .problems-btn{grid-column:1/-1;order:-1}
+ .workspace-toolbar>.field{order:-2}
+ .panel{padding:12px!important;border-radius:16px!important}
+ /* الإشعارات السفلية لا تتداخل */
+ body:has(#pwaUpdate) .backup-reminder{display:none!important}
+ .backup-reminder{padding:10px 12px!important;gap:8px!important}
+ .backup-reminder p{display:none}
+ #pwaUpdate{padding:10px 12px!important}
+}
