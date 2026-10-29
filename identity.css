@@ -236,3 +236,16 @@ button.secondary,.table-focus-toggle{background:rgba(255,255,255,.55)!important;
  .backup-reminder-actions{gap:6px!important}
 }
 @media screen and (max-width:780px){.live-counters>.live-counter{grid-column:auto!important}}
+
+/* ===== 0.9.32 — وضع القراءة (دور مدرس) ===== */
+body.role-ro #ttWorkspaceView td{pointer-events:none}
+body.role-ro #ttWorkspaceView .tt-wrap{pointer-events:auto}
+body.role-ro #exportBtn{display:none!important}
+
+/* لوحة الأعضاء */
+.m-list{max-height:40vh;overflow:auto;display:grid;gap:8px;margin:8px 0}
+.m-list .notice{margin:0;padding:10px 12px}
+.m-row{margin-top:6px!important;gap:6px!important;flex-wrap:wrap}
+.m-row select{flex:1 1 120px;min-width:0;min-height:40px}
+.m-row button{flex:0 0 auto;min-height:40px;padding:6px 12px}
+body:has(#masar-cloud-panel:not([hidden])) .backup-reminder,body:has(#masar-cloud-panel:not([hidden])) div[id^="pwa"]{display:none!important}

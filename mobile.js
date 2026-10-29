@@ -10,6 +10,7 @@ function build(){
  document.body.appendChild(bar);
  bar.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const id=b.dataset.mn;
   if(id==='__more'){const t=document.getElementById('menuToggle');if(t)t.click();return}
+  if(id==='__mine'){window.__roMine=true;let ok=false;try{ok=window.MASAR_MY_TIMETABLE&&MASAR_MY_TIMETABLE()}catch(_){}if(!ok){try{page='workspaceTT'}catch(_){}}try{render()}catch(err){console.error(err)}window.scrollTo({top:0});showTop();return}
   document.body.classList.remove('sidebar-open');const sh=document.getElementById('sidebarBackdrop');if(sh)sh.hidden=true;
   try{window.page=id}catch(_){}
   try{page=id}catch(_){}

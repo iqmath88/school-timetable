@@ -12,11 +12,13 @@ let session=rd(SK),sync=rd(YK)||{school:null,rev:null,hash:null,auto:true,last:0
 let schools=[],status='off',statusMsg='',conflict=null,pushing=false,pulling=false,timer=null,applying=false,historyOK=true;
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const log=(k,m)=>{try{window.MasarLog&&MasarLog.add(k,m)}catch{}};
-const saveSync=()=>wr(YK,sync),persist=()=>wr(SK,session);
+const saveSync=()=>{wr(YK,sync);try{window.dispatchEvent(new Event('masar-sync-state'))}catch(e){}},persist=()=>wr(SK,session);
 const fnv=s=>{let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return (h>>>0).toString(36)+s.length.toString(36)};
 const bridge=()=>window.MASAR_CLOUD_BRIDGE;
 const hashNow=()=>fnv(JSON.stringify(bridge().exportData()));
-const canWrite=()=>sync.role==='owner'||sync.role==='admin';
+const ROLE_AR={owner:'مالك',admin:'مدير',deputy:'وكيل',teacher:'مدرس'};
+const canWrite=()=>['owner','admin','deputy'].includes(sync.role);
+const canManage=()=>sync.role==='owner'||sync.role==='admin';
 const active=()=>configured&&session&&sync.school&&sync.auto&&!conflict;
 
 const shell=document.createElement('div');shell.id='masar-cloud-panel';shell.hidden=true;document.body.appendChild(shell);
@@ -38,9 +40,9 @@ async function authed(path,method='GET',data,extra={}){try{return await req(path
 const online=()=>navigator.onLine!==false;
 const back=()=>encodeURIComponent(location.origin+location.pathname.replace(/[^/]*$/,''));
 
-async function list(){const r=await authed('/rest/v1/school_members?select=school_id,role,schools(id,name)&order=created_at.asc');
- schools=(r.value||[]).filter(x=>x.schools).map(x=>({id:x.school_id,name:x.schools.name,role:x.role}));
- const cur=schools.find(x=>x.id===sync.school);if(cur){sync.role=cur.role;sync.name=cur.name;saveSync()}else if(sync.school&&schools.length&&online()){/* لم تعد عضواً */sync.school=null;sync.rev=null;sync.hash=null;saveSync()}}
+async function list(){const r=await authed('/rest/v1/school_members?select=school_id,role,teacher_ref,schools(id,name)&order=created_at.asc');
+ schools=(r.value||[]).filter(x=>x.schools).map(x=>({id:x.school_id,name:x.schools.name,role:x.role,teacherRef:x.teacher_ref||''}));
+ const cur=schools.find(x=>x.id===sync.school);if(cur){sync.role=cur.role;sync.name=cur.name;sync.teacherRef=cur.teacherRef;saveSync()}else if(sync.school&&schools.length&&online()){/* لم تعد عضواً */sync.school=null;sync.rev=null;sync.hash=null;saveSync()}}
 async function remoteMeta(){const r=await authed('/rest/v1/school_states?school_id=eq.'+encodeURIComponent(sync.school)+'&select=revision,updated_at');return r.value?.[0]||null}
 async function remoteFull(){const r=await authed('/rest/v1/school_states?school_id=eq.'+encodeURIComponent(sync.school)+'&select=payload,revision,updated_at');return r.value?.[0]||null}
 
@@ -85,7 +87,7 @@ async function showConflict(){
 
 /* ---------- الربط ---------- */
 async function linkSchool(id){
- sync={...sync,school:id,rev:null,hash:null,auto:true};const s=schools.find(x=>x.id===id);sync.role=s?.role||'';sync.name=s?.name||'';saveSync();conflict=null;
+ sync={...sync,school:id,rev:null,hash:null,auto:true};const s=schools.find(x=>x.id===id);sync.role=s?.role||'';sync.name=s?.name||'';sync.teacherRef=s?.teacherRef||'';saveSync();conflict=null;
  let rem=null;try{rem=await remoteFull()}catch(e){toast(e.message,true);return}
  const localHas=(()=>{const d=bridge().exportData();return (d.timetable||[]).length>0||(d.sections||[]).length>0||(d.teachers||[]).length>0})();
  if(!rem){if(!canWrite()){toast('لا توجد بيانات سحابية بعد، وحسابك للقراءة فقط.',true);return}
@@ -108,6 +110,36 @@ async function showHistory(){
  shell.querySelectorAll('[data-h]').forEach(b=>b.onclick=async()=>{try{const r=await authed('/rest/v1/school_state_history?id=eq.'+encodeURIComponent(b.dataset.h)+'&select=payload');const p=r.value?.[0]?.payload;if(!p)throw Error('تعذر قراءة النسخة');if(!confirm('استعادة هذه النسخة؟ تُحفظ نسخة أمان من بياناتك الحالية أولاً، ثم تُرفع المستعادة كمراجعة جديدة.'))return;
   applying=true;try{bridge().importData(p)}finally{applying=false}shell.hidden=true;await push();toast('تمت الاستعادة.')}catch(e){toast(e.message,true)}})}
 
+
+/* ---------- الأعضاء والصلاحيات ---------- */
+const ROLE_HELP={admin:'مدير: كل الصلاحيات عدا تغيير المالك',deputy:'وكيل: يعدّل الجدول ولا يدير الأعضاء',teacher:'مدرس: عرض فقط (جدوله والدوام)'};
+const teacherOptions=sel=>'<option value="">— غير مرتبط بمدرس —</option>'+((typeof db!=='undefined'&&db&&db.teachers)||[]).slice().sort((a,b)=>String(a.name).localeCompare(String(b.name),'ar')).map(t=>`<option value="${esc(t.id)}" ${t.id===sel?'selected':''}>${esc(t.name)}</option>`).join('');
+async function showMembers(){
+ let rows=[];
+ try{const r=await authed('/rest/v1/rpc/list_masar_members','POST',{p_school_id:sync.school});rows=r.value||[]}
+ catch(e){toast(/function|schema cache|Could not find/i.test(e.message)?'ميزة الأعضاء غير مفعّلة: شغّل ملف SUPABASE_UPGRADE_0.9.32.sql':e.message,true);return}
+ shell.dataset.screen='members';
+ const me=sync.role,roleOpts=cur=>['admin','deputy','teacher'].filter(r=>me==='owner'||r!=='admin'||cur==='admin').map(r=>`<option value="${r}" ${r===cur?'selected':''}>${ROLE_AR[r]}</option>`).join('');
+ shell.innerHTML=`<div class="cloud-card"><h2>👥 الأعضاء والصلاحيات</h2>
+ <p class="muted">المدرس يدخل بحسابه فيرى جدوله والدوام اليومي فقط، ولا يستطيع التعديل. الوكيل يعدّل الجدول، والمدير يدير الأعضاء أيضاً. الصلاحيات تُفرض في الخادم عند الحفظ.</p>
+ <div class="m-list">${rows.map(m=>{const own=m.role==='owner',lock=own||(me!=='owner'&&m.role==='admin');return `<div class="notice" data-u="${esc(m.user_id)}"><b>${esc(m.email)}</b> ${own?'<span class="tag">مالك</span>':''}
+  ${lock?`<div class="muted">${esc(ROLE_AR[m.role]||m.role)}${m.teacher_ref?' · مرتبط بمدرس':''}</div>`:`<div class="actions m-row"><select data-f="role" aria-label="الدور">${roleOpts(m.role)}</select><select data-f="t" aria-label="المدرس">${teacherOptions(m.teacher_ref||'')}</select><button class="secondary" data-a="save">حفظ</button><button class="secondary danger" data-a="del">إزالة</button></div>`}</div>`}).join('')||'<div class="notice">لا أعضاء.</div>'}</div>
+ <h3>إضافة عضو</h3><p class="muted">يجب أن ينشئ الشخص حساباً في مسار أولاً (بالبريد نفسه) ثم تضيفه هنا.</p>
+ <label>البريد الإلكتروني<input id="mEmail" type="email" autocomplete="off"></label>
+ <label>الدور<select id="mRole">${['deputy','teacher'].concat(me==='owner'?['admin']:[]).map(r=>`<option value="${r}">${ROLE_AR[r]} — ${ROLE_HELP[r]}</option>`).join('')}</select></label>
+ <label>ربط بمدرس (للدور «مدرس»)<select id="mTeacher">${teacherOptions('')}</select></label>
+ <div class="actions"><button id="mAdd">إضافة</button><button id="mBack" class="secondary">رجوع</button></div><p id="cloudMsg" role="status"></p></div>`;
+ shell.querySelector('#mBack').onclick=()=>show();
+ shell.querySelector('#mAdd').onclick=async()=>{try{const email=shell.querySelector('#mEmail').value.trim(),role=shell.querySelector('#mRole').value,t=shell.querySelector('#mTeacher').value;
+  if(!/^\S+@\S+\.\S+$/.test(email))throw Error('أدخل بريداً صحيحاً');
+  await authed('/rest/v1/rpc/add_masar_member','POST',{p_school_id:sync.school,p_email:email,p_role:role,p_teacher_ref:role==='teacher'?t:null});toast('أُضيف العضو.');showMembers()}
+  catch(e){msg(/User not found/.test(e.message)?'لا يوجد حساب بهذا البريد. اطلب منه إنشاء حساب في مسار أولاً.':/Already/.test(e.message)?'هذا البريد عضو بالفعل.':e.message,true)}};
+ shell.querySelectorAll('[data-u]').forEach(row=>{const uid=row.dataset.u;
+  const sv=row.querySelector('[data-a=save]'),dl=row.querySelector('[data-a=del]');
+  if(sv)sv.onclick=async()=>{try{const role=row.querySelector('[data-f=role]').value,t=row.querySelector('[data-f=t]').value;await authed('/rest/v1/rpc/update_masar_member','POST',{p_school_id:sync.school,p_user_id:uid,p_role:role,p_teacher_ref:role==='teacher'?t:null});toast('حُفظ.');showMembers()}catch(e){msg(e.message,true)}};
+  if(dl)dl.onclick=async()=>{if(!confirm('إزالة هذا العضو من المدرسة؟'))return;try{await authed('/rest/v1/rpc/remove_masar_member','POST',{p_school_id:sync.school,p_user_id:uid});toast('أُزيل العضو.');showMembers()}catch(e){msg(e.message,true)}}});
+}
+
 /* ---------- الواجهة ---------- */
 function show(){shell.hidden=false;draw()}
 function close(){shell.hidden=true}
@@ -125,11 +157,11 @@ function draw(){
   shell.querySelector('#cloudReset').onclick=async()=>{try{await req('/auth/v1/recover?redirect_to='+back(),'POST',{email:email()},false);msg('إذا كان البريد مسجلاً فستصلك رسالة استعادة كلمة المرور.')}catch(e){msg(e.message,true)}};return}
  const linked=!!sync.school;
  shell.innerHTML=`<div class="cloud-card"><h2>☁ حساب مسار</h2><p>الحساب: ${esc(session.user?.email||'—')}</p>
- ${linked?`<div class="notice"><b>${esc(sync.name||'المدرسة')}</b> (${esc(sync.role==='owner'?'مالك':sync.role==='admin'?'مشرف':'مدرس')})<br><span id="syncLine"></span></div>
+ ${linked?`<div class="notice"><b>${esc(sync.name||'المدرسة')}</b> (${esc(ROLE_AR[sync.role]||'مدرس')})<br><span id="syncLine"></span></div>
  <label><input type="checkbox" id="autoSync" ${sync.auto?'checked':''}> مزامنة تلقائية (رفع التعديلات وسحب تعديلات الأجهزة الأخرى)</label>
- <div class="actions"><button id="syncNow">مزامنة الآن</button>${canWrite()?'<button id="histBtn" class="secondary">نسخ سحابية سابقة</button>':''}<button id="unlinkBtn" class="secondary">فك الربط</button></div>`
+ <div class="actions"><button id="syncNow">مزامنة الآن</button>${canManage()?'<button id="histBtn" class="secondary">نسخ سحابية سابقة</button><button id="memBtn" class="secondary">👥 الأعضاء والصلاحيات</button>':''}<button id="unlinkBtn" class="secondary">فك الربط</button></div>`
  :`<p class="warning">هذا الجهاز غير مرتبط بمدرسة. اختر مدرسة ثم اربط الجهاز فتتزامن بياناته تلقائياً مع بقية أجهزتك.</p>
- <label>المدرسة السحابية<select id="cloudSchools"><option value="">— اختر مدرسة —</option>${schools.map(x=>`<option value="${esc(x.id)}">${esc(x.name)} (${esc(x.role)})</option>`).join('')}</select></label>
+ <label>المدرسة السحابية<select id="cloudSchools"><option value="">— اختر مدرسة —</option>${schools.map(x=>`<option value="${esc(x.id)}">${esc(x.name)} (${esc(ROLE_AR[x.role]||x.role)})</option>`).join('')}</select></label>
  <div class="actions"><button id="linkBtn">ربط هذا الجهاز بالمدرسة</button></div>
  <label>إنشاء مدرسة جديدة<input id="cloudNewSchool" maxlength="120" placeholder="اسم المدرسة"></label><div class="actions"><button id="cloudCreate" class="secondary">إنشاء مدرسة</button><button id="cloudRefresh" class="secondary">تحديث القائمة</button></div>`}
  <div class="actions"><button id="cloudLogout" class="secondary">خروج</button><button id="cloudClose" class="secondary">إغلاق</button></div><p id="cloudMsg" role="status"></p></div>`;
@@ -139,6 +171,7 @@ function draw(){
   $('#autoSync').onchange=e=>{sync.auto=e.target.checked;saveSync();if(sync.auto){pull().then(push)}else setStatus('off','المزامنة التلقائية متوقفة')};
   $('#syncNow').onclick=async()=>{await pull();await push();paintStatus()};
   if($('#histBtn'))$('#histBtn').onclick=showHistory;
+  if($('#memBtn'))$('#memBtn').onclick=showMembers;
   $('#unlinkBtn').onclick=()=>{if(confirm('فك الربط؟ تبقى بياناتك على هذا الجهاز كما هي، وتتوقف المزامنة.')){unlink();draw()}}}
  else{
   $('#linkBtn').onclick=async()=>{const id=$('#cloudSchools').value;if(!id){msg('اختر مدرسة أولاً',true);return}await linkSchool(id);startLoop();draw()};

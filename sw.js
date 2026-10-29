@@ -1,7 +1,8 @@
 /* مسار — Service Worker: يعمل التطبيق بلا إنترنت. الشبكة أولاً (لتصل التحديثات فور رفعها) ثم النسخة المخزنة. */
-const V='masar-0.9.31.3';
+const V='masar-0.9.32.0';
 const FILES=[
   "./",
+  "access.js",
   "app.js",
   "apple-touch-icon.png",
   "candidate-validator.js",
