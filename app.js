@@ -1,4 +1,4 @@
-const APP_VERSION='0.9.34.0-stable';
+const APP_VERSION='0.9.35.0-stable';
 const KEY='school-timetable-v01';
 const stageDefaults=[['الأول',1,'#587B9B'],['الثاني',2,'#6F8F72'],['الثالث',3,'#9A7B60'],['الرابع',4,'#7D7398'],['الخامس',5,'#A16F78'],['السادس',6,'#557F83']];
 const defaultDays=[['الأحد',7,true],['الاثنين',7,true],['الثلاثاء',6,true],['الأربعاء',7,true],['الخميس',5,true],['الجمعة',0,false],['السبت',0,false]];
@@ -1268,7 +1268,7 @@ function wireFullTimetableAudit(){const run=document.getElementById('fullAuditRu
 function diagnosticControls(){return `<section class="generation-report"><h3>تشخيص أسباب عدم توليد الجدول</h3><p class="muted">يفحص التزامن الإجباري للشعب في كل حصة بنظرية المطابقة الرياضية، ثم يتحقق من القيود والتكليفات وسعة المدرسين. ويعرض موقع التعارض والأسماء وخيارات الإصلاح دون تغيير البيانات. لا يغير الجدول المحفوظ.</p><div class="actions"><button type="button" id="directDiagnosisBtn">تشخيص الآن</button><button type="button" class="secondary" id="directDiagnosisExport">تنزيل تقرير التشخيص JSON</button></div><div class="notice">إذا انتهى وقت التوليد دون حل، يمكنك تشغيل اختبارات تخفيف القيود. نجاح نسخة مخففة يحدد قيوداً مؤثرة لكنه لا يثبت أن النسخة الأصلية مستحيلة؛ ولن تُعدّل بياناتك.</div><div class="actions"><button type="button" id="probeBtn">🔎 تشخيص دقيق بالاختبار التجريبي</button></div><div class="actions"><button type="button" id="smartCapacityBtn">🧠 فحص ذكي لسعة الشعب والمدرسين</button></div><div id="smartCapacityResult"></div><div id="probeResult"></div><div id="directDiagnosisResult"></div>${slotAuditControls()}${fullTimetableAuditUI()}</section>`}
 function wireDirectDiagnostics(){wireSlotAudit();wireFullTimetableAudit();if($('#smartCapacityBtn'))$('#smartCapacityBtn').onclick=runSmartCapacityDiagnosis;if($('#directDiagnosisBtn'))$('#directDiagnosisBtn').onclick=showDirectDiagnostics;if($('#probeBtn'))$('#probeBtn').onclick=runProbeDiagnosis;if($('#directDiagnosisExport'))$('#directDiagnosisExport').onclick=exportDirectDiagnostics}
 function generationDiagnostics(result){
- const found=[];const add=(severity,title,detail,where)=>found.push({severity,title,detail,where});
+ const found=[];const add=(severity,title,detail,where,teacherId)=>found.push({severity,title,detail,where,teacherId:teacherId||''});
  const active=db.days.filter(d=>d.active&&d.periods>0).sort((a,b)=>a.order-b.order);
  const daysById=new Map(active.map(d=>[d.id,d]));
  db.sections.forEach(sec=>{
@@ -1282,7 +1282,7 @@ function generationDiagnostics(result){
   const required=db.assignments.filter(a=>a.teacherId===t.id).reduce((v,a)=>v+(+a.weeklyPeriods||0),0);if(!required)return;
   const r=rule(t.id);let available=0;
   for(const d of active){let n=0;for(let period=1;period<=d.periods;period++)if(!(r.unavailable?.[d.id]||[]).includes(period))n++;available+=Math.min(n,Math.max(1,+r.maxDaily||99));}
-  if(required>available)add('block',`نصاب غير قابل للتوزيع — ${t.name}`,`المطلوب ${required} حصة، والحد الأقصى المتاح بعد القيود اليومية ${available}.`,'constraints');
+  if(required>available)add('block',`نصاب غير قابل للتوزيع — ${t.name}`,`المطلوب ${required} حصة، والحد الأقصى المتاح بعد القيود اليومية ${available}.`,'constraints',t.id);
  });
  db.assignments.forEach(a=>{
   const sec=db.sections.find(x=>x.id===a.sectionId),t=db.teachers.find(x=>x.id===a.teacherId),sub=db.subjects.find(x=>x.id===a.subjectId);if(!sec||!t||!sub)return;
@@ -1290,10 +1290,10 @@ function generationDiagnostics(result){
   const r=rule(t.id);let slots=0,possibleDays=0;
   for(const d of active){const cap=sectionDayPeriods(sec,d);let n=0;for(let period=1;period<=cap;period++)if(!(sr.noFirst&&period===1)&&!(sr.noLast&&period===cap)&&!(r.unavailable?.[d.id]||[]).includes(period))n++;slots+=n;if(n)possibleDays++;}
   const required=+a.weeklyPeriods;
-  if(required>possibleDays){add('warning',`تكرار ضروري — ${sub.name} / ${t.name}`,`الشعبة ${db.stages.find(g=>g.id===sec.stageId)?.name||''} ${sec.name}: ${required} حصص خلال ${possibleDays} أيام متاحة فقط. يلزم تكرار ${required-possibleDays} حصة على الأقل في يوم أو أكثر. سيسمح المحرك بالتكرار الضروري تلقائياً، دون تغيير قيود المدرس.`, 'constraints');}
+  if(required>possibleDays){add('warning',`تكرار ضروري — ${sub.name} / ${t.name}`,`الشعبة ${db.stages.find(g=>g.id===sec.stageId)?.name||''} ${sec.name}: ${required} حصص خلال ${possibleDays} أيام متاحة فقط. يلزم تكرار ${required-possibleDays} حصة على الأقل في يوم أو أكثر. سيسمح المحرك بالتكرار الضروري تلقائياً، دون تغيير قيود المدرس.`, 'constraints',t.id);}
   const dailyLimit=Math.max(1,+r.maxDaily||99);
   const perDay=active.map(d=>{const cap=sectionDayPeriods(sec,d);let count=0;for(let period=1;period<=cap;period++)if(!(sr.noFirst&&period===1)&&!(sr.noLast&&period===cap)&&!(r.unavailable?.[d.id]||[]).includes(period))count++;return Math.min(count,dailyLimit)});
-  if(required>perDay.reduce((x,y)=>x+y,0))add('block',`استحالة توزيع — ${sub.name} / ${t.name}`,`الشعبة ${sec.name}: المطلوب ${required} والمتاح بعد احتساب الحد اليومي والقيود ${perDay.reduce((x,y)=>x+y,0)}. الإجراء: خفف قيد المدرس أو المادة.`, 'constraints');
+  if(required>perDay.reduce((x,y)=>x+y,0))add('block',`استحالة توزيع — ${sub.name} / ${t.name}`,`الشعبة ${sec.name}: المطلوب ${required} والمتاح بعد احتساب الحد اليومي والقيود ${perDay.reduce((x,y)=>x+y,0)}. الإجراء: خفف قيد المدرس أو المادة.`, 'constraints',t.id);
   if(+a.weeklyPeriods>slots||false)add('block',`قيد المادة يمنع التكليف — ${sub.name}`,`${t.name}، ${db.stages.find(g=>g.id===sec.stageId)?.name||''} ${sec.name}: مطلوب ${a.weeklyPeriods} حصة، المتاح ${slots} خانة في ${possibleDays} أيام.`,'subjects');
  });
  if(result&&!result.ok&&['time','nodes','exhausted'].includes(result.reason))add('warning','لم يثبت استحالة الجدول',`المحرك توقف بعد ${result.nodes||0} عقدة، وأفضل عمق ${result.bestDepth||0} من ${result.total||'—'}. انتهاء البحث لا يثبت أن البيانات مستحيلة. راجع التنبيهات ثم أعد المحاولة.`,'feasibility');
@@ -1364,9 +1364,9 @@ function diagnosticHtml(result){if(!result||result.ok)return '';
  const issues=generationDiagnostics(result);
  const capacityDetails=smartCapacityHtml(result);
  const colors={block:'🔴',warning:'🟠',info:'🔵'};
- return `<section class="generation-report"><h3>مساعد تشخيص فشل التوليد — إجراءات مقترحة</h3>${capacityHtml}${capacityDetails}<p class="muted">لا يغير المساعد أي تكليف أو قيد دون موافقتك. الفحص يميز بين الخطأ المانع، واختلاف الإعدادات، والملاحظات. لا يعتبر انتهاء المهلة دليلاً على استحالة الجدول.</p>${issues.length?issues.map(x=>`<div class="issue ${x.severity==='block'?'red':'orange'}"><div class="issue-icon">${colors[x.severity]}</div><div style="flex:1"><b>${esc(x.title)}</b><div class="muted">${esc(x.detail)}</div><button type="button" class="secondary diagnostic-jump" data-target="${x.where}">فتح الإعداد المعني</button></div></div>`).join(''):'<div class="notice">لم يكشف الفحص السريع سبباً حاسماً. قد يكون التعارض مركباً أو خوارزمية البحث لم تصل إلى حل.</div>'}</section>`;
+ return `<section class="generation-report"><h3>مساعد تشخيص فشل التوليد — إجراءات مقترحة</h3>${capacityHtml}${capacityDetails}<p class="muted">لا يغير المساعد أي تكليف أو قيد دون موافقتك. الفحص يميز بين الخطأ المانع، واختلاف الإعدادات، والملاحظات. لا يعتبر انتهاء المهلة دليلاً على استحالة الجدول.</p>${issues.length?issues.map(x=>`<div class="issue ${x.severity==='block'?'red':'orange'}"><div class="issue-icon">${colors[x.severity]}</div><div style="flex:1"><b>${esc(x.title)}</b><div class="muted">${esc(x.detail)}</div><button type="button" class="secondary diagnostic-jump" data-target="${x.where}" data-teacher="${esc(x.teacherId||'')}">${x.teacherId?'فتح قيود «'+esc((db.teachers.find(t=>t.id===x.teacherId)||{}).name||'المدرس')+'»':'فتح الإعداد المعني'}</button></div></div>`).join(''):'<div class="notice">لم يكشف الفحص السريع سبباً حاسماً. قد يكون التعارض مركباً أو خوارزمية البحث لم تصل إلى حل.</div>'}</section>`;
 }
-function wireDiagnostics(){document.querySelectorAll('.diagnostic-jump').forEach(b=>b.onclick=()=>{page=b.dataset.target;render()})}
+function wireDiagnostics(){document.querySelectorAll('.diagnostic-jump').forEach(b=>b.onclick=()=>{if(b.dataset.teacher&&db.teachers.some(t=>t.id===b.dataset.teacher))window.constraintTeacher=b.dataset.teacher;page=b.dataset.target;render();window.scrollTo({top:0})})}
 function feasibility(){
   const issues=analyzeFeasibility(),reds=issues.filter(x=>x.level==='red').length,oranges=issues.filter(x=>x.level==='orange').length;
   const green=reds===0;

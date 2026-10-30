@@ -1,5 +1,5 @@
 /* نيبور — Service Worker: يعمل التطبيق بلا إنترنت. الشبكة أولاً (لتصل التحديثات فور رفعها) ثم النسخة المخزنة. */
-const V='masar-0.9.34.0';
+const V='nippur-0.9.35.0';
 const FILES=[
   "./",
   "access.js",
@@ -41,6 +41,7 @@ const FILES=[
   "pwa.js",
   "school-day.js",
   "selfcheck.js",
+  "state-diff.js",
   "storage-ui.js",
   "storage.js",
   "styles.css",
@@ -56,7 +57,7 @@ self.addEventListener('install',e=>{
 });
 self.addEventListener('activate',e=>{
   e.waitUntil((async()=>{
-    for(const k of await caches.keys())if(k.startsWith('masar-')&&k!==V)await caches.delete(k);
+    for(const k of await caches.keys())if((k.startsWith('masar-')||k.startsWith('nippur-'))&&k!==V)await caches.delete(k);
     await self.clients.claim();
   })());
 });

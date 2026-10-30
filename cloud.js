@@ -102,12 +102,33 @@ async function linkSchool(id){
 function unlink(){sync={school:null,rev:null,hash:null,auto:true,last:0,name:'',role:''};conflict=null;saveSync();setStatus(session?'off':'login')}
 
 /* ---------- السجل السحابي ---------- */
+const fmtT=t=>t?new Date(t).toLocaleString('ar-IQ'):'—';
+async function loadHistory(){
+ /* الأفضل: دالة السجل (مع الكاتب والملخص)؛ وإن لم تُركَّب ترقية 0.9.35 نرجع للاستعلام القديم */
+ try{const r=await authed('/rest/v1/rpc/list_masar_history','POST',{p_school_id:sync.school});if(Array.isArray(r.value))return {rows:r.value,rich:true}}
+ catch(e){if(!/list_masar_history|PGRST202|404|not find|Could not|Not permitted/i.test(String(e&&e.message)))throw e}
+ const r=await authed('/rest/v1/school_state_history?school_id=eq.'+encodeURIComponent(sync.school)+'&select=id,revision,saved_at&order=revision.desc&limit=20');
+ return {rows:(r.value||[]).map(x=>({id:x.id,revision:x.revision,is_current:false,author_email:null,at:null,replaced_at:x.saved_at})),rich:false}
+}
 async function showHistory(){
- let rows=[];try{const r=await authed('/rest/v1/school_state_history?school_id=eq.'+encodeURIComponent(sync.school)+'&select=id,revision,saved_at&order=revision.desc&limit=20');rows=r.value||[]}catch(e){historyOK=false;toast('السجل السحابي غير مفعّل: شغّل ملف SUPABASE_UPGRADE_0.9.30.sql',true);return}
+ let H;try{H=await loadHistory()}catch(e){historyOK=false;toast('السجل السحابي غير مفعّل: شغّل ملف SUPABASE_UPGRADE_0.9.30.sql',true);return}
+ const rows=H.rows;
  shell.dataset.screen='hist';
- shell.innerHTML=`<div class="cloud-card"><h2>نسخ سحابية سابقة</h2><p class="muted">كل مرة تُستبدل فيها نسخة السحابة تُحفظ السابقة هنا (آخر 20). الاستعادة تسحبها إلى هذا الجهاز بعد حفظ نسخة أمان.</p>${rows.length?`<div style="max-height:46vh;overflow:auto">${rows.map(r=>`<div class="actions" style="justify-content:space-between"><span>مراجعة ${esc(r.revision)} — ${esc(new Date(r.saved_at).toLocaleString('ar-IQ'))}</span><button class="secondary" data-h="${esc(r.id)}">استعادة</button></div>`).join('')}</div>`:'<div class="notice">لا توجد نسخ سابقة بعد.</div>'}<div class="actions"><button id="hBack" class="secondary">رجوع</button></div></div>`;
+ const line=r=>{
+  const who=r.author_email?esc(r.author_email):'كاتب غير معروف';
+  const when=r.is_current?fmtT(r.at):(r.at?fmtT(r.at):'استُبدلت '+fmtT(r.replaced_at));
+  const sum=H.rich?` · ${esc(r.lessons)} حصة · ${esc(r.teachers)} مدرس · ${esc(r.sections)} شعبة`:'';
+  return `<div class="hrow" style="border-bottom:1px solid #D9E1F2;padding:8px 0"><div><b>مراجعة ${esc(r.revision)}${r.is_current?' (الحالية)':''}</b><br><span class="muted">${who} — ${esc(when)}${sum}</span></div>${r.is_current?'':`<div class="actions"><button class="secondary" data-c="${esc(r.id)}">مقارنة بالحالية</button><button class="secondary" data-h="${esc(r.id)}">استعادة</button></div>`}</div>`};
+ shell.innerHTML=`<div class="cloud-card"><h2>نسخ سحابية سابقة</h2><p class="muted">كل مرة تُستبدل فيها نسخة السحابة تُحفظ السابقة هنا (آخر 20) مع من حفظها ومتى. «مقارنة» تعرض الفروق بينها وبين بيانات هذا الجهاز دون تغيير أي شيء. الاستعادة تسحبها إلى هذا الجهاز بعد حفظ نسخة أمان.${H.rich?'':' <b>لعرض الكاتب والملخص شغّل ملف SUPABASE_UPGRADE_0.9.35.sql.</b>'}</p>${rows.length?`<div style="max-height:46vh;overflow:auto">${rows.map(line).join('')}</div>`:'<div class="notice">لا توجد نسخ سابقة بعد.</div>'}<div id="hDiff"></div><div class="actions"><button class="secondary" id="hBack">رجوع</button></div></div>`;
  shell.querySelector('#hBack').onclick=()=>show();
- shell.querySelectorAll('[data-h]').forEach(b=>b.onclick=async()=>{try{const r=await authed('/rest/v1/school_state_history?id=eq.'+encodeURIComponent(b.dataset.h)+'&select=payload');const p=r.value?.[0]?.payload;if(!p)throw Error('تعذر قراءة النسخة');if(!(await masarConfirm('استعادة هذه النسخة؟ تُحفظ نسخة أمان من بياناتك الحالية أولاً، ثم تُرفع المستعادة كمراجعة جديدة.')))return;
+ const getPayload=async id=>{const r=await authed('/rest/v1/school_state_history?id=eq.'+encodeURIComponent(id)+'&select=payload');const p=r.value?.[0]?.payload;if(!p)throw Error('تعذر قراءة النسخة');return p};
+ shell.querySelectorAll('[data-c]').forEach(b=>b.onclick=async()=>{try{
+  const old=await getPayload(b.dataset.c),now=bridge().exportData(),d=window.MASAR_DIFF.compare(old,now),box=shell.querySelector('#hDiff');
+  const list=(t,a)=>a.length?`<p><b>${t} (${a.length})</b></p><ul style="margin:0;padding-inline-start:18px;max-height:140px;overflow:auto">${a.slice(0,40).map(x=>`<li>${esc(x)}</li>`).join('')}${a.length>40?`<li>… و${a.length-40} أخرى</li>`:''}</ul>`:'';
+  const c=d.counts;
+  box.innerHTML=`<div class="notice" style="margin-top:10px"><b>مقارنة المراجعة المحددة (قديمة) ← بيانات هذا الجهاز (الحالية)</b><br>${d.same?'لا فروق في الحصص والمدرسين والشعب والقيود.':`الحصص: ${esc(c.lessons.old)} ← ${esc(c.lessons.now)} · المدرسون: ${esc(c.teachers.old)} ← ${esc(c.teachers.now)} · الشعب: ${esc(c.sections.old)} ← ${esc(c.sections.now)}`}${list('حصص أُضيفت',d.lessons.added)}${list('حصص حُذفت',d.lessons.removed)}${list('حصص نُقلت',d.lessons.moved)}${list('مدرسون أُضيفوا',d.teachers.added)}${list('مدرسون حُذفوا',d.teachers.removed)}${list('شعب أُضيفت',d.sections.added)}${list('شعب حُذفت',d.sections.removed)}</div>`;
+  box.scrollIntoView({block:'nearest'})}catch(e){toast(e.message,true)}});
+ shell.querySelectorAll('[data-h]').forEach(b=>b.onclick=async()=>{try{const p=await getPayload(b.dataset.h);if(!(await masarConfirm('استعادة هذه النسخة؟ تُحفظ نسخة أمان من بياناتك الحالية أولاً، ثم تُرفع المستعادة كمراجعة جديدة.')))return;
   applying=true;try{bridge().importData(p)}finally{applying=false}shell.hidden=true;await push();toast('تمت الاستعادة.')}catch(e){toast(e.message,true)}})}
 
 
