@@ -27,7 +27,7 @@ function panel(){
   (a.length?'<div class="notice warning">'+a.length+' سجل — آخرها: '+H(new Date(a[0].t).toLocaleString('ar-IQ'))+'</div><div style="max-height:220px;overflow:auto;font-size:13px;line-height:1.7">'+a.slice(0,20).map(x=>'<div><b>'+H(x.k)+'</b> '+(x.n>1?'×'+x.n+' ':'')+H(x.m)+' <small class="muted">'+H(x.w)+'</small></div>').join('')+'</div>':'<div class="notice">لا توجد أخطاء مسجّلة ✓</div>')+
   '<div class="actions"><button id="elExport" class="secondary">تصدير السجل</button><button id="elClear" class="secondary">مسح السجل</button></div>';
  ws.appendChild(d);
- d.querySelector('#elExport').onclick=()=>{const b=new Blob([window.MasarLog.exportText()],{type:'application/json'}),u=URL.createObjectURL(b),l=document.createElement('a');l.href=u;l.download='masar-error-log.json';document.body.appendChild(l);l.click();setTimeout(()=>{l.remove();URL.revokeObjectURL(u)},500)};
+ d.querySelector('#elExport').onclick=()=>{const b=new Blob([window.MasarLog.exportText()],{type:'application/json'}),u=URL.createObjectURL(b),l=document.createElement('a');l.href=u;l.download='nippur-error-log.json';document.body.appendChild(l);l.click();setTimeout(()=>{l.remove();URL.revokeObjectURL(u)},500)};
  d.querySelector('#elClear').onclick=()=>{window.MasarLog.clear();d.remove();panel()};
 }
 let tries=0;const t=setInterval(()=>{tries++;if(window.schoolSettings&&!window.schoolSettings.__el){const o=window.schoolSettings;const w=function(){o.apply(this,arguments);try{panel()}catch(e){add('error','errlog panel: '+e.message)}};w.__el=1;window.schoolSettings=w;clearInterval(t)}if(tries>80)clearInterval(t)},250);

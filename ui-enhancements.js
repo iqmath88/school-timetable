@@ -17,7 +17,7 @@ const backdrop=document.getElementById('sidebarBackdrop');
 const sidebar=document.getElementById('sidebar');
 const summary=document.getElementById('summary');
 if(menu){menu.setAttribute('aria-controls','sidebar');menu.setAttribute('aria-label','فتح قائمة الأقسام');}
-if(sidebar)sidebar.setAttribute('aria-label','قائمة أقسام مسار');
+if(sidebar)sidebar.setAttribute('aria-label','قائمة أقسام نيبور');
 // Make the statistics available on demand on small screens without changing underlying content.
 const statsToggle=document.createElement('button');statsToggle.type='button';statsToggle.id='mobileStatsToggle';statsToggle.className='mobile-stats-toggle secondary';statsToggle.textContent='▦ عرض مؤشرات المدرسة';statsToggle.setAttribute('aria-controls','summary');statsToggle.setAttribute('aria-expanded','false');
 if(summary){summary.before(statsToggle);statsToggle.addEventListener('click',()=>{const opened=document.body.classList.toggle('mobile-stats-open');statsToggle.setAttribute('aria-expanded',String(opened));statsToggle.textContent=opened?'▦ إخفاء المؤشرات':'▦ عرض مؤشرات المدرسة';});}

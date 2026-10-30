@@ -29,7 +29,7 @@ async function writeFile(){
 MStore.onWrite(k=>{if(k===KEY&&handle){clearTimeout(timer);timer=setTimeout(writeFile,2500)}});
 async function link(){
   try{
-    const h=await window.showSaveFilePicker({suggestedName:'masar-project.json',types:[{description:'ملف مشروع مسار',accept:{'application/json':['.json']}}]});
+    const h=await window.showSaveFilePicker({suggestedName:'nippur-project.json',types:[{description:'ملف مشروع نيبور',accept:{'application/json':['.json']}}]});
     handle=h;await MStore.rawSet('fileHandle',h);fileState='ok';await writeFile();refresh();
   }catch(e){if(e&&e.name!=='AbortError')alert('تعذر ربط الملف: '+(e.message||e))}
 }
@@ -38,7 +38,7 @@ async function unlink(){handle=null;fileState='none';try{await MStore.rawSet('fi
 /* حفظ نسخة في الملفات (يعمل على كل الأجهزة) */
 async function saveCopy(){
   const name='masar-backup-'+new Date().toISOString().slice(0,10)+'.json',blob=new Blob([JSON.stringify(db)],{type:'application/json'});
-  try{const f=new File([blob],name,{type:'application/json'});if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:'نسخة مسار'});return}}catch(e){if(e&&e.name==='AbortError')return}
+  try{const f=new File([blob],name,{type:'application/json'});if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:'نسخة نيبور'});return}}catch(e){if(e&&e.name==='AbortError')return}
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();
   try{MStore.setItem(BACKUP_DATE_KEY,new Date().toISOString())}catch(_){}
 }
@@ -58,7 +58,7 @@ async function refresh(){
   const q=est&&est.quota?est.quota:0,u=est&&est.usage?est.usage:0,pct=q?Math.min(100,Math.round(u/q*100)):0;
   panel.innerHTML=`<h3>التخزين على جهازك</h3>
   <div class="notice ${mode?'':'warning'}">${mode?'يعمل التطبيق على <b>IndexedDB</b> (سعة كبيرة، على جهازك).':'⚠ تعذر تشغيل IndexedDB في هذا المتصفح، فيستخدم التطبيق التخزين الصغير القديم ('+(window.__masarStorageFallback||'')+'). صدّر نسخاً بانتظام.'}</div>
-  <div class="grid"><div class="field"><label>حجم بيانات مسار</label><b>${fmt(used)}</b></div>
+  <div class="grid"><div class="field"><label>حجم بيانات نيبور</label><b>${fmt(used)}</b></div>
   <div class="field"><label>المتاح للموقع (تقدير المتصفح)</label><b>${q?fmt(u)+' من '+fmt(q)+' ('+pct+'%)':'غير معروف'}</b></div>
   <div class="field"><label>تخزين دائم</label><b>${persisted===true?'مفعّل ✓':persisted===false?'غير مفعّل':'غير مدعوم'}</b></div></div>
   ${pct>80?'<div class="notice error">المساحة قاربت على الامتلاء. صدّر نسخة واحذف النسخ القديمة.</div>':''}

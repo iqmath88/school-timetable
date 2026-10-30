@@ -11,7 +11,7 @@ const btn='style="background:#1E3FA3;color:#fff;border:0;border-radius:10px;padd
 if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'||location.hostname==='127.0.0.1')){
  window.addEventListener('load',()=>{
   navigator.serviceWorker.register('sw.js').then(reg=>{
-   const ready=w=>{const d=bar('<b style="flex:1">يتوفر إصدار أحدث من مسار.</b><button '+btn+' id="pwaReload">تحديث الآن</button><button '+ghost+' id="pwaLater">لاحقاً</button>','pwaUpdate');if(!d)return;
+   const ready=w=>{const d=bar('<b style="flex:1">يتوفر إصدار أحدث من نيبور.</b><button '+btn+' id="pwaReload">تحديث الآن</button><button '+ghost+' id="pwaLater">لاحقاً</button>','pwaUpdate');if(!d)return;
     d.querySelector('#pwaReload').onclick=()=>{try{w.postMessage('skip')}catch(e){}setTimeout(()=>location.reload(),300)};d.querySelector('#pwaLater').onclick=()=>d.remove()};
    if(reg.waiting&&navigator.serviceWorker.controller)ready(reg.waiting);
    reg.addEventListener('updatefound',()=>{const w=reg.installing;if(!w)return;w.addEventListener('statechange',()=>{if(w.state==='installed'&&navigator.serviceWorker.controller)ready(w)})});
@@ -21,7 +21,7 @@ if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostnam
 }
 let deferred=null;
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferred=e;if(get('masar-install-dismissed')||standalone())return;
- const d=bar('<b style="flex:1">ثبّت مسار على جهازك ليعمل بلا إنترنت كتطبيق.</b><button '+btn+' id="pwaInstall">تثبيت</button><button '+ghost+' id="pwaNo">ليس الآن</button>','pwaInstallBar');if(!d)return;
+ const d=bar('<b style="flex:1">ثبّت نيبور على جهازك ليعمل بلا إنترنت كتطبيق.</b><button '+btn+' id="pwaInstall">تثبيت</button><button '+ghost+' id="pwaNo">ليس الآن</button>','pwaInstallBar');if(!d)return;
  d.querySelector('#pwaInstall').onclick=async()=>{d.remove();try{deferred.prompt();await deferred.userChoice}catch(_){}deferred=null};
  d.querySelector('#pwaNo').onclick=()=>{set('masar-install-dismissed','1');d.remove()}});
 window.addEventListener('appinstalled',()=>{const d=document.getElementById('pwaInstallBar');if(d)d.remove()});

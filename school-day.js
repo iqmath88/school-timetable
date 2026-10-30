@@ -298,7 +298,7 @@ function beep(){try{const C=window.AudioContext||window.webkitAudioContext;if(!C
 function showBanner(txt){const d=document.createElement('div');d.className='sd-banner';d.setAttribute('role','alert');d.innerHTML=`<style>.sd-banner{position:fixed;inset-inline:12px;top:12px;z-index:9999;padding:14px 18px;border-radius:14px;background:#0F766E;color:#fff;font-weight:700;box-shadow:0 10px 30px #0004;text-align:center}</style>`+H(txt);document.body.appendChild(d);setTimeout(()=>d.remove(),9000)}
 function notify(txt){
   const a=bell().alerts;showBanner(txt);if(a.sound)beep();
-  try{if(a.notify&&'Notification' in window&&Notification.permission==='granted')new Notification('مسار',{body:txt})}catch(e){}
+  try{if(a.notify&&'Notification' in window&&Notification.permission==='granted')new Notification('نيبور',{body:txt})}catch(e){}
 }
 function tick(date=new Date()){
   const b=bell();const day=dayByDate(date);if(!day)return [];

@@ -249,3 +249,4 @@ body.role-ro #exportBtn{display:none!important}
 .m-row select{flex:1 1 120px;min-width:0;min-height:40px}
 .m-row button{flex:0 0 auto;min-height:40px;padding:6px 12px}
 body:has(#masar-cloud-panel:not([hidden])) .backup-reminder,body:has(#masar-cloud-panel:not([hidden])) div[id^="pwa"]{display:none!important}
+.slot.status-day{background-image:repeating-linear-gradient(135deg,rgba(0,0,0,.05) 0 6px,transparent 6px 12px)}

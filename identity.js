@@ -1,14 +1,33 @@
-/* هوية «مسار» — الشعار + إعادة ترتيب الصفحة الرئيسية (v0.9.22.0) */
+/* هوية «نيبور» — الشعار + إعادة ترتيب الصفحة الرئيسية (v0.9.22.0) */
 (function(){
 'use strict';
-const MARK=(size=44)=>`<svg class="masar-mark" width="${size}" height="${size}" viewBox="0 0 64 64" role="img" aria-label="شعار مسار"><defs><linearGradient id="mmG${size}" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#0F2A75"/><stop offset="1" stop-color="#3B6FE0"/></linearGradient></defs><rect x="2" y="2" width="60" height="60" rx="17" fill="url(#mmG${size})"/><g fill="none" stroke="#F3E6BF" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" opacity=".95"><path d="M16 46h10V34h10V22h12"/></g><g fill="#E3C46E"><circle cx="16" cy="46" r="4.2"/><circle cx="36" cy="34" r="4.2" fill="#F3E6BF"/><circle cx="48" cy="22" r="4.6"/></g></svg>`;
+/* شعار نيبور — لوح طيني بأسافين مسمارية. مصدر واحد للشعار يُستعمل في الواجهة والأيقونات. */
+function NIPPUR_MARK(size,opt){
+ opt=opt||{};const uid=opt.uid||String(size||'x'),simple=(size!=null&&size<=26);
+ const V=(x,y,w,h)=>`<path d="M${(x-w/2).toFixed(2)} ${y.toFixed(2)}H${(x+w/2).toFixed(2)}L${x.toFixed(2)} ${(y+h).toFixed(2)}Z"/>`;
+ const H=(x,y,w,h)=>`<path d="M${(x+w/2).toFixed(2)} ${(y-h/2).toFixed(2)}V${(y+h/2).toFixed(2)}L${(x-w/2).toFixed(2)} ${y.toFixed(2)}Z"/>`;
+ let g='';
+ if(simple){
+  [24.5,39.5].forEach(cx=>{g+=H(cx,19,11,7)});
+  [[24.5,34],[39.5,34],[24.5,45],[39.5,45]].forEach(([cx,y],i)=>{g+=(i%3===0)?V(cx,y-5,7,10):H(cx,y,11,7)});
+ }else{
+  [22.5,32,41.5].forEach(cx=>{g+=H(cx,19.5,7.4,4.8)});
+  [33.5,41.5,49.5].forEach((y,ri)=>[22.5,32,41.5].forEach((cx,ci)=>{g+=((ri+ci)%2===0)?V(cx,y-3.5,4.8,7):H(cx,y,7.4,4.8)}));
+ }
+ const rule=simple?'':'<path d="M18 26.3H46" stroke="#8A6A1F" stroke-opacity=".7" stroke-width="1.3" stroke-linecap="round"/>';
+ const ns=opt.ns?'xmlns="http://www.w3.org/2000/svg" ':'';
+ const sz=size?` width="${size}" height="${size}"`:'';
+ const bg=opt.bare?'':`<rect x="2" y="2" width="60" height="60" rx="17" fill="url(#nb${uid})"/>`;
+ return `<svg ${ns}class="${opt.cls===undefined?'masar-mark nippur-mark':opt.cls}"${sz} viewBox="0 0 64 64" role="img" aria-label="شعار نيبور"><defs><linearGradient id="nb${uid}" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#0B1F5C"/><stop offset="1" stop-color="#2F5FD0"/></linearGradient><linearGradient id="nt${uid}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F6E9BC"/><stop offset="1" stop-color="#D2AC55"/></linearGradient></defs>${bg}<rect x="14" y="9" width="36" height="46" rx="7" fill="url(#nt${uid})"/>${simple?'':'<rect x="16.2" y="11.2" width="31.6" height="41.6" rx="5.2" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="1"/>'}${rule}<g fill="#0F2A75">${g}</g></svg>`;
+}
+const MARK=(size=44)=>NIPPUR_MARK(size,{uid:'m'+size});
 window.MASAR_MARK=MARK;
 /* شعار الرأس + أيقونة التبويب */
 function brand(){
   const logo=document.querySelector('.topbar .brand .logo');
   if(logo&&!logo.dataset.masar){const w=document.createElement('span');w.className='masar-logo-wrap';w.dataset.masar='1';w.innerHTML=MARK(44);logo.replaceWith(w)}
   let l=document.querySelector('link[rel=icon]');if(!l){l=document.createElement('link');l.rel='icon';document.head.appendChild(l)}
-  l.type='image/svg+xml';l.href='data:image/svg+xml,'+encodeURIComponent(MARK(64).replace('class="masar-mark"','xmlns="http://www.w3.org/2000/svg"'));
+  l.type='image/svg+xml';l.href='data:image/svg+xml,'+encodeURIComponent(NIPPUR_MARK(24,{uid:'fav',ns:true,cls:''}));
 }
 /* الصفحة الرئيسية: شريط «اليوم» أولاً، ثم الإجراءات، ثم حالة الجدول */
 const origSchool=window.school;

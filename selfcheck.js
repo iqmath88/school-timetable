@@ -71,7 +71,7 @@ async function runAll(onRow){
 }
 function report(rows){
  const ver=(typeof APP_VERSION!=='undefined'?APP_VERSION:'?');
- return 'تقرير فحص مسار — '+ver+' — '+new Date().toLocaleString('ar-IQ')+'\n'+rows.map(r=>(r.ok?(r.warn?'⚠':'✓'):'✗')+' '+r.name+': '+r.msg).join('\n')+'\nالمتصفح: '+navigator.userAgent;
+ return 'تقرير فحص نيبور — '+ver+' — '+new Date().toLocaleString('ar-IQ')+'\n'+rows.map(r=>(r.ok?(r.warn?'⚠':'✓'):'✗')+' '+r.name+': '+r.msg).join('\n')+'\nالمتصفح: '+navigator.userAgent;
 }
 function mount(){
  if(typeof page==='undefined'||page!=='schoolSettings')return;
