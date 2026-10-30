@@ -1,5 +1,12 @@
+function enforceStatusBlocked(d){
+ /* حالة المدرس (مفرّغ/متعاقد + أيام التدريس) تُترجم إلى «عدم إتاحة». إن ضاعت الترجمة (بتعديل لاحق للقيود) تُستعاد هنا، فلا يُوضع مدرس في يوم لا يدرّس فيه. */
+ let n=0;try{const rules=d&&d.teacherRules;if(!rules)return 0;const act=new Map((d.days||[]).filter(x=>x.active&&x.periods>0).map(x=>[x.id,x.periods]));
+  for(const t of Object.keys(rules)){const r=rules[t];if(!r||!Array.isArray(r.statusBlocked)||!r.statusBlocked.length)continue;r.unavailable=r.unavailable||{};
+   for(const day of r.statusBlocked){const per=act.get(day);if(!per)continue;const cur=new Set((r.unavailable[day]||[]).map(Number));let miss=false;for(let p=1;p<=per;p++)if(!cur.has(p)){cur.add(p);miss=true}
+    if(miss){r.unavailable[day]=[...cur].sort((a,b)=>a-b);n++}}}}catch(e){}
+ return n}
 'use strict';
-self.onmessage=async e=>{if(e.data.type!=='start')return;const diag=!!e.data.diagnosticOnly,limit=+e.data.deadlineMs||240000;try{
+self.onmessage=async e=>{if(e.data.type!=='start')return;try{enforceStatusBlocked(e.data.db)}catch(_){}const diag=!!e.data.diagnosticOnly,limit=+e.data.deadlineMs||240000;try{
  const dfsMs=(!diag&&limit>=60000)?Math.min(30000,Math.round(limit*0.25)):limit;
  let res=generate(e.data.db,dfsMs,diag);
  if(!diag&&!res.ok&&limit>=60000&&['time','exhausted','validation-mismatch'].includes(res.reason)){

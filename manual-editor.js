@@ -67,10 +67,10 @@ window.lessonSheet=function(id){
 };
 
 /* ---- حذف حصة ---- */
-function deleteLesson(id){
+async function deleteLesson(id){
   const e=db.timetable.find(x=>x.id===id);if(!e)return;
   if(e.locked)return alert('الحصة مثبتة. افتح التثبيت أولاً.');
-  if(!confirm('حذف الحصة؟\n'+manualLabel(e)+'\nستعود إلى الحصص غير المجدولة ويمكن إضافتها من خانة فارغة.'))return;
+  if(!(await masarConfirm('حذف الحصة؟\n'+manualLabel(e)+'\nستعود إلى الحصص غير المجدولة ويمكن إضافتها من خانة فارغة.')))return;
   if(!preserveTimetable('قبل حذف حصة يدوياً'))return;
   const oldT=structuredClone(db.timetable),oldH=structuredClone(db.manualHistory||[]);
   db.timetable=db.timetable.filter(x=>x.id!==id);
@@ -92,10 +92,10 @@ function addLessonSheet(dayId,period,secId){
   const check=entry=>{db.timetable.push(entry);let r;try{r=manualValidate([{id:entry.id,dayId,period:+period}])}finally{db.timetable.pop()}return r};
   const upd=()=>{const r=check(draftEntry());o.querySelector('#adMsg').textContent=r.errors.length?'⛔ '+r.errors.join('، '):r.warnings.length?'⚠️ '+r.warnings.join('، '):'✓ لا تعارض';};
   o.querySelector('#adA').onchange=upd;upd();
-  o.querySelector('#adOk').onclick=()=>{
+  o.querySelector('#adOk').onclick=async ()=>{
     const entry=draftEntry(),r=check(entry);
     if(r.errors.length)return alert('لا يمكن الإضافة:\n'+r.errors.join('\n'));
-    if(r.warnings.length&&!confirm('⚠️ تحذيرات:\n'+r.warnings.join('\n')+'\n\nإضافة رغم التحذير؟'))return;
+    if(r.warnings.length&&!(await masarConfirm('⚠️ تحذيرات:\n'+r.warnings.join('\n')+'\n\nإضافة رغم التحذير؟')))return;
     if(!preserveTimetable('قبل إضافة حصة يدوياً'))return;
     const oldT=structuredClone(db.timetable),oldH=structuredClone(db.manualHistory||[]);
     db.timetable.push(entry);
@@ -161,10 +161,10 @@ function changeTeacher(id){
   o.innerHTML=`<div class="edit-card"><div class="edit-head"><h3>تغيير مدرس الحصة</h3><button class="icon-close" type="button" aria-label="إغلاق">×</button></div><div class="notice"></div><div class="notice warning">يُنقل هذا الدرس وحده إلى المدرس الجديد (تُقسَّم الحصص الأسبوعية للتكليف بينهما). ★ = يدرّس المادة نفسها.</div><div class="me-list">${rows.map((r,i)=>`<label class="me-row lv${r.level}"><input type="radio" name="mt" value="${r.t.id}" ${r.level===2?'disabled':''}><span>${r.same?'★ ':''}${esc(r.t.name)}</span><small>${r.level===2?'⛔ '+esc(r.errors.join('، ')):r.level===1?'⚠️ '+esc(r.warnings.join('، ')):'✓ متاح'}</small></label>`).join('')}</div><div class="actions"><button id="ctOk">تأكيد التغيير</button><button class="secondary" id="ctNo">إلغاء</button></div></div>`;
   o.querySelector('.notice').textContent=manualLabel(e);
   document.body.appendChild(o);const close=()=>o.remove();o.querySelector('.icon-close').onclick=close;o.querySelector('#ctNo').onclick=close;
-  o.querySelector('#ctOk').onclick=()=>{
+  o.querySelector('#ctOk').onclick=async ()=>{
     const pick=o.querySelector('input[name=mt]:checked');if(!pick)return alert('اختر مدرساً.');
     const r=rows.find(x=>x.t.id===pick.value);
-    if(r.warnings.length&&!confirm('⚠️ تحذيرات:\n'+r.warnings.join('\n')+'\n\nمتابعة؟'))return;
+    if(r.warnings.length&&!(await masarConfirm('⚠️ تحذيرات:\n'+r.warnings.join('\n')+'\n\nمتابعة؟')))return;
     if(!preserveTimetable('قبل تغيير مدرس حصة'))return;
     const snap={t:structuredClone(db.timetable),a:structuredClone(db.assignments),h:structuredClone(db.manualHistory||[])};
     const before={lesson:{assignmentId:e.assignmentId,teacherId:e.teacherId},A:{...A},A2:null,createdId:null,removedA:false};
@@ -206,7 +206,7 @@ function showProblems(){
   o.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>{const x=P.lessons[+b.dataset.open];close();goTo(x.e.sectionId,x.e.id)});
   o.querySelectorAll('[data-sg]').forEach(b=>b.onclick=()=>{const i=+b.dataset.sg,x=P.lessons[i],box=o.querySelector('#sg'+i);const sg=suggestFor(x.e);
     box.innerHTML=sg.length?sg.map((s,j)=>`<button data-ap="${i}|${j}">${esc(s.day)} / ${s.p} — ${esc(s.ev.type)}</button>`).join(' '):'<small>لا يوجد موضع بلا تعارض داخل هذه الشعبة. جرّب تغيير المدرس أو نقلاً بتحذير.</small>';
-    box.querySelectorAll('[data-ap]').forEach(a=>a.onclick=()=>{const [ii,jj]=a.dataset.ap.split('|').map(Number);const ev=suggestFor(P.lessons[ii].e)[jj];close();if(ev&&dndCommit(ev.ev))showProblems()})});
+    box.querySelectorAll('[data-ap]').forEach(a=>a.onclick=async()=>{const [ii,jj]=a.dataset.ap.split('|').map(Number);const ev=suggestFor(P.lessons[ii].e)[jj];close();if(ev&&(await dndCommit(ev.ev)))showProblems()})});
 }
 
 /* ---- إعادة توزيع جزئي ---- */

@@ -1,5 +1,5 @@
 /* مسار — Service Worker: يعمل التطبيق بلا إنترنت. الشبكة أولاً (لتصل التحديثات فور رفعها) ثم النسخة المخزنة. */
-const V='masar-0.9.32.0';
+const V='masar-0.9.33.0';
 const FILES=[
   "./",
   "access.js",
@@ -9,6 +9,7 @@ const FILES=[
   "cloud-config.js",
   "cloud.css",
   "cloud.js",
+  "dialogs.js",
   "errorlog.js",
   "excel-export.js",
   "excel-import.js",
@@ -39,6 +40,7 @@ const FILES=[
   "output-identity.js",
   "pwa.js",
   "school-day.js",
+  "selfcheck.js",
   "storage-ui.js",
   "storage.js",
   "styles.css",

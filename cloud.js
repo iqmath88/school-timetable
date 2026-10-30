@@ -107,7 +107,7 @@ async function showHistory(){
  shell.dataset.screen='hist';
  shell.innerHTML=`<div class="cloud-card"><h2>نسخ سحابية سابقة</h2><p class="muted">كل مرة تُستبدل فيها نسخة السحابة تُحفظ السابقة هنا (آخر 20). الاستعادة تسحبها إلى هذا الجهاز بعد حفظ نسخة أمان.</p>${rows.length?`<div style="max-height:46vh;overflow:auto">${rows.map(r=>`<div class="actions" style="justify-content:space-between"><span>مراجعة ${esc(r.revision)} — ${esc(new Date(r.saved_at).toLocaleString('ar-IQ'))}</span><button class="secondary" data-h="${esc(r.id)}">استعادة</button></div>`).join('')}</div>`:'<div class="notice">لا توجد نسخ سابقة بعد.</div>'}<div class="actions"><button id="hBack" class="secondary">رجوع</button></div></div>`;
  shell.querySelector('#hBack').onclick=()=>show();
- shell.querySelectorAll('[data-h]').forEach(b=>b.onclick=async()=>{try{const r=await authed('/rest/v1/school_state_history?id=eq.'+encodeURIComponent(b.dataset.h)+'&select=payload');const p=r.value?.[0]?.payload;if(!p)throw Error('تعذر قراءة النسخة');if(!confirm('استعادة هذه النسخة؟ تُحفظ نسخة أمان من بياناتك الحالية أولاً، ثم تُرفع المستعادة كمراجعة جديدة.'))return;
+ shell.querySelectorAll('[data-h]').forEach(b=>b.onclick=async()=>{try{const r=await authed('/rest/v1/school_state_history?id=eq.'+encodeURIComponent(b.dataset.h)+'&select=payload');const p=r.value?.[0]?.payload;if(!p)throw Error('تعذر قراءة النسخة');if(!(await masarConfirm('استعادة هذه النسخة؟ تُحفظ نسخة أمان من بياناتك الحالية أولاً، ثم تُرفع المستعادة كمراجعة جديدة.')))return;
   applying=true;try{bridge().importData(p)}finally{applying=false}shell.hidden=true;await push();toast('تمت الاستعادة.')}catch(e){toast(e.message,true)}})}
 
 
@@ -137,7 +137,7 @@ async function showMembers(){
  shell.querySelectorAll('[data-u]').forEach(row=>{const uid=row.dataset.u;
   const sv=row.querySelector('[data-a=save]'),dl=row.querySelector('[data-a=del]');
   if(sv)sv.onclick=async()=>{try{const role=row.querySelector('[data-f=role]').value,t=row.querySelector('[data-f=t]').value;await authed('/rest/v1/rpc/update_masar_member','POST',{p_school_id:sync.school,p_user_id:uid,p_role:role,p_teacher_ref:role==='teacher'?t:null});toast('حُفظ.');showMembers()}catch(e){msg(e.message,true)}};
-  if(dl)dl.onclick=async()=>{if(!confirm('إزالة هذا العضو من المدرسة؟'))return;try{await authed('/rest/v1/rpc/remove_masar_member','POST',{p_school_id:sync.school,p_user_id:uid});toast('أُزيل العضو.');showMembers()}catch(e){msg(e.message,true)}}});
+  if(dl)dl.onclick=async()=>{if(!(await masarConfirm('إزالة هذا العضو من المدرسة؟')))return;try{await authed('/rest/v1/rpc/remove_masar_member','POST',{p_school_id:sync.school,p_user_id:uid});toast('أُزيل العضو.');showMembers()}catch(e){msg(e.message,true)}}});
 }
 
 /* ---------- الواجهة ---------- */
@@ -172,7 +172,7 @@ function draw(){
   $('#syncNow').onclick=async()=>{await pull();await push();paintStatus()};
   if($('#histBtn'))$('#histBtn').onclick=showHistory;
   if($('#memBtn'))$('#memBtn').onclick=showMembers;
-  $('#unlinkBtn').onclick=()=>{if(confirm('فك الربط؟ تبقى بياناتك على هذا الجهاز كما هي، وتتوقف المزامنة.')){unlink();draw()}}}
+  $('#unlinkBtn').onclick=async ()=>{if((await masarConfirm('فك الربط؟ تبقى بياناتك على هذا الجهاز كما هي، وتتوقف المزامنة.'))){unlink();draw()}}}
  else{
   $('#linkBtn').onclick=async()=>{const id=$('#cloudSchools').value;if(!id){msg('اختر مدرسة أولاً',true);return}await linkSchool(id);startLoop();draw()};
   $('#cloudRefresh').onclick=async()=>{try{await list();draw();msg('تم تحديث المدارس')}catch(e){msg(e.message,true)}};

@@ -206,13 +206,13 @@ masarPages.teacherStatus=function(){
     }
     $('#tsMsg').innerHTML=`<div class="notice">حُدّد ${n} مدرس (الحالة «مفرّغ» مبدئياً — غيّرها إلى متعاقد عند الحاجة) من أيام الحجب الكامل في القيود. راجع ثم اضغط «حفظ».</div>`;
   };
-  $('#tsSave').onclick=()=>{
+  $('#tsSave').onclick=async ()=>{
     const snap=structuredClone({s:db.teacherStatus||{},r:db.teacherRules});
     document.querySelectorAll('[data-ts]').forEach(sel=>{const s=tStatus(sel.dataset.ts);s.type=sel.value;s.days=[...document.querySelectorAll(`[data-td^="${sel.dataset.ts}|"]`)].filter(c=>c.checked).map(c=>c.dataset.td.split('|')[1])});
     const bad=lessonsOnBlockedDays();
     if(bad.length){
       const names=[...new Set(bad.map(e=>db.teachers.find(t=>t.id===e.teacherId)?.name))].join('، ');
-      if(!invalidateTimetable('تغيير حالة المدرسين: '+names)){db.teacherStatus=snap.s;db.teacherRules=snap.r;return}
+      if(!(await invalidateTimetable('تغيير حالة المدرسين: '+names))){db.teacherStatus=snap.s;db.teacherRules=snap.r;return}
     }
     const touched=applyStatusToRules();
     if(save())$('#tsMsg').innerHTML=`<div class="notice">تم الحفظ. عُدّلت قيود ${touched.length} مدرس.${bad.length?' أعد توليد الجدول.':''}</div>`;
