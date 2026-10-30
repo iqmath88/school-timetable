@@ -1,5 +1,5 @@
 /* نيبور — Service Worker: يعمل التطبيق بلا إنترنت. الشبكة أولاً (لتصل التحديثات فور رفعها) ثم النسخة المخزنة. */
-const V='nippur-0.9.35.0';
+const V='nippur-0.9.36.0';
 const FILES=[
   "./",
   "access.js",
@@ -38,6 +38,7 @@ const FILES=[
   "mip-engine.js",
   "mobile.js",
   "output-identity.js",
+  "privacy.html",
   "pwa.js",
   "school-day.js",
   "selfcheck.js",

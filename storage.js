@@ -2,7 +2,7 @@
    تُحمَّل أولاً، وتحمّل بقية ملفات التطبيق بعد جاهزية التخزين. */
 (function(){
 'use strict';
-const VER='09350';
+const VER='09360';
 const SCRIPTS=['dialogs.js','excel-export.js','word-export.js','excel-import.js','app.js','school-day.js','identity.js','output-identity.js','manual-editor.js','storage-ui.js','ui-enhancements.js','cloud-config.js','state-diff.js','cloud.js','mobile.js','access.js','selfcheck.js'];
 const DB_NAME='masar-store',STORE='kv';
 const cache=new Map();let idb=null,mode='localStorage',listeners=[],lastError=null,pending=0;

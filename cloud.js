@@ -185,8 +185,23 @@ function draw(){
  <label>المدرسة السحابية<select id="cloudSchools"><option value="">— اختر مدرسة —</option>${schools.map(x=>`<option value="${esc(x.id)}">${esc(x.name)} (${esc(ROLE_AR[x.role]||x.role)})</option>`).join('')}</select></label>
  <div class="actions"><button id="linkBtn">ربط هذا الجهاز بالمدرسة</button></div>
  <label>إنشاء مدرسة جديدة<input id="cloudNewSchool" maxlength="120" placeholder="اسم المدرسة"></label><div class="actions"><button id="cloudCreate" class="secondary">إنشاء مدرسة</button><button id="cloudRefresh" class="secondary">تحديث القائمة</button></div>`}
+ <details class="acct-mgmt" style="margin:10px 0"><summary style="cursor:pointer">إدارة الحساب والخصوصية</summary><div class="actions" style="margin-top:8px"><a class="secondary" href="privacy.html" target="_blank" rel="noopener" style="padding:8px 12px">سياسة الخصوصية</a>${linked&&sync.role==='owner'?'<button id="delSchool" class="danger">حذف المدرسة السحابية</button>':''}<button id="delAccount" class="danger">حذف حسابي</button></div><p class="muted">الحذف نهائي. تبقى بيانات هذا الجهاز المحلية كما هي.</p></details>
  <div class="actions"><button id="cloudLogout" class="secondary">خروج</button><button id="cloudClose" class="secondary">إغلاق</button></div><p id="cloudMsg" role="status"></p></div>`;
  const $=s=>shell.querySelector(s);$('#cloudClose').onclick=close;
+ const gone=async m=>{session=null;persist();unlink();stopLoop();setStatus('login');draw();toast(m)};
+ $('#delAccount').onclick=async()=>{
+  if(!(await masarConfirm('حذف حسابك نهائياً؟ سيُحذف حسابك وعضويتك، وكذلك أي مدرسة سحابية أنت وحدك فيها. لا يمكن التراجع. بيانات هذا الجهاز المحلية تبقى.')))return;
+  const em=String(session.user?.email||'');const t=await masarPrompt('للتأكيد اكتب بريدك الإلكتروني بالضبط:\n'+em,'');if(t===null)return;
+  if(String(t).trim().toLowerCase()!==em.toLowerCase()){msg('البريد المكتوب لا يطابق بريد الحساب. لم يُحذف شيء.',true);return}
+  try{await authed('/rest/v1/rpc/delete_masar_account','POST',{});await gone('تم حذف حسابك نهائياً.')}
+  catch(e){msg(/other members/i.test(e.message)?'أنت مالك مدرسة فيها أعضاء آخرون. احذف الأعضاء من «الأعضاء والصلاحيات» أو احذف المدرسة أولاً، ثم أعد المحاولة.':/list_masar|delete_masar_account|PGRST202|Could not find/i.test(e.message)?'ميزة الحذف غير مفعّلة: شغّل ملف SUPABASE_UPGRADE_0.9.36.sql.':e.message,true)}};
+ if($('#delSchool'))$('#delSchool').onclick=async()=>{
+  const nm=String(sync.name||'');
+  if(!(await masarConfirm('حذف المدرسة السحابية «'+nm+'» نهائياً؟ تُحذف بياناتها ونسخها السابقة وعضويات كل الأعضاء. بيانات هذا الجهاز المحلية تبقى.')))return;
+  const t=await masarPrompt('للتأكيد اكتب اسم المدرسة بالضبط:\n'+nm,'');if(t===null)return;
+  if(String(t).trim()!==nm.trim()){msg('الاسم المكتوب لا يطابق. لم يُحذف شيء.',true);return}
+  try{await authed('/rest/v1/rpc/delete_masar_school','POST',{p_school_id:sync.school});unlink();try{await list()}catch{}draw();toast('تم حذف المدرسة السحابية.')}
+  catch(e){msg(/delete_masar_school|PGRST202|Could not find/i.test(e.message)?'ميزة الحذف غير مفعّلة: شغّل ملف SUPABASE_UPGRADE_0.9.36.sql.':e.message,true)}};
  $('#cloudLogout').onclick=async()=>{try{await authed('/auth/v1/logout','POST',{})}catch{}session=null;persist();stopLoop();setStatus('login');draw()};
  if(linked){paintStatus();
   $('#autoSync').onchange=e=>{sync.auto=e.target.checked;saveSync();if(sync.auto){pull().then(push)}else setStatus('off','المزامنة التلقائية متوقفة')};
