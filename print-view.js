@@ -17,6 +17,7 @@ function css(){
 #masar-pv .pv-title{flex:1;min-width:0;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #masar-pv .pv-hint{display:block;font-weight:400;font-size:12px;opacity:.85;white-space:normal}
 #masar-pv button{min-height:44px;min-width:88px;padding:8px 16px;border-radius:12px;border:0;font:700 15px inherit;font-family:inherit;cursor:pointer;color:#0F2A75;background:#fff}
+#masar-pv button.pv-pdf{background:#fff}
 #masar-pv button.pv-print{background:linear-gradient(135deg,#E3C46E,#C8A24A);color:#0B1633}
 #masar-pv button:focus-visible{outline:3px solid #C8A24A;outline-offset:2px}
 #masar-pv iframe{flex:1;width:100%;border:0;background:#fff}`;
@@ -31,9 +32,11 @@ function onMsg(e){/* الطباعة التلقائية داخل المستند �
 function openView(title){
  if(cur)closeView();css();
  const ov=document.createElement('div');ov.id='masar-pv';ov.setAttribute('role','dialog');ov.setAttribute('aria-modal','true');ov.setAttribute('aria-label','معاينة الطباعة');
- ov.innerHTML='<div class="pv-bar"><button type="button" class="pv-close" aria-label="إغلاق المعاينة">✕ إغلاق</button><div class="pv-title">معاينة الطباعة<span class="pv-hint">اضغط «طباعة» ثم اختر الطابعة، أو من خيارات الطباعة احفظه PDF.</span></div><button type="button" class="pv-print">🖨 طباعة</button></div><iframe title="معاينة الطباعة"></iframe>';
+ ov.innerHTML='<div class="pv-bar"><button type="button" class="pv-close" aria-label="إغلاق المعاينة">✕ إغلاق</button><div class="pv-title">معاينة الطباعة<span class="pv-hint">«📄 PDF» يفتح قائمة المشاركة (طباعة / حفظ في الملفات). زر «طباعة» قد لا يعمل على بعض الأجهزة.</span></div><button type="button" class="pv-pdf" hidden>📄 PDF</button><button type="button" class="pv-print">🖨 طباعة</button></div><iframe title="معاينة الطباعة"></iframe>';
  document.body.appendChild(ov);document.documentElement.classList.add('pv-open');
  const ifr=ov.querySelector('iframe');let buf='';
+ const ctx=window.__MASAR_PV_CTX;window.__MASAR_PV_CTX=null;
+ if(ctx&&typeof ctx.pdf==='function'&&Date.now()-(ctx.t||0)<3000){const b=ov.querySelector('.pv-pdf');b.hidden=false;b.onclick=async()=>{const old=b.textContent;b.disabled=true;b.textContent='جارٍ التجهيز…';try{await ctx.pdf()}catch(e){try{alert('تعذر إنشاء PDF: '+(e&&e.message||e))}catch(_){}}finally{b.disabled=false;b.textContent=old}}}
  const doPrint=()=>{const w=ifr.contentWindow;if(!w)return;window.__MASAR_PV_PRINTS=(window.__MASAR_PV_PRINTS||0)+1;try{w.focus();(w.__realPrint||w.print).call(w)}catch(e){try{window.print()}catch(_){}}};
  const key=e=>{if(e.key==='Escape'){e.preventDefault();e.stopPropagation();closeView()}};
  document.addEventListener('keydown',key,true);window.addEventListener('message',onMsg);

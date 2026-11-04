@@ -1,4 +1,4 @@
-const APP_VERSION='0.9.37.0-stable';
+const APP_VERSION='0.9.38.0-stable';
 const KEY='school-timetable-v01';
 const stageDefaults=[['الأول',1,'#587B9B'],['الثاني',2,'#6F8F72'],['الثالث',3,'#9A7B60'],['الرابع',4,'#7D7398'],['الخامس',5,'#A16F78'],['السادس',6,'#557F83']];
 const defaultDays=[['الأحد',7,true],['الاثنين',7,true],['الثلاثاء',6,true],['الأربعاء',7,true],['الخميس',5,true],['الجمعة',0,false],['السبت',0,false]];
@@ -1848,6 +1848,7 @@ function printAllTeacherCards(){const ids=db.teachers.filter(t=>db.timetable.som
 function printSelectedTimetable(pick){
  const p=db.printSettings;const label=pick.mode==='teacher'?db.teachers.find(x=>x.id===pick.id)?.name:pick.mode==='section'?(()=>{const sec=db.sections.find(x=>x.id===pick.id),g=db.stages.find(x=>x.id===sec?.stageId);return (g?stageDisplayName(g):'')+' '+(sec?.name||'')})():'المدرسة كاملة';
  if(pick.mode==='teacher'){printTeacherCards([pick.id]);return;}
+ if(pick.mode==='school'||pick.mode==='section')window.__MASAR_PV_CTX={t:Date.now(),pdf:()=>exportSchedulePDF(pick.mode,pick.id)};
  const table=pick.mode==='school'?timetableTable():focusedTimetable(pick.mode,pick.id);if(pick.mode==='school'){const html=printDocument();const w=window.open('','_blank');if(!w)return alert('اسمح بفتح النوافذ المنبثقة للطباعة');w.document.write(`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>الجدول المدرسي</title><style>${printCSS()+premiumPrintCSS()}</style></head><body>${html}<script>window.onload=()=>setTimeout(()=>window.print(),350)<\/script></body></html>`);w.document.close();return;}
  const html=`<article class="print-sheet ${printPresentationClass()}">${formalHeader(label)}${table}${formalFooter()}</article>`;
  const w=window.open('','_blank');if(!w)return alert('اسمح بفتح النوافذ المنبثقة للطباعة');
@@ -1927,6 +1928,7 @@ html,body{margin:0!important;padding:0!important;background:white!important;colo
 
 function openPrintSheets(){
  if(!db.timetable.length)return alert('لا يوجد جدول للطباعة');
+ window.__MASAR_PV_CTX={t:Date.now(),pdf:()=>exportSchedulePDF('school')};
  const w=window.open('','_blank');if(!w)return alert('اسمح بفتح النوافذ المنبثقة للطباعة');
  w.document.write(`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>طباعة جداول المراحل</title><style>${printCSS()+premiumPrintCSS()}</style></head><body>${printDocument()}<script>window.onload=()=>setTimeout(()=>window.print(),650)<\/script></body></html>`);w.document.close();
 }
@@ -1991,6 +1993,7 @@ function openScopedPrint(scope,id){
  if(!db.timetable.length)return alert('لا يوجد جدول للطباعة');
  if(scope==='teacher')return printTeacherCards([id]);
  const html=printScopeDocument(scope,id);if(!html)return alert('اختر مرحلة أو شعبة صالحة');
+ window.__MASAR_PV_CTX={t:Date.now(),pdf:()=>exportSchedulePDF(scope,id)};
  const w=window.open('','_blank');if(!w)return alert('اسمح بفتح النوافذ المنبثقة للطباعة');
  w.document.write(`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>طباعة جدول نيبور</title><style>${scopedPrintCSS(scope)}</style></head><body>${html}<script>window.onload=()=>setTimeout(()=>window.print(),650)<\/script></body></html>`);w.document.close();
 }
@@ -2029,12 +2032,13 @@ function printSetup(){
   const previous=structuredClone(db.timetable);db.timetable=pendingExcel.candidate;db.manualHistory??=[];db.manualHistory.push({id:uid('edit'),at:new Date().toISOString(),type:'excel-import',before:pendingExcel.changes.map(e=>{const old=previous.find(x=>x.id===e.id);return {id:e.id,dayId:old.dayId,period:old.period}}),after:pendingExcel.changes.map(e=>({id:e.id,dayId:e.dayId,period:e.period}))});if(db.manualHistory.length>100)db.manualHistory.shift();if(!save()){db.timetable=previous;db.manualHistory.pop();throw Error('فشل حفظ البيانات؛ أعيد الجدول السابق في الذاكرة')}pendingExcel=null;$('#masarExcelApply').disabled=true;report.textContent='نجح استيراد الجدول وحفظه. راجع مساحة عمل الجدول.';
   }catch(err){report.textContent='تعذر تطبيق التغييرات: '+(err.message||err)}};
 
- const scopeUI=`<section class="print-scope-panel"><h3>الطباعة الاحترافية حسب النطاق</h3><div class="grid"><div class="field"><label>الجدول المطلوب</label><select id="prScope"><option value="school">المدرسة كاملة — A3</option><option value="middle">المجموعة الأولى — A3</option>${stageGroups()[1]?'<option value="high">المجموعة الثانية — A3</option>':''}<option value="stage">مرحلة واحدة — A3 بخط أوضح</option><option value="section">شعبة واحدة — A4 أفقي</option><option value="teacher">مدرس واحد — بطاقة A4 أفقي</option></select></div><div class="field" id="prScopeEntityWrap" hidden><label>اختر المرحلة / الشعبة / المدرس</label><select id="prScopeEntity"></select></div></div><div class="actions"><button type="button" id="prScopePrint">طباعة النطاق المختار / حفظ PDF</button></div><p class="muted">الطباعة لا تغيّر أي حصة. اختر حفظ PDF من نافذة الطباعة. تتوفر ألوان المراحل حسب إعدادات الطباعة.</p></section>`;
+ const scopeUI=`<section class="print-scope-panel"><h3>الطباعة الاحترافية حسب النطاق</h3><div class="grid"><div class="field"><label>الجدول المطلوب</label><select id="prScope"><option value="school">المدرسة كاملة — A3</option><option value="middle">المجموعة الأولى — A3</option>${stageGroups()[1]?'<option value="high">المجموعة الثانية — A3</option>':''}<option value="stage">مرحلة واحدة — A3 بخط أوضح</option><option value="section">شعبة واحدة — A4 أفقي</option><option value="teacher">مدرس واحد — بطاقة A4 أفقي</option></select></div><div class="field" id="prScopeEntityWrap" hidden><label>اختر المرحلة / الشعبة / المدرس</label><select id="prScopeEntity"></select></div></div><div class="actions"><button type="button" id="prScopePrint">طباعة النطاق المختار / حفظ PDF</button><button type="button" id="prScopePdf" class="secondary">📄 مشاركة / حفظ PDF (للآيباد والهاتف)</button></div><p class="muted">الطباعة لا تغيّر أي حصة. على الآيباد والهاتف يُنشأ ملف PDF ثم تُفتح قائمة المشاركة: اختر «طباعة» أو «حفظ في الملفات». تتوفر ألوان المراحل حسب إعدادات الطباعة.</p></section>`;
  $('#workspace').insertAdjacentHTML('beforeend',scopeUI);
  const scopeSelect=$('#prScope'),scopeEntity=$('#prScopeEntity'),scopeWrap=$('#prScopeEntityWrap');
  function updateScopeOptions(){const mode=scopeSelect.value;scopeWrap.hidden=!['stage','section','teacher'].includes(mode);const items=mode==='stage'?db.stages.slice().sort((a,b)=>a.order-b.order):mode==='section'?db.sections.slice().sort((a,b)=>(db.stages.find(g=>g.id===a.stageId)?.order||0)-(db.stages.find(g=>g.id===b.stageId)?.order||0)||a.order-b.order):mode==='teacher'?db.teachers.slice().sort((a,b)=>a.name.localeCompare(b.name,'ar')):[];scopeEntity.innerHTML=items.map(x=>`<option value="${esc(x.id)}">${esc(mode==='stage'?stageDisplayName(x):mode==='section'?exportSectionName(x.id):x.name)}</option>`).join('')}
  scopeSelect.onchange=updateScopeOptions;updateScopeOptions();
- $('#prScopePrint').onclick=()=>{store();openScopedPrint(scopeSelect.value,scopeEntity.value)};
+ $('#prScopePrint').onclick=()=>{store();if(touchDevice())return pdfBusy($('#prScopePrint'),()=>exportSchedulePDF(scopeSelect.value,scopeEntity.value));openScopedPrint(scopeSelect.value,scopeEntity.value)};
+ $('#prScopePdf').onclick=()=>{store();pdfBusy($('#prScopePdf'),()=>exportSchedulePDF(scopeSelect.value,scopeEntity.value))};
  const designUI=`<section class="design-options"><h3>الهوية الرسمية وشعار المدرسة</h3><div class="grid"><div class="field"><label>النمط البصري</label><select id="prDesignTheme"><option value="formal">رسمي أكاديمي (كحلي وذهبي)</option><option value="minimal">رسمي مبسط</option><option value="soft">ألوان المراحل</option></select></div><div class="field"><label>موضع الشعار</label><select id="prLogoPosition"><option value="center">منتصف الرأس</option><option value="right">يمين الرأس</option><option value="left">يسار الرأس</option><option value="none">إخفاء الشعار</option></select></div><div class="field"><label>كثافة الخلايا</label><select id="prDensity"><option value="compact">مضغوط</option><option value="medium">متوسط</option><option value="wide">واسع</option></select></div></div><div class="field"><label>رفع شعار المدرسة (PNG أو JPG، بحد أقصى 1 ميغابايت)</label><input id="prLogoFile" type="file" accept="image/png,image/jpeg"><div id="prLogoPreview">${p.logo?`<img class="logo-preview" src="${p.logo}" alt="معاينة شعار المدرسة">`:'لا يوجد شعار مرفوع'}</div><button type="button" class="secondary" id="prRemoveLogo">إزالة الشعار</button></div><div class="design-toggles"><label><input type="checkbox" id="prTeachers"> إظهار أسماء المدرسين</label><label><input type="checkbox" id="prNotes"> إظهار الملاحظات</label><label><input type="checkbox" id="prSignatures"> إظهار التواقيع</label></div><div class="grid"><div class="field"><label>التوقيع الأول</label><input id="prSig1"></div><div class="field"><label>التوقيع الثاني</label><input id="prSig2"></div><div class="field"><label>التوقيع الثالث</label><input id="prSig3"></div></div><div class="notice">الإعدادات تُحفظ ضمن نسخة JSON الاحتياطية، ولا تؤثر في توزيع الحصص أو القيود.</div></section>`;
  $('#workspace').insertAdjacentHTML('afterbegin',designUI);
  const previewFrame=$('#printPreviewFrame');if(previewFrame){previewFrame.srcdoc='<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>'+printCSS()+premiumPrintCSS()+'</style></head><body>'+printDocument()+'</body></html>';}
@@ -2043,7 +2047,7 @@ function printSetup(){
  $('#prLogoFile').onchange=()=>{const file=$('#prLogoFile').files[0];if(!file)return;if(!['image/png','image/jpeg'].includes(file.type)||file.size>1048576){alert('اختر صورة PNG أو JPG بحجم لا يتجاوز 1 ميغابايت');$('#prLogoFile').value='';return}const reader=new FileReader();reader.onload=()=>{p.logo=String(reader.result);$('#prLogoPreview').innerHTML=`<img class="logo-preview" src="${p.logo}" alt="معاينة الشعار">`;save()};reader.readAsDataURL(file)};
  $('#prRemoveLogo').onclick=()=>{p.logo='';$('#prLogoFile').value='';$('#prLogoPreview').textContent='لا يوجد شعار مرفوع';save()};
  const store=()=>{p.title=$('#prTitle').value.trim()||'جدول الحصص الأسبوعية';p.startDate=$('#prDate').value;p.changeReasons=$('#prReasons').value;p.footer=$('#prFooter').value;p.showColors=$('#prColors').checked;p.printMode=$('#prPrintMode').value;p.theme=$('#prDesignTheme').value;p.logoPosition=$('#prLogoPosition').value;p.density=$('#prDensity').value;p.showTeachers=$('#prTeachers').checked;p.showNotes=$('#prNotes').checked;p.showSignatures=$('#prSignatures').checked;p.signature1=$('#prSig1').value.trim();p.signature2=$('#prSig2').value.trim();p.signature3=$('#prSig3').value.trim();save()};
- $('#prPrintMode').onchange=()=>{const frame=$('#printPreviewFrame');if(frame){const previous=p.printMode;p.printMode=$('#prPrintMode').value;frame.srcdoc='<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><style>'+printCSS()+premiumPrintCSS()+'</style></head><body>'+printDocument()+'</body></html>';p.printMode=previous}};$('#prSave').onclick=()=>{store();printSetup()};$('#prPrint').onclick=()=>{store();openPrintSheets()};$('#prPDF').onclick=()=>{store();openPrintSheets();};
+ $('#prPrintMode').onchange=()=>{const frame=$('#printPreviewFrame');if(frame){const previous=p.printMode;p.printMode=$('#prPrintMode').value;frame.srcdoc='<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><style>'+printCSS()+premiumPrintCSS()+'</style></head><body>'+printDocument()+'</body></html>';p.printMode=previous}};$('#prSave').onclick=()=>{store();printSetup()};$('#prPrint').onclick=()=>{store();if(touchDevice())return pdfBusy($('#prPrint'),()=>exportSchedulePDF('school'));openPrintSheets()};$('#prPDF').onclick=()=>{store();if(touchDevice())return pdfBusy($('#prPDF'),()=>exportSchedulePDF('school'));openPrintSheets();};
  const type=$('#imgType'),choice=$('#imgChoice'),wrap=$('#imgChoiceWrap');
  function refreshChoice(){const v=type.value;wrap.hidden=!['stage','teacher','section'].includes(v);let list=v==='stage'?db.stages.slice().sort((a,b)=>a.order-b.order):v==='teacher'?db.teachers.slice().sort((a,b)=>a.name.localeCompare(b.name,'ar')):db.sections.slice().sort((a,b)=>(db.stages.find(g=>g.id===a.stageId)?.order||0)-(db.stages.find(g=>g.id===b.stageId)?.order||0)||a.order-b.order);choice.innerHTML=list.map(x=>`<option value="${x.id}">${esc(v==='stage'?stageDisplayName(x):v==='section'?exportSectionName(x.id):x.name)}</option>`).join('')};type.onchange=refreshChoice;refreshChoice();
  $('#imgSave').onclick=async()=>{store();if(!db.timetable.length)return alert('لا يوجد جدول للتصدير');const btn=$('#imgSave');btn.disabled=true;$('#imgStatus').textContent='جارٍ تجهيز الصورة...';try{await exportSchedulePNG(type.value,choice.value);$('#imgStatus').textContent='تم تجهيز الصورة؛ تحقق من التنزيلات أو قائمة المشاركة.'}catch(e){$('#imgStatus').textContent='تعذر التصدير: '+e.message}finally{btn.disabled=false}};
@@ -2051,7 +2055,7 @@ function printSetup(){
 // Shared display helper: available to print setup and PNG renderer.
 function exportSectionName(id){const sec=db.sections.find(x=>x.id===id);if(!sec)return '—';const stage=db.stages.find(g=>g.id===sec.stageId);return (stage?stageDisplayName(stage):'مرحلة')+' '+sec.name;}
 const exportPalettes={g1:['#E7F0F9','#244E78','#587B9B'],g2:['#E8F3E9','#315F3B','#6F8F72'],g3:['#F7EEE3','#785332','#9A7B60'],g4:['#EEEAF7','#59477E','#7D7398'],g5:['#FAEBEF','#85445A','#A16F78'],g6:['#E4F2F1','#27616A','#557F83']};
-async function exportSchedulePNG(mode,id){
+async function renderScheduleCanvas(mode,id,opt){
  const stages=mode==='all'?db.stages.map(x=>x.id):mode==='middle'?(stageGroups()[0]?.ids||[]):mode==='high'?(stageGroups()[1]?.ids||[]):mode==='stage'?[id]:null;
  const sec=mode==='section'?db.sections.filter(x=>x.id===id):db.sections.filter(x=>!stages||stages.includes(x.stageId));
  const sections=mode==='teacher'?[]:sec.slice().sort((a,b)=>(db.stages.find(g=>g.id===a.stageId)?.order||0)-(db.stages.find(g=>g.id===b.stageId)?.order||0)||a.order-b.order);
@@ -2072,7 +2076,7 @@ async function exportSchedulePNG(mode,id){
  const rowHeights=rows.map(r=>{let h=31;headings.forEach((item,ci)=>{const day=focus?item:r.day,sectionId=mode==='section'?id:item.id;const e=timetableIndex.get(day.id+'|'+r.period+'|'+(mode==='teacher'?id:sectionId));if(!e)return;const w=colWidths[ci]-14;const sub=db.subjects.find(s=>s.id===e.subjectId)?.name||'—',t=db.teachers.find(t=>t.id===e.teacherId)?.name||'—';const subLines=wrap(sub,w,baseFont,true).length,teachLines=db.printSettings.showTeachers===false?0:wrap(mode==='teacher'?exportSectionName(e.sectionId):teacherShort(t),w,teacherFont).length;h=Math.max(h,5+subLines*(baseFont+1)+teachLines*(teacherFont+1))});return h});
  const height=topH+headH+rowHeights.reduce((a,b)=>a+b,0)+footH;
  if(width>9000||height>9000||width*height>50000000)throw new Error('الصورة كبيرة لهذا الجهاز؛ جرّب تصدير مرحلة واحدة.');
- canvas.width=width;canvas.height=height;const c=canvas.getContext('2d');c.direction='rtl';c.fillStyle='#fff';c.fillRect(0,0,width,height);
+ const S=opt&&opt.maxScale?Math.max(1,Math.min(opt.maxScale,Math.sqrt(16e6/(width*height)))):1;canvas.width=Math.round(width*S);canvas.height=Math.round(height*S);const c=canvas.getContext('2d');c.setTransform(S,0,0,S,0,0);c.direction='rtl';c.fillStyle='#fff';c.fillRect(0,0,width,height);
  const box=(x,y,w,h,bg,border='#C9D4EA')=>{c.fillStyle=bg;c.fillRect(x,y,w,h);c.strokeStyle=border;c.lineWidth=1;c.strokeRect(x+.5,y+.5,w-1,h-1)};
  const text=(str,x,y,size=17,color='#0B1633',bold=false)=>{c.direction='rtl';c.font=font(size,bold);c.fillStyle=color;c.textAlign='center';c.textBaseline='middle';c.fillText(String(str||'—'),x,y)};
  const lines=(str,x,y,w,size,bold,color,step)=>{const ls=wrap(str,w,size,bold);ls.forEach((line,i)=>text(line,x,y+i*step,size,color,bold));return ls.length*step};
@@ -2097,10 +2101,71 @@ async function exportSchedulePNG(mode,id){
  headings.forEach((item,i)=>{const w=colWidths[i];xx-=w;const day=focus?item:r.day,secId=mode==='section'?id:item.id;const e=timetableIndex.get(day.id+'|'+r.period+'|'+(mode==='teacher'?id:secId));const section=mode==='teacher'?db.sections.find(s=>s.id===e?.sectionId):mode==='section'?db.sections.find(s=>s.id===id):item;const pal=db.printSettings.showColors===false?['#F4F7FA','#334155','#64748B']:(exportPalettes[section?.stageId]||['#F4F7FA','#334155','#64748B']);const off=mode==='teacher'?r.period>day.periods:r.period>sectionDayPeriods(section,day);box(xx,yy,w,rh,off?'#F1F3F6':e?(db.printSettings.theme==='contrast'?'#FFFFFF':pal[0]):ri%2?'#FAFBFC':'#FFFFFF',e?pal[2]:'#D4DCE5');if(e){const sub=db.subjects.find(s=>s.id===e.subjectId)?.name||'—',teacher=db.teachers.find(t=>t.id===e.teacherId)?.name||'—';const t=mode==='teacher'?exportSectionName(e.sectionId):teacherShort(teacher),subLines=wrap(sub,w-8,baseFont,true),tLines=db.printSettings.showTeachers===false?[]:wrap(t,w-8,teacherFont),total=subLines.length*(baseFont+1)+tLines.length*(teacherFont+3),first=yy+(rh-total)/2+baseFont/2+2;subLines.forEach((line,k)=>text(line,xx+w/2,first+k*(baseFont+1),baseFont,'#182D43',true));tLines.forEach((line,k)=>text(line,xx+w/2,first+subLines.length*(baseFont+1)+k*(teacherFont+1),teacherFont,'#475569'))}else if(off)text('—',xx+w/2,yy+rh/2,15,'#9AA5B1')});yy+=rh});
  if(db.printSettings.showNotes!==false){c.fillStyle='#FBFAF7';c.fillRect(margin,height-footH+5,width-2*margin,47);c.strokeStyle='#D4C29A';c.strokeRect(margin+.5,height-footH+5.5,width-2*margin-1,46);text(`أسباب تغيير الجدول: ${db.printSettings.changeReasons||'—'}`,width/2,height-footH+20,14,'#475569');if(db.printSettings.footer)text(db.printSettings.footer,width/2,height-footH+42,12,'#475569')}
  if(db.printSettings.showSignatures!==false){const labels=[db.printSettings.signature1||'منظّم الجدول',db.printSettings.signature2||'معاون المدير',db.printSettings.signature3||'مدير المدرسة'];labels.forEach((label,i)=>{const x=width*(i+1)/4;text(label,x,height-37,13,'#0B1633',true);text('التوقيع: __________',x,height-17,11,'#475569')})}
+ return canvas;
+}
+async function exportSchedulePNG(mode,id){
+ const canvas=await renderScheduleCanvas(mode,id);
  const blob=await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('فشل إنشاء PNG')),'image/png'));const filename='masar-timetable-'+mode+(id?'-'+id:'')+'.png';const file=typeof File==='function'?new File([blob],filename,{type:'image/png'}):null;
  if(file&&navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:'جدول الحصص'});return}catch(e){if(e.name==='AbortError')throw new Error('أُلغيت مشاركة الصورة')}}
  const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),15000);
 }
+
+
+/* ===== PDF حقيقي من نفس مسار رسم الصورة (يعمل على iPad عبر قائمة المشاركة: طباعة / حفظ في الملفات) ===== */
+async function deliverFile(blob,filename,title){
+ const file=typeof File==='function'?new File([blob],filename,{type:blob.type}):null;
+ const share=async()=>{await navigator.share({files:[file],title});return 'shared'};
+ if(file&&navigator.canShare&&navigator.canShare({files:[file]})){
+  try{return await share()}
+  catch(e){
+   if(e&&e.name==='AbortError')return 'cancelled';
+   /* انتهت صلاحية الضغطة بعد التجهيز: نطلب ضغطة جديدة ثم نعيد المشاركة */
+   if(e&&e.name==='NotAllowedError'&&(await masarConfirm('ملف PDF جاهز. اضغط «متابعة» لمشاركته أو طباعته أو حفظه في الملفات.'))){try{return await share()}catch(e2){if(e2&&e2.name==='AbortError')return 'cancelled'}}
+  }
+ }
+ const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),15000);return 'downloaded';
+}
+async function buildPdf(pages){
+ /* pages: [{canvas, w, h}] بالنقاط (1 نقطة = 1/72 إنش)؛ تُحفظ كل لوحة JPEG داخل صفحة مستقلة */
+ const enc=new TextEncoder(),parts=[],offs=[];let pos=0;
+ const put=u=>{parts.push(u);pos+=u.length},txt=t=>put(enc.encode(t));
+ put(new Uint8Array([37,80,68,70,45,49,46,52,10,37,226,227,207,211,10]));
+ const obj=(n,body)=>{offs[n]=pos;txt(n+' 0 obj\n'+body+'\nendobj\n')};
+ const total=2+pages.length*3;
+ obj(1,'<< /Type /Catalog /Pages 2 0 R >>');
+ obj(2,'<< /Type /Pages /Kids ['+pages.map((_,i)=>(3+i*3)+' 0 R').join(' ')+'] /Count '+pages.length+' >>');
+ for(let i=0;i<pages.length;i++){
+  const {canvas,w,h}=pages[i],base=3+i*3,m=20,k=Math.min((w-2*m)/canvas.width,(h-2*m)/canvas.height),dw=canvas.width*k,dh=canvas.height*k,x=(w-dw)/2,y=(h-dh)/2;
+  const jpg=new Uint8Array(await (await new Promise((res,rej)=>canvas.toBlob(b=>b?res(b):rej(new Error('تعذر إنشاء الصورة')),'image/jpeg',.93))).arrayBuffer());
+  obj(base,'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 '+w.toFixed(2)+' '+h.toFixed(2)+'] /Resources << /XObject << /Im0 '+(base+2)+' 0 R >> >> /Contents '+(base+1)+' 0 R >>');
+  const cs='q '+dw.toFixed(2)+' 0 0 '+dh.toFixed(2)+' '+x.toFixed(2)+' '+y.toFixed(2)+' cm /Im0 Do Q';
+  obj(base+1,'<< /Length '+cs.length+' >>\nstream\n'+cs+'\nendstream');
+  offs[base+2]=pos;txt((base+2)+' 0 obj\n<< /Type /XObject /Subtype /Image /Width '+canvas.width+' /Height '+canvas.height+' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length '+jpg.length+' >>\nstream\n');put(jpg);txt('\nendstream\nendobj\n');
+ }
+ const xr=pos;let x='xref\n0 '+(total+1)+'\n0000000000 65535 f \n';
+ for(let n=1;n<=total;n++)x+=String(offs[n]).padStart(10,'0')+' 00000 n \n';
+ txt(x+'trailer\n<< /Size '+(total+1)+' /Root 1 0 R >>\nstartxref\n'+xr+'\n%%EOF');
+ return new Blob(parts,{type:'application/pdf'});
+}
+function pdfPlan(scope,id){
+ const g=stageGroups?stageGroups():[],has=i=>g[i]&&g[i].ids&&g[i].ids.length;
+ if(scope==='school'){const l=[];if(has(0))l.push(['middle']);if(has(1))l.push(['high']);return {items:l.length?l:[['all']],paper:'A3'}}
+ if(scope==='middle'||scope==='high')return {items:[[scope]],paper:'A3'};
+ if(scope==='stage')return {items:[['stage',id]],paper:'A3'};
+ return {items:[[scope,id]],paper:'A4'};
+}
+async function exportSchedulePDF(scope,id){
+ if(!db.timetable.length)throw new Error('لا يوجد جدول للتصدير');
+ const plan=pdfPlan(scope,id),big=plan.paper==='A3',W=big?1190.55:841.89,H=big?841.89:595.28,pages=[];
+ for(const [mode,eid] of plan.items){const canvas=await renderScheduleCanvas(mode,eid,{maxScale:2});pages.push({canvas,w:canvas.width<canvas.height*0.8?H:W,h:canvas.width<canvas.height*0.8?W:H})}
+ const blob=await buildPdf(pages);
+ const name='nippur-timetable-'+scope+(id?'-'+String(id).replace(/[^\w-]/g,''):'')+'-'+new Date().toISOString().slice(0,10)+'.pdf';
+ window.__MASAR_LAST_PDF={blob,name,pages:pages.length};
+ return deliverFile(blob,name,'جدول الحصص');
+}
+window.exportSchedulePDF=exportSchedulePDF;
+function touchDevice(){return (()=>{try{return navigator.standalone===true||matchMedia('(display-mode: standalone)').matches||/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1)}catch(e){return false}})()}
+async function pdfBusy(btn,fn){const t=btn.textContent;btn.disabled=true;btn.textContent='جارٍ تجهيز PDF…';try{const r=await fn();if(r==='shared')alert('تمت المشاركة. اختر «طباعة» أو «حفظ في الملفات» من القائمة.')}catch(e){alert('تعذر إنشاء PDF: '+(e&&e.message||e))}finally{btn.disabled=false;btn.textContent=t}}
 
 $('#exportBtn').onclick=exportSafeBackup;
 // A real, associated file input/label is required for reliable iPad Safari picking.
