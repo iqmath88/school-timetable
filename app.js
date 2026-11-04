@@ -1,4 +1,4 @@
-const APP_VERSION='0.9.38.1-stable';
+const APP_VERSION='0.9.38.2-stable';
 const KEY='school-timetable-v01';
 const stageDefaults=[['الأول',1,'#587B9B'],['الثاني',2,'#6F8F72'],['الثالث',3,'#9A7B60'],['الرابع',4,'#7D7398'],['الخامس',5,'#A16F78'],['السادس',6,'#557F83']];
 const defaultDays=[['الأحد',7,true],['الاثنين',7,true],['الثلاثاء',6,true],['الأربعاء',7,true],['الخميس',5,true],['الجمعة',0,false],['السبت',0,false]];
@@ -2135,7 +2135,7 @@ async function buildPdf(pages){
  obj(1,'<< /Type /Catalog /Pages 2 0 R >>');
  obj(2,'<< /Type /Pages /Kids ['+pages.map((_,i)=>(3+i*3)+' 0 R').join(' ')+'] /Count '+pages.length+' >>');
  for(let i=0;i<pages.length;i++){
-  const {canvas,w,h}=pages[i],base=3+i*3,m=20,k=Math.min((w-2*m)/canvas.width,(h-2*m)/canvas.height),dw=canvas.width*k,dh=canvas.height*k,x=(w-dw)/2,y=(h-dh)/2;
+  const {canvas,w,h}=pages[i],base=3+i*3,m=14,k=Math.min((w-2*m)/canvas.width,(h-2*m)/canvas.height),dw=canvas.width*k,dh=canvas.height*k,x=(w-dw)/2,y=(h-dh)/2;
   const jpg=new Uint8Array(await (await new Promise((res,rej)=>canvas.toBlob(b=>b?res(b):rej(new Error('تعذر إنشاء الصورة')),'image/jpeg',.93))).arrayBuffer());
   obj(base,'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 '+w.toFixed(2)+' '+h.toFixed(2)+'] /Resources << /XObject << /Im0 '+(base+2)+' 0 R >> >> /Contents '+(base+1)+' 0 R >>');
   const cs='q '+dw.toFixed(2)+' 0 0 '+dh.toFixed(2)+' '+x.toFixed(2)+' '+y.toFixed(2)+' cm /Im0 Do Q';
@@ -2157,16 +2157,18 @@ function pdfPlan(scope,id){
 async function exportSchedulePDF(scope,id){
  if(!db.timetable.length)throw new Error('لا يوجد جدول للتصدير');
  const plan=pdfPlan(scope,id),P=db.printSettings||{},paper=(P.pdfPaper==='A3'||P.pdfPaper==='A4')?P.pdfPaper:plan.paper,orient=(P.pdfOrient==='landscape'||P.pdfOrient==='portrait')?P.pdfOrient:'auto';
- const L=paper==='A3'?[1190.55,841.89]:[841.89,595.28],pages=[];
- for(const [mode,eid] of plan.items){
-  const canvas=await renderScheduleCanvas(mode,eid,{maxScale:2});
-  const fit=(w,h)=>Math.min((w-40)/canvas.width,(h-40)/canvas.height);
-  const o=orient!=='auto'?orient:(fit(L[0],L[1])>=fit(L[1],L[0])?'landscape':'portrait');
-  pages.push({canvas,w:o==='landscape'?L[0]:L[1],h:o==='landscape'?L[1]:L[0]});
- }
+ const L=paper==='A3'?[1190.55,841.89]:[841.89,595.28];
+ const canvases=[];
+ for(const [mode,eid] of plan.items)canvases.push(await renderScheduleCanvas(mode,eid,{maxScale:2}));
+ const fitO=(c,o)=>{const w=o==='landscape'?L[0]:L[1],h=o==='landscape'?L[1]:L[0];return Math.min((w-40)/c.width,(h-40)/c.height)};
+ /* تلقائي: اتجاه واحد لكل الصفحات (الأفضل للطباعة)، العمودي عند التقارب لأن جداول المراحل طويلة */
+ const worst=o=>Math.min(...canvases.map(c=>fitO(c,o)));
+ const o=orient!=='auto'?orient:(worst('landscape')>worst('portrait')*1.08?'landscape':'portrait');
+ const pages=canvases.map(canvas=>({canvas,w:o==='landscape'?L[0]:L[1],h:o==='landscape'?L[1]:L[0]}));
+ window.__MASAR_PDF_ORIENT=o;
  const blob=await buildPdf(pages);
  const name='nippur-timetable-'+scope+(id?'-'+String(id).replace(/[^\w-]/g,''):'')+'-'+new Date().toISOString().slice(0,10)+'.pdf';
- window.__MASAR_LAST_PDF={blob,name,pages:pages.length,paper,orient};
+ window.__MASAR_LAST_PDF={blob,name,pages:pages.length,paper,orient:o};
  return deliverFile(blob,name,'جدول الحصص');
 }
 window.exportSchedulePDF=exportSchedulePDF;
