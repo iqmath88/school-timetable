@@ -1,4 +1,4 @@
-const APP_VERSION='0.9.38.2-stable';
+const APP_VERSION='0.9.38.3-stable';
 const KEY='school-timetable-v01';
 const stageDefaults=[['الأول',1,'#587B9B'],['الثاني',2,'#6F8F72'],['الثالث',3,'#9A7B60'],['الرابع',4,'#7D7398'],['الخامس',5,'#A16F78'],['السادس',6,'#557F83']];
 const defaultDays=[['الأحد',7,true],['الاثنين',7,true],['الثلاثاء',6,true],['الأربعاء',7,true],['الخميس',5,true],['الجمعة',0,false],['السبت',0,false]];
@@ -2167,8 +2167,8 @@ async function exportSchedulePDF(scope,id){
  const pages=canvases.map(canvas=>({canvas,w:o==='landscape'?L[0]:L[1],h:o==='landscape'?L[1]:L[0]}));
  window.__MASAR_PDF_ORIENT=o;
  const blob=await buildPdf(pages);
- const name='nippur-timetable-'+scope+(id?'-'+String(id).replace(/[^\w-]/g,''):'')+'-'+new Date().toISOString().slice(0,10)+'.pdf';
- window.__MASAR_LAST_PDF={blob,name,pages:pages.length,paper,orient:o};
+ const name='nippur-v'+APP_VERSION.replace(/-.*/,'')+'-'+scope+(id?'-'+String(id).replace(/[^\w-]/g,''):'')+'-'+paper+'-'+(o==='landscape'?'landscape':'portrait')+'-'+new Date().toISOString().slice(0,10)+'.pdf';
+ window.__MASAR_LAST_PDF={blob,name,pages:pages.length,paper,orient:o,ver:APP_VERSION};
  return deliverFile(blob,name,'جدول الحصص');
 }
 window.exportSchedulePDF=exportSchedulePDF;
