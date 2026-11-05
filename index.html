@@ -1,6 +1,126 @@
-<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="application-name" content="نيبور — منظومة إدارة التعليم"><meta name="theme-color" content="#0F2A75"><link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="apple-touch-icon.png"><link rel="icon" type="image/png" href="icon-192.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="نيبور"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><title>نيبور — منظومة إدارة التعليم v0.9.38.4-stable</title>
-
-<link rel="stylesheet" href="fonts.css"><link rel="stylesheet" href="styles.css?v=09384"><link rel="stylesheet" href="theme.css?v=09384"><link rel="stylesheet" href="cloud.css?v=09384"><link rel="stylesheet" href="identity.css?v=09384"></head><body>
-<header class="topbar"><button type="button" id="menuToggle" class="glass-icon menu-toggle" aria-label="فتح القائمة" aria-expanded="false"><span>☰</span></button><div class="brand"><svg class="logo" viewBox="0 0 48 48" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 38c0-9 8-6 12-12s-2-11 6-14 12 2 12 2"/><circle cx="9" cy="38" r="3.2" fill="#E8A23A" stroke="none"/><circle cx="39" cy="14" r="3.2" fill="#E8A23A" stroke="none"/></svg><div><h1>نيبور</h1><p id="releaseLabel">منظومة إدارة التعليم · v0.9.38.4-stable</p></div></div><button type="button" id="sidebarCompactToggle" class="sidebar-compact-toggle" aria-label="طي القائمة الجانبية" aria-pressed="false" title="طي القائمة">☷ القائمة</button><button id="exportBtn" title="تنزيل نسخة احتياطية">تصدير نسخة احتياطية</button></header>
-<div class="app-shell"><aside class="glass-sidebar" id="sidebar" aria-label="القائمة الرئيسية"><div class="sidebar-head"><span class="glass-icon">✦</span><div><strong>مساحة العمل</strong><small>الجدول المدرسي الذكي</small></div></div><div id="sideNavigation"></div><div class="sidebar-foot"><span class="live-dot"></span><span id="sideVersion">نيبور v0.9.38.4-stable</span><a class="side-privacy" href="privacy.html" target="_blank" rel="noopener" style="margin-inline-start:auto;font-size:12px;opacity:.85;color:inherit">الخصوصية</a></div></aside><div id="sidebarBackdrop" class="sidebar-backdrop" hidden></div><main><div class="workspace-top"><div><span class="eyebrow">لوحة إدارة الجدول · تجربة زجاجية</span><h2 id="currentPage">التوليد والتشخيص</h2></div><label class="section-picker">القسم <select id="sectionSelector" aria-label="اختيار القسم"></select></label></div><nav id="steps" aria-label="صفحات القسم"></nav><section id="summary" class="panel"></section><section id="workspace" class="panel"></section></main></div>
-<input id="importFile" type="file" accept=".json,application/json" class="masar-import-input" aria-label="اختيار نسخة احتياطية JSON"><script src="errorlog.js"></script><script src="storage.js?v=09384"></script><script src="pwa.js"></script></body></html>
+<!doctype html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#102a43"><meta name="description" content="Nibor Motion — محرر فيديوهات الرياضيات التعليمية"><link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icon.svg"><title>Nibor Motion</title><link rel="stylesheet" href="styles.css"><script>window.MathJax={loader:{load:['input/tex','output/svg','[tex]/color']},tex:{inlineMath:[['\\(','\\)']],packages:{'[+]':['ams','color']},macros:{mark:['\\color{#f4d96c}{#1}',1]}},svg:{fontCache:'none'},startup:{typeset:false}};</script><script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script><script defer src="https://unpkg.com/mathlive@0.104.2/mathlive.min.js"></script><script src="version.js"></script><script defer src="fonts.js"></script><script defer src="captions.js"></script><script defer src="mathanim.js"></script><script defer src="audiomix.js"></script><script defer src="overlays.js"></script><script defer src="mobile-ui.js"></script><script>
+window.addEventListener('DOMContentLoaded',()=>{
+ document.title='Nibor Motion v'+APP_VERSION;
+ document.getElementById('appVersion').textContent='v'+APP_VERSION;
+ document.getElementById('footerVersion').textContent='Nibor Motion · الإصدار '+APP_VERSION+' · للاستخدام التعليمي';
+ const script=document.createElement('script');script.src='app.js?v='+encodeURIComponent(APP_VERSION);
+ document.body.append(script);
+});
+</script></head>
+<body>
+<nav class="mobile-bottom-nav" aria-label="أدوات الاستوديو">
+<button type="button" data-mobile-tab="scenes" aria-controls="mobileSheet" aria-expanded="false"><span aria-hidden="true">▦</span><small>المشاهد</small></button>
+<button type="button" data-mobile-tab="edit" aria-controls="mobileSheet" aria-expanded="false"><span aria-hidden="true">✎</span><small>تحرير</small></button>
+<button type="button" data-mobile-tab="audio" aria-controls="mobileSheet" aria-expanded="false"><span aria-hidden="true">♫</span><small>الصوت</small></button>
+<button type="button" data-mobile-tab="design" aria-controls="mobileSheet" aria-expanded="false"><span aria-hidden="true">◈</span><small>التصميم</small></button>
+<button type="button" data-mobile-tab="export" aria-controls="mobileSheet" aria-expanded="false"><span aria-hidden="true">⇩</span><small>التصدير</small></button>
+</nav>
+<div class="mobile-sheet-head" id="mobileSheet" role="region" aria-label="لوحة التحرير" hidden>
+<strong id="mobileSheetTitle">تحرير المشهد</strong><button type="button" id="mobileSheetClose" aria-label="إغلاق لوحة التحرير">✕ إغلاق</button>
+</div>
+<header class="header"><div><h1>Nibor Motion <small id="appVersion"></small></h1><p>استوديو الفيديوهات الرياضية المتحركة</p></div><span class="badge">معاينة وتصدير بمحرك واحد</span></header>
+<main class="layout">
+<section class="panel scenes-panel"><h2>المشاهد</h2><div id="scenes" aria-label="قائمة المشاهد"></div><div class="actions"><button id="add">+ مشهد جديد</button><button class="secondary" id="remove">حذف</button></div><label for="theme">قالب التصميم</label><select id="theme"><option value="notebook">دفتر مسطر</option><option value="blackboard">سبورة</option><option value="clean">أبيض</option><option value="dark">داكن</option></select><label for="project">اسم المشروع</label><input id="project" maxlength="120"><fieldset class="branding-settings"><legend>نص رأس الفيديو وذيله (جميع المشاهد)</legend>
+<label class="inline-setting" for="showHeader"><input type="checkbox" id="showHeader" checked> إظهار رأس الفيديو</label>
+<label for="videoHeader">نص رأس الفيديو</label><input id="videoHeader" maxlength="160" placeholder="الرياضيات | شرح مبسط" dir="auto">
+<label class="inline-setting" for="showFooter"><input type="checkbox" id="showFooter" checked> إظهار ذيل الفيديو</label>
+<label for="videoFooter">نص ذيل الفيديو</label><input id="videoFooter" maxlength="160" placeholder="Nibor Motion" dir="auto">
+<label for="headerSize">حجم نص الرأس <output id="headerSizeOut">35px</output></label><input type="range" id="headerSize" min="22" max="80" step="1" value="35">
+<label for="footerSize">حجم نص الذيل <output id="footerSizeOut">30px</output></label><input type="range" id="footerSize" min="22" max="80" step="1" value="30">
+<p class="muted">يتغير النص في المعاينة والفيديو المصدّر وصورة PNG مباشرة. هذه الإعدادات خاصة بالمشروع كله، وتُحفظ ضمن ملف JSON.</p>
+<button type="button" id="resetBranding" class="secondary">استعادة النصوص الافتراضية</button>
+</fieldset><div class="actions management"><button class="secondary" id="save">حفظ</button><button class="secondary" id="json">تصدير JSON</button><button class="secondary" id="import">استيراد</button><input hidden type="file" accept=".json,application/json" id="file"></div><p class="muted">يُحفظ المشروع محلياً على هذا الجهاز. احتفظ بنسخة JSON احتياطية.</p></section>
+<section class="panel preview-panel"><div class="heading"><h2>معاينة الفيديو</h2><span class="badge">9:16 · 1080×1920</span></div><div class="stage-wrap"><canvas id="stage" width="1080" height="1920" aria-label="معاينة فيديو الرياضيات"></canvas></div><p class="muted" style="text-align:center">للحذف: المس الملصق لتحديده ثم اضغط «حذف الملصق المحدد». ويمكنك حذفه من قائمة الملصقات في المحرر.</p><div class="actions preview-sticker-actions"><button id="deleteSelectedSticker" class="secondary" type="button" disabled>حذف الملصق المحدد</button></div><div class="seek"><input id="seek" type="range" min="0" max="1000" step="1" value="1000" aria-label="موضع التشغيل"><span id="time">00:00 / 00:12</span></div><div id="timeline" class="timeline" aria-label="الخط الزمني"></div><div class="toolbar"><button class="secondary" id="prev">السابق</button><span id="counter">1 / 3</span><button class="secondary" id="next">التالي</button><button id="play">▶ تشغيل الكل</button><button class="secondary" id="stop" disabled>■ إيقاف</button></div><div class="actions"><button id="export">تصدير الفيديو</button><button id="png" class="secondary">صورة PNG للمشهد</button></div><p id="mathWarning" class="math-warning" role="alert" hidden></p><p id="status" class="status" role="status" aria-live="polite">جاهز للتحرير. يتطلب عرض LaTeX الاتصال بالإنترنت لتحميل مكتبة MathJax أول مرة.</p></section>
+<section class="panel editor-panel"><h2>محرر المشهد</h2><label for="title">عنوان المشهد</label><input id="title"><label for="question">السؤال أو الشرح بالعربية</label><textarea id="question" rows="3"></textarea><label for="equation">المعادلة / خطوة الحل (LaTeX)</label><div id="mathHost"><math-field id="mathfield" aria-label="محرر المعادلات المرئي" virtual-keyboard-mode="manual"></math-field></div><textarea id="equation" rows="3" dir="ltr" spellcheck="false" aria-label="شفرة LaTeX للمعادلة"></textarea><div class="math-tools" id="mathTools"><button class="secondary" data-math="\\frac{#0}{#?}">كسر</button><button class="secondary" data-math="\\sqrt{#0}">جذر</button><button class="secondary" data-math="^{#0}">أس</button><button class="secondary" data-math="_{#0}">دليل</button><button class="secondary" data-math="\\log_{#0}">لوغاريتم</button><button class="secondary" data-math="\\mark{#0}">تمييز</button><button class="secondary" data-math="\\pi">π</button><button class="secondary" data-math="\\sum">∑</button></div><p class="muted">يمكن تعديل المعادلة مرئياً أو تغيير LaTeX مباشرة. إذا لم تتوفر المكتبة، يعمل محرر LaTeX النصي. عند وجود خطأ نحوي تظهر رسالة بدلاً من رسم مشوه.</p>
+<details class="nm-settings"><summary>الخطوط والهوية</summary>
+<label for="headingFont">خط العناوين</label><select id="headingFont"><option value="system">خط النظام</option><option value="cairo">Cairo عريض</option><option value="noto">Noto Sans Arabic</option></select>
+<label for="bodyFont">خط النصوص</label><select id="bodyFont"><option value="system">خط النظام</option><option value="noto">Noto Sans Arabic</option><option value="cairo">Cairo</option></select><p class="muted">إذا لم تتوفر ملفات الخطوط فسيُستخدم خط النظام تلقائياً.</p>
+</details>
+<details class="nm-settings"><summary>الترجمة المكتوبة</summary>
+<label class="inline-setting"><input type="checkbox" id="captionEnable"> إظهار الترجمة في الفيديو</label>
+<label for="captionSize">حجم الترجمة</label><input id="captionSize" type="range" min="36" max="72" value="48">
+<label for="captionY">موضع الترجمة عمودياً</label><input id="captionY" type="range" min="70" max="92" value="82">
+<label for="captionStyle">شكل الترجمة</label><select id="captionStyle"><option value="box">صندوق شبه شفاف</option><option value="stroke">حد خارجي للنص</option><option value="none">بلا خلفية</option></select>
+<label for="captionHighlight">لون الكلمة الحالية</label><input id="captionHighlight" type="color" value="#f4d96c"><button type="button" id="exportSRT" class="secondary">تصدير ملف ترجمة SRT</button>
+</details>
+<details class="nm-settings"><summary>حركة المعادلة</summary>
+<label for="equationAnim">نوع الحركة</label><select id="equationAnim"><option value="fade">ظهور تدريجي</option><option value="write">كتابة تدريجية</option><option value="highlight">تمييز جزء من المعادلة</option><option value="fromPrevious">انتقال من المعادلة السابقة</option></select>
+<label for="equationAnimDuration">مدة الحركة (% من المشهد)</label><input id="equationAnimDuration" type="range" min="10" max="60" value="25">
+<label for="highlightAt">وقت التمييز (% من المشهد)</label><input id="highlightAt" type="range" min="0" max="100" value="65"><p class="muted">لتمييز جزء استخدم \mark{...} في المعادلة.</p>
+</details>
+<details class="nm-settings"><summary>الخطاف والتقدم</summary>
+<label for="sceneType">نوع المشهد</label><select id="sceneType"><option value="normal">مشهد عادي</option><option value="hook">مشهد خطاف</option></select>
+<button type="button" id="addHook" class="secondary">إضافة خطاف في البداية</button>
+<label class="inline-setting"><input type="checkbox" id="progressEnable"> إظهار شريط تقدم الفيديو</label>
+<label for="progressColor">لون التقدم</label><input type="color" id="progressColor" value="#f4d96c"></details>
+<details class="nm-settings"><summary>المناطق الآمنة</summary>
+<label for="safeGuide">دليل المنصات (للمعاينة فقط)</label><select id="safeGuide"><option value="none">بلا دليل</option><option value="tiktok">TikTok</option><option value="reels">Reels</option><option value="shorts">Shorts</option></select><p class="muted">حدود إرشادية تقريبية قابلة للتغير بحسب المنصة والجهاز؛ لا تُصدّر.</p>
+</details>
+<details class="nm-settings"><summary>الموسيقى والمؤثرات</summary>
+<label for="musicFile">ملف موسيقى خلفية للمشروع</label><input id="musicFile" type="file" accept="audio/*">
+<p class="muted" id="musicStatus">لا توجد موسيقى مضافة</p><button type="button" class="secondary" id="removeMusic">حذف الموسيقى</button>
+<label for="musicVolume">مستوى الموسيقى</label><input id="musicVolume" type="range" min="0" max="1" step="0.05" value="0.35">
+<label for="sceneEffect">مؤثر عند بداية كل مشهد</label><select id="sceneEffect"><option value="none">بلا مؤثر</option><option value="pop">Pop</option><option value="ding">Ding</option><option value="whoosh">Whoosh</option><option value="tick">Tick</option></select>
+<label for="resultEffect">مؤثر عند ظهور النتيجة</label><select id="resultEffect"><option value="none">بلا مؤثر</option><option value="pop">Pop</option><option value="ding">Ding</option><option value="whoosh">Whoosh</option><option value="tick">Tick</option></select>
+<label for="stickerEffect">مؤثر عند ظهور الملصق</label><select id="stickerEffect"><option value="none">بلا مؤثر</option><option value="pop">Pop</option><option value="ding">Ding</option><option value="whoosh">Whoosh</option><option value="tick">Tick</option></select></details>
+<label for="answer">النتيجة النهائية (LaTeX)</label><input id="answer" dir="ltr"><fieldset class="typography-panel"><legend>تنسيق النصوص وخلفياتها — هذا المشهد</legend>
+<p class="muted">تغييرات الحجم والخلفية والموضع تظهر مباشرة في المعاينة وفي الفيديو المصدّر. «بلا خلفية» يترك النص على خلفية الفيديو.</p>
+<div class="type-control-grid">
+<section><h3>عنوان المشهد</h3>
+<label for="titleSize">حجم خط العنوان <output id="titleSizeOut">57px</output></label><input type="range" id="titleSize" min="30" max="100" step="1">
+<label for="titleBg">شكل خلفية العنوان</label><select id="titleBg"><option value="rounded">مستطيل بحواف دائرية</option><option value="rectangle">مستطيل</option><option value="outline">إطار فقط</option><option value="underline">خط أسفل النص</option><option value="highlight">تظليل خفيف</option><option value="none">بلا خلفية</option></select>
+<label for="titleBgColor">لون خلفية العنوان</label><select id="titleBgColor"><option value="#f4d96c">أصفر</option><option value="#cfe7fa">أزرق فاتح</option><option value="#e3efda">أخضر فاتح</option><option value="#f7d5e5">وردي</option><option value="#ffffff">أبيض</option><option value="#193c5d">كحلي</option><option value="#f8e7c8">بيج</option></select>
+<label for="titleY">موضع العنوان عمودياً <output id="titleYOut">32.5%</output></label><input type="range" id="titleY" min="17" max="47" step="0.5"></section>
+<section><h3>نص السؤال أو الشرح</h3>
+<label for="questionSize">حجم خط السؤال <output id="questionSizeOut">46px</output></label><input type="range" id="questionSize" min="30" max="90" step="1">
+<label for="questionBg">شكل خلفية السؤال</label><select id="questionBg"><option value="none">بلا خلفية</option><option value="rounded">مستطيل بحواف دائرية</option><option value="rectangle">مستطيل</option><option value="outline">إطار فقط</option><option value="underline">خط أسفل النص</option><option value="highlight">تظليل خفيف</option></select>
+<label for="questionBgColor">لون خلفية السؤال</label><select id="questionBgColor"><option value="#cfe7fa">أزرق فاتح</option><option value="#f4d96c">أصفر</option><option value="#e3efda">أخضر فاتح</option><option value="#f7d5e5">وردي</option><option value="#ffffff">أبيض</option><option value="#193c5d">كحلي</option><option value="#f8e7c8">بيج</option></select>
+<label for="questionY">موضع السؤال عمودياً <output id="questionYOut">44.3%</output></label><input type="range" id="questionY" min="28" max="68" step="0.5"></section>
+<section><h3>المعادلة والنتيجة</h3>
+<label for="equationScale">حجم المعادلة <output id="equationScaleOut">100%</output></label><input type="range" id="equationScale" min="60" max="150" step="5">
+<label for="equationY">موضع المعادلة <output id="equationYOut">57.6%</output></label><input type="range" id="equationY" min="40" max="79" step="0.5">
+<label for="answerScale">حجم النتيجة <output id="answerScaleOut">100%</output></label><input type="range" id="answerScale" min="60" max="150" step="5">
+<label for="answerBg">خلفية النتيجة</label><select id="answerBg"><option value="rounded">مستطيل بحواف دائرية</option><option value="rectangle">مستطيل</option><option value="outline">إطار فقط</option><option value="underline">خط أسفل النص</option><option value="highlight">تظليل خفيف</option><option value="none">بلا خلفية</option></select>
+<label for="answerBgColor">لون خلفية النتيجة</label><select id="answerBgColor"><option value="#e3efda">أخضر فاتح</option><option value="#f4d96c">أصفر</option><option value="#cfe7fa">أزرق فاتح</option><option value="#f7d5e5">وردي</option><option value="#ffffff">أبيض</option><option value="#193c5d">كحلي</option><option value="#f8e7c8">بيج</option></select>
+<label for="answerY">موضع النتيجة <output id="answerYOut">72.1%</output></label><input type="range" id="answerY" min="55" max="90" step="0.5"></section>
+</div><button id="resetTypography" class="secondary" type="button">استعادة تنسيق هذا المشهد</button>
+</fieldset><label for="duration">مدة المشهد بالثواني</label><input id="duration" type="number" min="1" max="120" step="0.5"><fieldset><legend>توقيت ظهور العناصر داخل المشهد (%)</legend><div class="time-control"><label for="qAt">السؤال <output id="qOut">20%</output></label><input type="range" id="qAt" min="0" max="95" value="20"></div><div class="time-control"><label for="eAt">المعادلة <output id="eOut">45%</output></label><input type="range" id="eAt" min="0" max="95" value="45"></div><div class="time-control"><label for="aAt">النتيجة <output id="aOut">70%</output></label><input type="range" id="aAt" min="0" max="95" value="70"></div></fieldset><fieldset class="stickers"><legend>الملصقات التعليمية المتحركة</legend>
+<p class="muted">اضغط الملصق لإضافته إلى المشهد، ثم اسحبه على الفيديو. يُحفظ موضعه وحجمه وحركته مع المشروع.</p>
+<div class="sticker-palette" id="stickerPalette"><button type="button" data-sticker="❓">❓</button><button type="button" data-sticker="❗">❗</button><button type="button" data-sticker="💡">💡</button><button type="button" data-sticker="✅">✅</button><button type="button" data-sticker="✏️">✏️</button><button type="button" data-sticker="🎯">🎯</button><button type="button" data-sticker="➡️">➡️</button><button type="button" data-sticker="⭐">⭐</button><button type="button" data-sticker="⭕">⭕</button><button type="button" data-sticker="⚠️">⚠️</button></div>
+<label for="stickerSelect">الملصق المحدد</label><select id="stickerSelect"><option value="">اختر ملصقاً</option></select>
+<div class="actions"><button class="secondary" id="removeSticker" type="button">حذف الملصق</button></div>
+<label for="stickerSize">حجم الملصق <output id="stickerSizeOut">120px</output></label><input id="stickerSize" type="range" min="45" max="380" value="120" step="5">
+<label for="stickerStart">بداية ظهوره <output id="stickerStartOut">10%</output></label><input id="stickerStart" type="range" min="0" max="95" value="10">
+<label for="stickerEnd">نهاية ظهوره <output id="stickerEndOut">95%</output></label><input id="stickerEnd" type="range" min="5" max="100" value="95">
+<label for="stickerAnimation">حركة الملصق</label><select id="stickerAnimation"><option value="pop">تكبير تدريجي</option><option value="fade">ظهور تدريجي</option><option value="spin">دوران لطيف</option><option value="static">ثابت</option></select>
+</fieldset><fieldset class="audio-panel"><legend>التعليق الصوتي الخاص بهذا المشهد</legend>
+<p class="muted">اختر مشهداً من القائمة ثم اكتب النص الذي يُقرأ. تتم معاينة الصوت عبر جهازك، ولإدخاله بالفيديو أنشئ ملفاً صوتياً أو سجّل أو استورد ملفاً.</p>
+<label for="speechText">نص التعليق الصوتي (يمكن أن يختلف عن المعادلة المعروضة)</label>
+<textarea id="speechText" rows="4" maxlength="4000" placeholder="مثال: إكس تربيع ناقص أربعة مقسوماً على إكس ناقص اثنين..." dir="auto"></textarea>
+<section class="free-tts" aria-label="توليد الصوت المجاني على iPad">
+<h3>صوت عربي مجاني — باستخدام اختصارات iPad</h3>
+<p class="muted">بدون حساب أو مفتاح API. حضّر نص الشرح هنا ثم أنشئ له ملفاً صوتياً باستخدام إجراء Apple «Make Spoken Audio from Text» في تطبيق الاختصارات. اختر الصوت العربي في الاختصار، ثم احفظ الملف واستورده أدناه. هذه الطريقة تحتاج إعداد اختصار مرة واحدة وتبادل الملف؛ لا تقوم Safari بالتقاط صوت الجهاز تلقائياً.</p>
+<div class="actions"><button type="button" id="prepareSpeech" class="secondary">🧮 تحضير نص من المشهد</button><button type="button" id="copySpeech" class="secondary">نسخ نص التعليق</button></div>
+<div class="actions"><button type="button" id="shortcutSpeech">▶ تشغيل اختصار توليد الصوت</button><button type="button" id="openShortcuts" class="secondary">فتح الاختصارات</button></div>
+<details><summary>إعداد الاختصار المجاني لأول مرة (iPad)</summary><ol><li>افتح تطبيق الاختصارات وأنشئ اختصاراً باسم <strong>Nibor Voice</strong>.</li><li>اجعل الاختصار يستقبل <strong>نصاً من إدخال الاختصار</strong> (Shortcut Input).</li><li>أضف إجراء <strong>Make Spoken Audio from Text</strong> وحدد لغة العربية والصوت المناسب إن توفر.</li><li>أضف إجراء <strong>Save File</strong> لاختيار مكان حفظ الصوت في تطبيق الملفات.</li><li>ارجع إلى Nibor Motion واكتب النص، ثم اضغط «تشغيل اختصار توليد الصوت»؛ بعد حفظه أضف الملف في «استيراد ملف صوتي لهذا المشهد».</li></ol><p class="muted">قد تختلف أسماء الإجراءات أو أصوات العربية بحسب إصدار iPadOS واللغة المثبتة.</p></details>
+<p id="freeTtsStatus" class="muted" role="status">بديل مجاني ينتج ملفاً حقيقياً إذا كان إجراء «Make Spoken Audio» متاحاً على جهازك؛ الإدخال/الإرجاع لا يتمان تلقائياً بالكامل.</p>
+</section>
+<label for="speechVoice">صوت المعاينة المحلي</label><select id="speechVoice"><option value="">صوت الجهاز الافتراضي</option></select>
+<label for="speechRate">سرعة النطق <output id="speechRateOut">1.0×</output></label><input id="speechRate" type="range" min="0.7" max="1.3" step="0.1" value="1">
+<div class="actions"><button id="speakPreview" type="button" class="secondary">▶ استماع تجريبي</button><button id="stopSpeaking" type="button" class="secondary">إيقاف القراءة</button></div>
+<p class="muted">القراءة التجريبية تستعمل أصوات Safari/Windows المتاحة، ولا يمكن ضمان تسجيلها داخل الفيديو. الصوت النهائي يحتاج ملفاً محفوظاً.</p>
+<label for="ttsEndpoint">رابط خدمة توليد الصوت السحابية (اختياري ومدفوع غالباً)</label>
+<input id="ttsEndpoint" type="url" inputmode="url" placeholder="https://your-worker.example.workers.dev/tts" dir="ltr">
+<label for="ttsVoice">صوت الملف الناتج</label><select id="ttsVoice"><option value="marin">Marin</option><option value="cedar">Cedar</option><option value="coral">Coral</option><option value="alloy">Alloy</option><option value="nova">Nova</option><option value="onyx">Onyx</option><option value="shimmer">Shimmer</option></select>
+<button id="generateSpeech" type="button">✨ توليد سحابي (اختياري)</button>
+<p class="muted">لا تضع مفتاح API داخل التطبيق. الربط السحابي اختياري ويحتاج إعداد خدمة خادمية منفصلة؛ قد تكون له تكلفة. الصوت المولّد بالذكاء الاصطناعي يجب الإفصاح عن طبيعته.</p>
+<label for="audioFile">أو استيراد ملف صوتي لهذا المشهد</label><input id="audioFile" type="file" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.webm">
+<div class="actions"><button id="recordAudio" type="button">🎙️ تسجيل صوت المشهد</button><button id="stopAudio" type="button" class="secondary" disabled>إيقاف التسجيل</button><button id="removeAudio" type="button" class="secondary">حذف صوت المشهد</button></div>
+<audio id="audioPreview" controls preload="metadata" style="width:100%;margin:9px 0"></audio>
+<label for="audioVolume">مستوى الصوت <output id="audioVolumeOut">100%</output></label><input id="audioVolume" type="range" min="0" max="100" step="1" value="100">
+<label class="inline-setting" for="autoDuration"><input id="autoDuration" type="checkbox" checked> تمديد مدة المشهد تلقائياً لاحتواء الصوت</label>
+<p id="audioStatus" class="muted" role="status" style="font-weight:700;color:#93420b">لم يُضف ملف صوتي لهذا المشهد.</p>
+</fieldset><div class="note">تعتمد المعاينة والتصدير على لوحة Canvas نفسها، ويظهر النص الذي تختاره لرأس وذيل الفيديو في كليهما. يعتمد نجاح التسجيل وصيغة MP4 على المتصفح والجهاز؛ يُدمج الصوت مع الفيديو عند دعم المتصفح؛ تحقق من الملف الناتج على iPad.</div></section>
+</main><footer id="footerVersion"></footer>
+</body></html>
