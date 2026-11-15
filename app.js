@@ -1,4 +1,4 @@
-const APP_VERSION='0.9.38.4-stable';
+const APP_VERSION='0.9.39.0-stable';
 const KEY='school-timetable-v01';
 const stageDefaults=[['الأول',1,'#587B9B'],['الثاني',2,'#6F8F72'],['الثالث',3,'#9A7B60'],['الرابع',4,'#7D7398'],['الخامس',5,'#A16F78'],['السادس',6,'#557F83']];
 const defaultDays=[['الأحد',7,true],['الاثنين',7,true],['الثلاثاء',6,true],['الأربعاء',7,true],['الخميس',5,true],['الجمعة',0,false],['السبت',0,false]];
@@ -1381,28 +1381,18 @@ function feasibility(){
 }
 
 
-function teacherShort(name){return String(name||'').trim().split(/\s+/).slice(0,2).join(' ')}
+/* تقسيم الاسم إلى أسماء مع إبقاء المركّب منها اسماً واحداً: «عبد الكريم»، «أبو بكر»، «نور الدين»، «عبد الله». */
+function nameParts(name){const w=String(name||'').trim().split(/\s+/).filter(Boolean),out=[];for(let i=0;i<w.length;i++){if(/^(عبد|عبدال|ابو|أبو)$/.test(w[i])&&w[i+1]){out.push(w[i]+' '+w[i+1]);i++}else if(out.length&&/^(الدين|الله|الرحمن)$/.test(w[i]))out[out.length-1]+=' '+w[i];else out.push(w[i])}return out}
+function teacherShort(name){return nameParts(name).slice(0,2).join(' ')}
 // Print-only compact teacher label. Resolve collisions among different teachers.
 function printTeacherLabels(){
- const byId=new Map(), groups=new Map();
- for(const t of db.teachers){
-  const parts=String(t.name||'').trim().split(/\s+/).filter(Boolean);
-  const short=parts.length>1?`${parts[0]} ${Array.from(parts[1])[0]}.`:(parts[0]||'—');
-  byId.set(t.id,short);
-  if(!groups.has(short))groups.set(short,[]);
-  groups.get(short).push(t);
- }
- for(const [label,teachers] of groups){
-  if(teachers.length<2)continue;
-  for(const t of teachers){
-   const parts=String(t.name||'').trim().split(/\s+/).filter(Boolean);
-   byId.set(t.id,parts.length>2?`${parts[0]} ${parts[1]} ${Array.from(parts[2])[0]}.`:parts.join(' '));
-  }
- }
+ /* الاسم في المخرجات: الاسم الأول والثاني (إن وُجد). عند تشابه اسمين يُضاف الاسم الثالث للتمييز. */
+ const byId=new Map(),groups=new Map(),parts=t=>nameParts(t.name);
+ for(const t of db.teachers){const p=parts(t),label=p.slice(0,2).join(' ')||'—';byId.set(t.id,label);if(!groups.has(label))groups.set(label,[]);groups.get(label).push(t)}
+ for(const [,list] of groups){if(list.length<2)continue;for(const t of list){const p=parts(t);if(p.length>2)byId.set(t.id,p.slice(0,3).join(' '))}}
  // Never leave two distinct teachers with the same printed label.
- const secondGroups=new Map();
- for(const [id,label] of byId){if(!secondGroups.has(label))secondGroups.set(label,[]);secondGroups.get(label).push(id)}
- for(const [label,ids] of secondGroups){if(ids.length>1)ids.forEach(id=>byId.set(id,db.teachers.find(t=>t.id===id)?.name||label))}
+ const again=new Map();for(const [id,label] of byId){if(!again.has(label))again.set(label,[]);again.get(label).push(id)}
+ for(const [label,ids] of again){if(ids.length>1)ids.forEach(id=>byId.set(id,db.teachers.find(t=>t.id===id)?.name||label))}
  return byId;
 }
 function slotKey(dayId,period){return dayId+'|'+period}
@@ -1496,7 +1486,7 @@ function timetableTable(stageIds=null, groupedPrint=false){
         const e=db.timetable.find(x=>x.sectionId===sec.id&&x.dayId===d.id&&x.period===p);
         if(p>sectionDayPeriods(sec,d))return '<td class="tt-off">—</td>';if(!e)return '<td class="tt-empty">—</td>';
         const su=db.subjects.find(x=>x.id===e.subjectId),t=db.teachers.find(x=>x.id===e.teacherId);
-        return `<td class="lesson" style="background:${db.stages.find(g=>g.id===sec.stageId)?.color||'#eef4fa'}22;border-top:3px solid ${db.stages.find(g=>g.id===sec.stageId)?.color||'#a0aec0'}"><span class="lesson-inline"><b>${esc(su?.name||'—')}</b><span class="lesson-sep"> / </span><small>${esc(shortPrintNames.get(t?.id)||'—')}</small></span></td>`;
+        return `<td class="lesson" style="background:${db.stages.find(g=>g.id===sec.stageId)?.color||'#eef4fa'}22;border-top:3px solid ${db.stages.find(g=>g.id===sec.stageId)?.color||'#a0aec0'}"><span class="lesson-inline"><b>${esc(su?.name||'—')}</b><small>${esc(shortPrintNames.get(t?.id)||'—')}</small></span></td>`;
       }).join('')+'</tr>';
     }
   });
@@ -1848,6 +1838,7 @@ function printAllTeacherCards(){const ids=db.teachers.filter(t=>db.timetable.som
 function printSelectedTimetable(pick){
  const p=db.printSettings;const label=pick.mode==='teacher'?db.teachers.find(x=>x.id===pick.id)?.name:pick.mode==='section'?(()=>{const sec=db.sections.find(x=>x.id===pick.id),g=db.stages.find(x=>x.id===sec?.stageId);return (g?stageDisplayName(g):'')+' '+(sec?.name||'')})():'المدرسة كاملة';
  if(pick.mode==='teacher'){printTeacherCards([pick.id]);return;}
+ if(pick.mode==='section'){openScopedPrint('section',pick.id);return;}
  if(pick.mode==='school'||pick.mode==='section')window.__MASAR_PV_CTX={t:Date.now(),pdf:()=>exportSchedulePDF(pick.mode,pick.id)};
  const table=pick.mode==='school'?timetableTable():focusedTimetable(pick.mode,pick.id);if(pick.mode==='school'){const html=printDocument();const w=window.open('','_blank');if(!w)return alert('اسمح بفتح النوافذ المنبثقة للطباعة');w.document.write(`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>الجدول المدرسي</title><style>${printCSS()+premiumPrintCSS()}</style></head><body>${html}<script>window.onload=()=>setTimeout(()=>window.print(),350)<\/script></body></html>`);w.document.close();return;}
  const html=`<article class="print-sheet ${printPresentationClass()}">${formalHeader(label)}${table}${formalFooter()}</article>`;
@@ -2066,41 +2057,42 @@ async function renderScheduleCanvas(mode,id,opt){
  const headings=focus?days:sections;
  const rows=focus?Array.from({length:Math.max(...days.map(d=>d.periods))},(_,i)=>({period:i+1})):days.flatMap(day=>Array.from({length:day.periods},(_,i)=>({day,period:i+1})));
  const canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');if(!ctx)throw new Error('المتصفح لا يدعم الرسم');ctx.direction='rtl';
- try{await Promise.all(['400 16px "IBM Plex Sans Arabic"','700 16px "IBM Plex Sans Arabic"','700 16px "El Messiri"'].map(f=>document.fonts.load(f,'أبجد 123')))}catch(_){}
- const font=(size,bold=false)=>`${bold?'700':'400'} ${size}px "IBM Plex Sans Arabic",Tahoma,Arial,sans-serif`;
+ try{await Promise.all(['400 16px "Noto Naskh Arabic"','700 16px "Noto Naskh Arabic"','700 16px "Amiri"'].map(f=>document.fonts.load(f,'أبجد 123')))}catch(_){}
+ const font=(size,bold=false,head=false)=>`${bold?'700':'400'} ${size}px ${head?'"Amiri",':''}"Noto Naskh Arabic","Simplified Arabic",Tahoma,serif`;const TL=printTeacherLabels();
  const measure=(str,size,bold=false)=>{ctx.font=font(size,bold);return ctx.measureText(String(str||'')).width};
  const wrap=(str,max,size,bold=false)=>{let lines=[''];for(const word of String(str||'—').split(/\s+/)){let i=lines.length-1,test=lines[i]?lines[i]+' '+word:word;if(measure(test,size,bold)<=max||!lines[i])lines[i]=test;else lines.push(word)}return lines};
  const focusW=focus?170:0,dayW=focus?0:34,periodW=focus?32:28,baseFont=focus?17:13,teacherFont=focus?14:11;
- const colWidths=headings.map(item=>{if(focus)return focusW;const entries=db.timetable.filter(e=>e.sectionId===item.id);const widest=Math.max(measure(exportSectionName(item.id),14,true),...entries.map(e=>Math.max(measure(db.subjects.find(s=>s.id===e.subjectId)?.name||'',baseFont,true),measure(teacherShort(db.teachers.find(t=>t.id===e.teacherId)?.name),teacherFont))));return Math.max(66,Math.min(110,Math.ceil(widest+10)))});
+ const colWidths=headings.map(item=>{if(focus)return focusW;const entries=db.timetable.filter(e=>e.sectionId===item.id);const widest=Math.max(measure(exportSectionName(item.id),14,true),...entries.map(e=>Math.max(measure(db.subjects.find(s=>s.id===e.subjectId)?.name||'',baseFont,true),measure(TL.get(e.teacherId)||'',teacherFont))));return Math.max(66,Math.min(110,Math.ceil(widest+10)))});
  const margin=24,tableW=dayW+periodW+colWidths.reduce((a,b)=>a+b,0),width=Math.max(tableW+margin*2,focus?940:620),headH=52,topH=150,footH=db.printSettings.showSignatures?112:70;
- const rowHeights=rows.map(r=>{let h=31;headings.forEach((item,ci)=>{const day=focus?item:r.day,sectionId=mode==='section'?id:item.id;const e=timetableIndex.get(day.id+'|'+r.period+'|'+(mode==='teacher'?id:sectionId));if(!e)return;const w=colWidths[ci]-14;const sub=db.subjects.find(s=>s.id===e.subjectId)?.name||'—',t=db.teachers.find(t=>t.id===e.teacherId)?.name||'—';const subLines=wrap(sub,w,baseFont,true).length,teachLines=db.printSettings.showTeachers===false?0:wrap(mode==='teacher'?exportSectionName(e.sectionId):teacherShort(t),w,teacherFont).length;h=Math.max(h,5+subLines*(baseFont+1)+teachLines*(teacherFont+1))});return h});
+ const rowHeights=rows.map(r=>{let h=focus?44:31;headings.forEach((item,ci)=>{const day=focus?item:r.day,sectionId=mode==='section'?id:item.id;const e=timetableIndex.get(day.id+'|'+r.period+'|'+(mode==='teacher'?id:sectionId));if(!e)return;const w=colWidths[ci]-14;const sub=db.subjects.find(s=>s.id===e.subjectId)?.name||'—',t=db.teachers.find(t=>t.id===e.teacherId)?.name||'—';const subLines=wrap(sub,w,baseFont,true).length,teachLines=db.printSettings.showTeachers===false?0:wrap(mode==='teacher'?exportSectionName(e.sectionId):(TL.get(e.teacherId)||teacherShort(t)),w,teacherFont).length;h=Math.max(h,5+subLines*(baseFont+1)+teachLines*(teacherFont+1))});return h});
  const height=topH+headH+rowHeights.reduce((a,b)=>a+b,0)+footH;
  if(width>9000||height>9000||width*height>50000000)throw new Error('الصورة كبيرة لهذا الجهاز؛ جرّب تصدير مرحلة واحدة.');
  const S=opt&&opt.maxScale?Math.max(1,Math.min(opt.maxScale,Math.sqrt(16e6/(width*height)))):1;canvas.width=Math.round(width*S);canvas.height=Math.round(height*S);const c=canvas.getContext('2d');c.setTransform(S,0,0,S,0,0);c.direction='rtl';c.fillStyle='#fff';c.fillRect(0,0,width,height);
- const box=(x,y,w,h,bg,border='#C9D4EA')=>{c.fillStyle=bg;c.fillRect(x,y,w,h);c.strokeStyle=border;c.lineWidth=1;c.strokeRect(x+.5,y+.5,w-1,h-1)};
- const text=(str,x,y,size=17,color='#0B1633',bold=false)=>{c.direction='rtl';c.font=font(size,bold);c.fillStyle=color;c.textAlign='center';c.textBaseline='middle';c.fillText(String(str||'—'),x,y)};
+ const box=(x,y,w,h,bg,border='#8A939E')=>{c.fillStyle=bg;c.fillRect(x,y,w,h);c.strokeStyle=border;c.lineWidth=1;c.strokeRect(x+.5,y+.5,w-1,h-1)};
+ const text=(str,x,y,size=17,color='#1F2D3D',bold=false,head=false)=>{c.direction='rtl';c.font=font(size,bold,head);c.fillStyle=color;c.textAlign='center';c.textBaseline='middle';c.fillText(String(str||'—'),x,y)};
  const lines=(str,x,y,w,size,bold,color,step)=>{const ls=wrap(str,w,size,bold);ls.forEach((line,i)=>text(line,x,y+i*step,size,color,bold));return ls.length*step};
  const title=mode==='all'?'المدرسة كاملة':mode==='middle'?schoolGroupName(0):mode==='high'?schoolGroupName(1):mode==='stage'?stageDisplayName(db.stages.find(x=>x.id===id)):mode==='teacher'?db.teachers.find(x=>x.id===id)?.name:exportSectionName(id);
- // Same premium navy/gold identity as the print/PDF document.
- c.fillStyle='#0F2A75';c.fillRect(margin,12,width-margin*2,topH-23);
- c.fillStyle='#C8A24A';c.fillRect(margin,topH-13,width-margin*2,4);
- text(db.school.name||'اسم المدرسة',width/2,39,Math.min(25,Math.max(17,width/32)),'#EAD6A4',true);
- text(db.printSettings.title||'جدول الحصص الأسبوعية',width/2,75,Math.min(23,Math.max(16,width/38)),'#FFFFFF',true);
- text(title,width/2,103,Math.min(17,Math.max(13,width/48)),'#F6F0E5',true);
- text(`العام الدراسي: ${db.school.year||'—'} | تاريخ بدء التطبيق: ${db.printSettings.startDate||'غير محدد'}`,width/2,125,Math.min(12,Math.max(9,width/75)),'#E6EDF5');
+ // ترويسة رسمية: خلفية بيضاء، جهة الإصدار يميناً، اسم المدرسة والعنوان في الوسط، العام وتاريخ البدء يساراً، وخط مزدوج أسفلها.
+ const sideW=Math.min(190,width/5),sideR=width-margin-sideW/2,sideL=margin+sideW/2,ss=Math.min(14,Math.max(11,width/80));
+ text('جمهورية العراق',sideR,40,ss,'#1F2D3D',true);text('وزارة التربية',sideR,40+ss*1.7,ss,'#1F2D3D',true);
+ text('العام الدراسي: '+(db.school.year||'—'),sideL,40,ss,'#1F2D3D');text('تاريخ بدء التطبيق: '+(db.printSettings.startDate||'—'),sideL,40+ss*1.7,ss,'#1F2D3D');
+ text(db.school.name||'اسم المدرسة',width/2,38,Math.min(28,Math.max(19,width/30)),'#111111',true,true);
+ text(db.printSettings.title||'جدول الحصص الأسبوعية',width/2,74,Math.min(22,Math.max(15,width/40)),'#1F2D3D',true);
+ text(title,width/2,104,Math.min(16,Math.max(12,width/52)),'#3C4654',true);
+ c.fillStyle='#1F2D3D';c.fillRect(margin,topH-16,width-margin*2,2.2);c.fillRect(margin,topH-11.5,width-margin*2,.9);
  if(db.printSettings.logo&&db.printSettings.logoPosition!=='none'){try{const img=new Image();img.src=db.printSettings.logo;await new Promise((resolve,reject)=>{if(img.complete&&img.naturalWidth)return resolve();img.onload=resolve;img.onerror=reject});const x=db.printSettings.logoPosition==='center'?width/2-22:db.printSettings.logoPosition==='right'?width-82:38;c.drawImage(img,x,5,44,44)}catch(e){/* Continue exporting without invalid logo */}}
  
  const tableTop=topH;let right=width-margin;
- if(!focus){right-=dayW;box(right,tableTop,dayW,headH,'#0F2A75','#C8A24A');c.save();c.translate(right+dayW/2,tableTop+headH/2);c.rotate(-Math.PI/2);text('اليوم',0,0,13,'#FFFFFF',true);c.restore()}
- right-=periodW;box(right,tableTop,periodW,headH,'#0F2A75','#C8A24A');c.save();c.translate(right+periodW/2,tableTop+headH/2);c.rotate(-Math.PI/2);text('الحصة',0,0,13,'#FFFFFF',true);c.restore();
- headings.forEach((item,i)=>{const w=colWidths[i];right-=w;const pal=focus?null:exportPalettes[item.stageId];box(right,tableTop,w,headH,'#244669','#C8A24A');lines(focus?item.name:exportSectionName(item.id),right+w/2,tableTop+headH/2-7,w-10,14,true,'#FFFFFF',17)});
- let yy=tableTop+headH;const dayColors=['#DCE9F8','#E2F1E5','#FFF0DA','#EEE7F9','#FBE8ED'];
+ if(!focus){right-=dayW;box(right,tableTop,dayW,headH,'#E3E8EE','#55606E');c.save();c.translate(right+dayW/2,tableTop+headH/2);c.rotate(-Math.PI/2);text('اليوم',0,0,13,'#1F2D3D',true);c.restore()}
+ right-=periodW;box(right,tableTop,periodW,headH,'#E3E8EE','#55606E');c.save();c.translate(right+periodW/2,tableTop+headH/2);c.rotate(-Math.PI/2);text('الحصة',0,0,13,'#1F2D3D',true);c.restore();
+ headings.forEach((item,i)=>{const w=colWidths[i];right-=w;const pal=focus?null:exportPalettes[item.stageId];box(right,tableTop,w,headH,'#E3E8EE','#55606E');lines(focus?item.name:exportSectionName(item.id),right+w/2,tableTop+headH/2-7,w-10,14,true,'#1F2D3D',17)});
+ let yy=tableTop+headH;const dayColors=Array(7).fill('#F1F4F7');
  rows.forEach((r,ri)=>{const rh=rowHeights[ri];let xx=width-margin;
- if(!focus){xx-=dayW;if(r.period===1){const start=ri,total=rows.slice(start,start+r.day.periods).reduce((sum,_,j)=>sum+rowHeights[start+j],0);box(xx,yy,dayW,total,dayColors[days.findIndex(d=>d.id===r.day.id)]||'#EAF1F8');c.save();c.translate(xx+dayW/2,yy+total/2);c.rotate(-Math.PI/2);text(r.day.name,0,0,20,'#24466C',true);c.restore()}}
- xx-=periodW;box(xx,yy,periodW,rh,ri%2?'#F2F6FA':'#EAF0F6');text(String(r.period),xx+periodW/2,yy+rh/2,13,'#334155',true);
- headings.forEach((item,i)=>{const w=colWidths[i];xx-=w;const day=focus?item:r.day,secId=mode==='section'?id:item.id;const e=timetableIndex.get(day.id+'|'+r.period+'|'+(mode==='teacher'?id:secId));const section=mode==='teacher'?db.sections.find(s=>s.id===e?.sectionId):mode==='section'?db.sections.find(s=>s.id===id):item;const pal=db.printSettings.showColors===false?['#F4F7FA','#334155','#64748B']:(exportPalettes[section?.stageId]||['#F4F7FA','#334155','#64748B']);const off=mode==='teacher'?r.period>day.periods:r.period>sectionDayPeriods(section,day);box(xx,yy,w,rh,off?'#F1F3F6':e?(db.printSettings.theme==='contrast'?'#FFFFFF':pal[0]):ri%2?'#FAFBFC':'#FFFFFF',e?pal[2]:'#D4DCE5');if(e){const sub=db.subjects.find(s=>s.id===e.subjectId)?.name||'—',teacher=db.teachers.find(t=>t.id===e.teacherId)?.name||'—';const t=mode==='teacher'?exportSectionName(e.sectionId):teacherShort(teacher),subLines=wrap(sub,w-8,baseFont,true),tLines=db.printSettings.showTeachers===false?[]:wrap(t,w-8,teacherFont),total=subLines.length*(baseFont+1)+tLines.length*(teacherFont+3),first=yy+(rh-total)/2+baseFont/2+2;subLines.forEach((line,k)=>text(line,xx+w/2,first+k*(baseFont+1),baseFont,'#182D43',true));tLines.forEach((line,k)=>text(line,xx+w/2,first+subLines.length*(baseFont+1)+k*(teacherFont+1),teacherFont,'#475569'))}else if(off)text('—',xx+w/2,yy+rh/2,15,'#9AA5B1')});yy+=rh});
- if(db.printSettings.showNotes!==false){c.fillStyle='#FBFAF7';c.fillRect(margin,height-footH+5,width-2*margin,47);c.strokeStyle='#D4C29A';c.strokeRect(margin+.5,height-footH+5.5,width-2*margin-1,46);text(`أسباب تغيير الجدول: ${db.printSettings.changeReasons||'—'}`,width/2,height-footH+20,14,'#475569');if(db.printSettings.footer)text(db.printSettings.footer,width/2,height-footH+42,12,'#475569')}
- if(db.printSettings.showSignatures!==false){const labels=[db.printSettings.signature1||'منظّم الجدول',db.printSettings.signature2||'معاون المدير',db.printSettings.signature3||'مدير المدرسة'];labels.forEach((label,i)=>{const x=width*(i+1)/4;text(label,x,height-37,13,'#0B1633',true);text('التوقيع: __________',x,height-17,11,'#475569')})}
+ if(!focus){xx-=dayW;if(r.period===1){const start=ri,total=rows.slice(start,start+r.day.periods).reduce((sum,_,j)=>sum+rowHeights[start+j],0);box(xx,yy,dayW,total,dayColors[days.findIndex(d=>d.id===r.day.id)]||'#EAF1F8');c.save();c.translate(xx+dayW/2,yy+total/2);c.rotate(-Math.PI/2);text(r.day.name,0,0,20,'#1F2D3D',true);c.restore()}}
+ xx-=periodW;box(xx,yy,periodW,rh,'#F7F8FA');text(String(r.period),xx+periodW/2,yy+rh/2,13,'#1F2D3D',true);
+ headings.forEach((item,i)=>{const w=colWidths[i];xx-=w;const day=focus?item:r.day,secId=mode==='section'?id:item.id;const e=timetableIndex.get(day.id+'|'+r.period+'|'+(mode==='teacher'?id:secId));const section=mode==='teacher'?db.sections.find(s=>s.id===e?.sectionId):mode==='section'?db.sections.find(s=>s.id===id):item;const pal=db.printSettings.showColors===false?['#F4F7FA','#334155','#64748B']:(exportPalettes[section?.stageId]||['#F4F7FA','#334155','#64748B']);const off=mode==='teacher'?r.period>day.periods:r.period>sectionDayPeriods(section,day);box(xx,yy,w,rh,off?'#F1F3F6':e?(db.printSettings.theme==='contrast'?'#FFFFFF':pal[0]):ri%2?'#FAFBFC':'#FFFFFF','#8A939E');if(e){const sub=db.subjects.find(s=>s.id===e.subjectId)?.name||'—',teacher=db.teachers.find(t=>t.id===e.teacherId)?.name||'—';const t=mode==='teacher'?exportSectionName(e.sectionId):(TL.get(e.teacherId)||teacherShort(teacher)),subLines=wrap(sub,w-8,baseFont,true),tLines=db.printSettings.showTeachers===false?[]:wrap(t,w-8,teacherFont),total=subLines.length*(baseFont+1)+tLines.length*(teacherFont+3),first=yy+(rh-total)/2+baseFont/2+2;subLines.forEach((line,k)=>text(line,xx+w/2,first+k*(baseFont+1),baseFont,'#111111',true));tLines.forEach((line,k)=>text(line,xx+w/2,first+subLines.length*(baseFont+1)+k*(teacherFont+1),teacherFont,'#475569'))}else if(off)text('—',xx+w/2,yy+rh/2,15,'#9AA5B1')});yy+=rh});
+ if(db.printSettings.showNotes!==false){c.fillStyle='#FFFFFF';c.fillRect(margin,height-footH+5,width-2*margin,47);c.strokeStyle='#8A939E';c.strokeRect(margin+.5,height-footH+5.5,width-2*margin-1,46);text(`أسباب تغيير الجدول: ${db.printSettings.changeReasons||'—'}`,width/2,height-footH+20,14,'#475569');if(db.printSettings.footer)text(db.printSettings.footer,width/2,height-footH+42,12,'#475569')}
+ if(db.printSettings.showSignatures!==false){const labels=[db.printSettings.signature1||'منظّم الجدول',db.printSettings.signature2||'معاون المدير',db.printSettings.signature3||'مدير المدرسة'];labels.forEach((label,i)=>{const x=width*(3-i)/4;text(label,x,height-37,13,'#0B1633',true);text('التوقيع: __________',x,height-17,11,'#475569')})}
  return canvas;
 }
 async function exportSchedulePNG(mode,id){

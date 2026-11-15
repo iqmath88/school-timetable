@@ -1,94 +1,155 @@
 'use strict';
-/* هوية مخرجات «مسار»: ورقة عاجية بترويسة بيضاء وشريط عنابي وخط ذهبي رفيع، وجداول بتدرجات دافئة.
-   تُطبَّق فوق أنماط الطباعة القديمة دون تغيير في بيانات الجدول، ولا تمس وضع الأبيض والأسود. */
+/* هوية المخرجات الرسمية (v0.9.39.0): ورقة بيضاء، خط نسخ رسمي (Noto Naskh Arabic) وعناوين بخط أميري،
+   ترويسة رسمية بلا خلفية ملونة وخط مزدوج أسفلها، جداول بحدود داكنة رفيعة ورؤوس رمادية فاتحة.
+   لا شعار للتطبيق في أي مخرج، ولا رابط في ذيل الصفحة (هوامش الصفحة صفر فلا يطبع المتصفح الرابط والتاريخ).
+   تُطبَّق فوق أنماط الطباعة القديمة دون تغيير في بيانات الجدول. */
 (function(){
-const C={wine:'#0F2A75',wine2:'#1E3FA3',gold:'#C8A24A',ink:'#0B1633',muted:'#5B6B8C',ivory:'#F1F5FC',tint:'#E6EDFA',tint2:'#F4F7FD',line:'#C9D4EA'};
+const C={ink:'#111111',ink2:'#1F2D3D',muted:'#3C4654',line:'#55606E',line2:'#8A939E',head:'#E3E8EE',head2:'#F1F4F7',soft:'#F7F8FA',
+ /* أسماء قديمة يستعملها كود الشاشة أدناه */ wine:'#0F2A75',wine2:'#1E3FA3',gold:'#C8A24A',ivory:'#F1F5FC',tint:'#E6EDFA',tint2:'#F4F7FD'};
 
 const U=n=>new URL(n,location.href).href;
-const AR='U+0600-06FF,U+200C-200E,U+2010-2011,U+204F,U+2E41,U+FB50-FDFF,U+FE80-FEFC',LA='U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+20AC,U+2122,U+2212,U+FEFF,U+FFFD';
-const FF=(fam,w,f,r)=>`@font-face{font-family:"${fam}";font-weight:${w};font-display:block;src:url(${U(f)}) format("woff2");unicode-range:${r}}`;
-const FONT_CSS=[['El Messiri',500,'messiri',''],['El Messiri',700,'messiri',''],['IBM Plex Sans Arabic',400,'plex',''],['IBM Plex Sans Arabic',500,'plex',''],['IBM Plex Sans Arabic',700,'plex','']].map(([fam,w,k])=>FF(fam,w,'font-'+k+'-ar-'+w+'.woff2',AR)+FF(fam,w,'font-'+k+'-la-'+w+'.woff2',LA)).join('');
-const BODYF='"IBM Plex Sans Arabic",Tahoma,Arial,sans-serif',HEADF='"El Messiri","IBM Plex Sans Arabic",Tahoma,serif';
-const mark=(s=9)=>window.MASAR_MARK?window.MASAR_MARK(s):'';
-const NB=':not(.print-bw)';
+const AR='U+0600-06FF,U+0750-077F,U+200C-200E,U+2010-2011,U+204F,U+2E41,U+FB50-FDFF,U+FE70-FEFC',LA='U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+20AC,U+2122,U+2212,U+FEFF,U+FFFD';
+const FF=(fam,w,f,r)=>`@font-face{font-family:"${fam}";font-weight:${w};font-style:normal;font-display:block;src:url(${U(f)}) format("woff2");unicode-range:${r}}`;
+const FONT_CSS=[['Noto Naskh Arabic',400,'naskh'],['Noto Naskh Arabic',700,'naskh'],['Amiri',700,'amiri']].map(([fam,w,k])=>FF(fam,w,'font-'+k+'-ar-'+w+'.woff2',AR)+FF(fam,w,'font-'+k+'-la-'+w+'.woff2',LA)).join('');
+const BODYF='"Noto Naskh Arabic","Simplified Arabic","Traditional Arabic",Tahoma,serif',HEADF='"Amiri","Noto Naskh Arabic","Traditional Arabic",serif';
+/* الخطوط متاحة في الصفحة الرئيسية أيضاً، لأن تصدير الصورة وPDF يرسم بها على لوحة canvas */
+try{const fs=document.createElement('style');fs.id='mo-fonts';fs.textContent=FONT_CSS;document.head.appendChild(fs)}catch(e){}
+const mark=()=>'';
+const S='.school-print-page',T='table.compact-timetable';
 const CSS=FONT_CSS+`
-/* ===== هوية مخرجات مسار ===== */
-html,body,table,td,th{font-family:${BODYF}}
-.formal-center h1,.formal-center h2,.formal-center h3,.tc-brand h1,.tc-school,.tc-person h2,.print-signatures b,.tc-signatures b{font-family:${HEADF}!important}
-.formal-center h2,.tc-brand h1{font-weight:700}
-html,body{color:${C.ink}!important}
-@media screen{body{background:#E6ECF7!important}.print-sheet{filter:drop-shadow(0 10px 24px #0A1F4D14)!important}}
-.school-print-page${NB} .formal-head{position:relative!important;background:#fff!important;box-shadow:none!important;border:0!important;border-top:1.6mm solid ${C.wine}!important;border-bottom:.45mm solid ${C.gold}!important;border-radius:0!important}
-.school-print-page${NB} .formal-center h1{color:${C.wine}!important;font-weight:900!important;letter-spacing:0!important}
-.school-print-page${NB} .formal-center h2{color:${C.ink}!important;font-weight:900!important}
-.school-print-page${NB} .formal-center h3{color:${C.gold}!important;font-weight:800!important}
-.school-print-page${NB} .formal-side,.school-print-page${NB} .formal-side small{color:${C.muted}!important}
-.school-print-page${NB} .formal-side b{color:${C.wine}!important}
-.mo-mark{display:inline-block;vertical-align:middle;margin-inline-end:2mm}
-.mo-mark svg{width:8mm!important;height:8mm!important;display:block}
-.school-print-page${NB} table.compact-timetable thead th,.school-print-page${NB} th.corner-cell{background:${C.wine}!important;color:#fff!important;border-color:${C.gold}!important}
-.school-print-page${NB} table.compact-timetable thead tr.section-names th{background:${C.tint}!important;color:${C.wine}!important;border-color:${C.line}!important;font-weight:900!important}
-.school-print-page${NB} table.compact-timetable tbody th,.school-print-page${NB} table.compact-timetable tbody td{border-color:${C.line}!important}
-.school-print-page${NB} table.compact-timetable .period-number{background:${C.tint}!important;color:${C.wine}!important}
-.school-print-page${NB} table.compact-timetable .day-label{background:${C.wine2}!important;color:#fff!important}
-.school-print-page${NB} table.compact-timetable td.lesson .lesson-inline b{color:${C.ink}!important}
-.school-print-page${NB} table.compact-timetable td.lesson small{color:${C.muted}!important}
-.school-print-page${NB} table.compact-timetable tbody tr:has(.day-label)>td,.school-print-page${NB} table.compact-timetable tbody tr:has(.day-label)>th{border-top:.5mm solid ${C.gold}!important}
-.school-print-page${NB} .print-footer{border-top:.5mm solid ${C.gold}!important;color:${C.ink}!important}
-.school-print-page${NB} .print-reasons{background:${C.tint2}!important;border-color:${C.line}!important}
-.school-print-page${NB} .print-signatures b{color:${C.wine}!important}
-.print-sheet:not(.school-print-page) .formal-head{background:#fff!important;border-top:1.6mm solid ${C.wine}!important;border-bottom:.45mm solid ${C.gold}!important}
-.print-sheet:not(.school-print-page) .formal-head *{color:${C.ink}!important}
-.print-sheet:not(.school-print-page) .formal-center h1{color:${C.wine}!important}
-.print-sheet:not(.school-print-page) .formal-center h3{color:${C.gold}!important}
-.print-sheet:not(.school-print-page) thead th{background:${C.wine}!important;color:#fff!important;border-color:${C.gold}!important}
-.print-sheet:not(.school-print-page) .period-number{background:${C.tint}!important;color:${C.wine}!important}
-/* بطاقة المدرس */
-.teacher-card:not(.tc-bw){border-top:1.6mm solid ${C.wine}!important;background:#fff}
-.teacher-card:not(.tc-bw) .tc-head{background:#fff!important;border-bottom:.45mm solid ${C.gold}!important;color:${C.ink}!important}
-.teacher-card:not(.tc-bw) .tc-head *{color:${C.muted}!important}
-.teacher-card:not(.tc-bw) .tc-school{color:${C.gold}!important}
-.teacher-card:not(.tc-bw) .tc-brand h1{color:${C.wine}!important}
-.teacher-card:not(.tc-bw) .tc-side b{color:${C.wine}!important}
-.teacher-card:not(.tc-bw) .tc-person{background:${C.tint2}!important;border-color:${C.line}!important}
-.teacher-card:not(.tc-bw) .tc-person h2{color:${C.ink}!important}
-.teacher-card:not(.tc-bw) .tc-stats>div{border-color:${C.line}!important}
-.teacher-card:not(.tc-bw) .tc-stats b{color:${C.wine}!important}
-.teacher-card:not(.tc-bw) .tc-table th,.teacher-card:not(.tc-bw) .tc-table td{border-color:${C.line}!important}
-.teacher-card:not(.tc-bw) .tc-table thead th{background:${C.wine}!important;color:#fff!important;border-color:${C.gold}!important}
-.teacher-card:not(.tc-bw) .tc-period{background:${C.tint}!important;color:${C.wine}!important}
-.teacher-card:not(.tc-bw) .tc-lesson{background:${C.tint2}!important}
-.teacher-card:not(.tc-bw) .tc-lesson strong{color:${C.ink}!important}
-.teacher-card:not(.tc-bw) .tc-lesson span{color:${C.muted}!important}
-.teacher-card:not(.tc-bw) .tc-off{background:#E9EEF8!important;color:#8F9BB5!important}
-.teacher-card:not(.tc-bw) .tc-reasons{border-top-color:${C.gold}!important}
-.teacher-card:not(.tc-bw) .tc-signatures b{color:${C.wine}!important}
-.teacher-card:not(.tc-bw) .tc-bottom{color:${C.muted}!important}
-.teacher-card{height:164mm!important;max-height:164mm!important;overflow:hidden!important;break-inside:avoid!important}
-.teacher-card .tc-head{min-height:26mm!important;padding:2mm 6mm!important}
-.teacher-card .tc-person{min-height:20mm!important;margin:2mm 0!important;padding:2mm 5mm!important}
-.teacher-card .tc-signatures{min-height:12mm!important;padding:1mm 0!important}
-.teacher-card .tc-signatures span{margin-top:2mm!important}
-.teacher-card .tc-reasons{min-height:8mm!important}
-.teacher-card .tc-table tbody tr{height:10.5mm!important}
-.teacher-card .tc-bottom .mo-mark svg{width:4.5mm!important;height:4.5mm!important}
+/* ===== المخرجات الرسمية ===== */
+html,body,table,td,th,small,b,strong,span,div,p,h1,h2,h3,article{font-family:${BODYF}!important}
+html,body{color:${C.ink}!important;background:#fff!important}
+@media screen{body{background:#E9ECF0!important}.print-sheet,.teacher-card{filter:none!important;box-shadow:0 2px 14px #0000001f!important;background:#fff!important}}
+.mo-mark{display:none!important}
+
+/* --- الترويسة --- */
+.print-sheet .formal-head{display:grid!important;grid-template-columns:1fr 2.6fr 1fr!important;align-items:center!important;background:#fff!important;box-shadow:none!important;border:0!important;border-bottom:1.1mm double ${C.ink2}!important;border-radius:0!important;color:${C.ink}!important;padding:1mm 3mm 1.2mm!important}
+.print-sheet .formal-head *{color:${C.ink}!important;text-shadow:none!important}
+.print-sheet .formal-center{text-align:center!important}
+.print-sheet .formal-center h1{font-family:${HEADF}!important;font-weight:700!important;letter-spacing:0!important;color:${C.ink}!important}
+.print-sheet .formal-center h2{font-weight:700!important;color:${C.ink2}!important}
+.print-sheet .formal-center h3{font-weight:700!important;color:${C.muted}!important}
+.print-sheet .formal-side{font-weight:700!important;line-height:1.55!important}
+.print-sheet .formal-side small{font-weight:400!important}
+.print-sheet .formal-side b{font-weight:700!important}
+.print-sheet .formal-side:first-child{text-align:right!important}
+.print-sheet .formal-side:last-child{text-align:left!important}
+${S} .formal-head{height:24mm!important;min-height:24mm!important;max-height:24mm!important;margin:0 0 2mm!important}
+${S} .formal-center h1{font-size:17pt!important;line-height:1.25!important}
+${S} .formal-center h2{font-size:13pt!important;line-height:1.25!important}
+${S} .formal-center h3{font-size:9.5pt!important;line-height:1.25!important}
+${S} .formal-side,${S} .formal-side small{font-size:8.5px!important}
+
+/* --- جدول المدرسة / المراحل --- */
+${S} ${T} th,${S} ${T} td{border:.2mm solid ${C.line2}!important}
+${S} ${T} thead th,${S} th.corner-cell{background:${C.head}!important;color:${C.ink}!important;border-color:${C.line}!important;font-weight:700!important}
+${S} ${T} thead tr.stage-groups th{background:${C.head}!important;font-size:9.5px!important}
+${S} ${T} thead tr.section-names th{background:${C.head2}!important;color:${C.ink}!important;border-color:${C.line}!important;font-weight:700!important}
+${S} th.corner-cell{background:#fff!important}
+${S} ${T} .day-label{background:${C.head2}!important;color:${C.ink}!important;border-color:${C.line}!important}
+${S} ${T} .vertical-day{font-weight:700!important;font-size:11.5px!important}
+${S} ${T} .period-number{background:${C.soft}!important;color:${C.ink}!important;font-weight:700!important}
+${S} ${T} tbody tr:has(.day-label)>td,${S} ${T} tbody tr:has(.day-label)>th{border-top:.55mm solid ${C.ink2}!important}
+${S} ${T} td.lesson{border-top:.2mm solid ${C.line2}!important;padding:0 .4mm!important}
+${S} ${T} tbody tr:has(.day-label)>td.lesson{border-top:.55mm solid ${C.ink2}!important}
+${S} ${T} td.lesson .lesson-inline{display:block!important;line-height:1.08!important}
+${S} ${T} td.lesson .lesson-inline b,${S} ${T} td.lesson b{display:block!important;font-weight:700!important;color:${C.ink}!important;line-height:1.12!important}
+${S} ${T} td.lesson small{display:block!important;font-weight:400!important;color:${C.muted}!important;line-height:1.12!important;margin-top:.1mm!important}
+${S} ${T} td.lesson .lesson-sep{display:none!important}
+${S} ${T} td.tt-off,${S} ${T} td.tt-empty{color:#A5ADB7!important}
+.no-colors td.lesson{background:#fff!important}
+
+/* --- التذييل: ملاحظات وتواقيع --- */
+.print-sheet .print-footer{border-top:.3mm solid ${C.ink2}!important;color:${C.ink}!important}
+${S} .print-footer{height:auto!important;min-height:0!important;max-height:none!important;overflow:visible!important;padding:1mm 2mm 0!important}
+${S} .print-reasons{min-height:9mm!important;padding:1mm 2.4mm!important;margin-top:1.5mm!important;font-size:8.5px!important}
+${S} .print-signatures{margin-top:2.5mm!important}
+${S} .print-signatures b{font-size:10.5px!important}
+${S} .print-signatures span{font-size:9px!important;margin-top:2.5mm!important}
+.print-sheet .print-reasons{background:#fff!important;border:.2mm solid ${C.line2}!important;border-radius:0!important}
+.print-sheet .print-reasons strong{font-weight:700!important}
+.print-sheet .print-signatures b{color:${C.ink}!important;font-weight:700!important}
+.print-sheet .print-signatures span{color:${C.muted}!important}
+
+/* --- جدول شعبة واحدة (A4 أفقي) --- */
+html .print-single-section .formal-head{height:auto!important;min-height:30mm!important;max-height:none!important;margin-bottom:5mm!important}
+html .print-single-section .formal-center h1{font-size:25pt!important}
+html .print-single-section .formal-center h2{font-size:18pt!important}
+html .print-single-section .formal-center h3{font-size:15pt!important}
+html .print-single-section .formal-side,html .print-single-section .formal-side small,html .print-single-section .formal-side b{font-size:14px!important}
+html .print-single-section .tt-wrap{margin:0!important}
+html .print-single-section table.timetable.focused{border-collapse:collapse!important;width:100%!important}
+html .print-single-section table.timetable.focused th,html .print-single-section table.timetable.focused td{border:.3mm solid ${C.line}!important;color:${C.ink}!important;height:21mm!important;padding:1mm!important}
+html .print-single-section table.timetable.focused thead th{background:${C.head}!important;color:${C.ink}!important;font-weight:700!important;font-size:19px!important;height:12mm!important}
+html .print-single-section table.timetable.focused tbody th{background:${C.head2}!important;font-weight:700!important;font-size:17px!important;width:30mm!important}
+html .print-single-section table.timetable.focused td.lesson{background:#fff!important}
+html .print-single-section table.timetable.focused td.lesson b{display:block!important;font-size:21px!important;font-weight:700!important;line-height:1.35!important}
+html .print-single-section table.timetable.focused td.lesson small{display:block!important;font-size:16.5px!important;font-weight:400!important;color:${C.muted}!important;line-height:1.35!important;margin-top:.8mm!important}
+html .print-single-section table.timetable.focused td.tt-off,html .print-single-section table.timetable.focused td.tt-empty{color:#A5ADB7!important}
+html .print-single-section .lock-mark{display:none!important}
+html .print-single-section .print-reasons{font-size:12px!important;min-height:12mm!important}
+html .print-single-section .print-signatures b{font-size:14px!important}
+html .print-single-section .print-signatures span{font-size:12px!important;margin-top:4mm!important}
+
+/* --- بطاقة المدرس --- */
+.teacher-card{border:0!important;border-top:0!important;background:#fff!important}
+.teacher-card .tc-head{display:grid!important;background:#fff!important;border-bottom:1.1mm double ${C.ink2}!important;box-shadow:none!important;color:${C.ink}!important;min-height:26mm!important;padding:1mm 3mm!important}
+.teacher-card .tc-head *{color:${C.ink}!important;text-shadow:none!important}
+.teacher-card .tc-side{font-weight:700!important;font-size:10.5px!important;line-height:1.6!important}
+.teacher-card .tc-side small,.teacher-card .tc-subtitle{font-weight:400!important}
+.teacher-card .tc-school{font-family:${HEADF}!important;font-size:19px!important;font-weight:700!important}
+.teacher-card .tc-brand h1{font-size:17px!important;font-weight:700!important;margin:.5mm 0!important}
+.teacher-card .tc-subtitle{font-size:10px!important;color:${C.muted}!important}
+.teacher-card .tc-person{background:#fff!important;border:.25mm solid ${C.line2}!important;border-radius:0!important;margin:2.5mm 0!important;padding:2mm 4mm!important;min-height:20mm!important}
+.teacher-card .tc-label{color:${C.muted}!important;font-size:10px!important}
+.teacher-card .tc-person h2{font-family:${HEADF}!important;color:${C.ink}!important;font-size:21px!important;font-weight:700!important;margin:.5mm 0 1mm!important}
+.teacher-card .tc-specialty{font-size:11px!important}
+.teacher-card .tc-stats>div{border:.25mm solid ${C.line2}!important;border-radius:0!important;background:#fff!important}
+.teacher-card .tc-stats b{color:${C.ink}!important;font-weight:700!important}
+.teacher-card .tc-stats span{color:${C.muted}!important}
+.teacher-card .tc-table th,.teacher-card .tc-table td{border:.25mm solid ${C.line}!important}
+.teacher-card .tc-table thead th{background:${C.head}!important;color:${C.ink}!important;border-color:${C.line}!important;font-weight:700!important;font-size:13px!important;height:9mm!important}
+.teacher-card .tc-period{background:${C.head2}!important;color:${C.ink}!important;font-weight:700!important}
+.teacher-card .tc-lesson{background:#fff!important}
+.teacher-card .tc-lesson strong{color:${C.ink}!important;font-weight:700!important;font-size:13.5px!important;line-height:1.3!important}
+.teacher-card .tc-lesson span{color:${C.muted}!important;font-size:11px!important;margin-top:.5mm!important}
+.teacher-card .tc-off{background:${C.soft}!important;color:#A5ADB7!important}
+.teacher-card .tc-reasons{border-top:.3mm solid ${C.ink2}!important;font-size:10.5px!important}
+.teacher-card .tc-reasons span{color:${C.ink}!important}
+.teacher-card .tc-signatures b{color:${C.ink}!important;font-weight:700!important;font-size:11.5px!important}
+.teacher-card .tc-signatures span{color:${C.muted}!important}
+.teacher-card .tc-bottom{display:none!important}
+.teacher-card{height:196mm!important;max-height:196mm!important;overflow:hidden!important;break-inside:avoid!important}
+.teacher-card .tc-table tbody tr{height:auto!important}
 `;
 
-/* ملاءمة تلقائية للطباعة (Safari/iPad): منع التفاف الحصص وإبقاء كل مرحلة في صفحة واحدة */
+/* هوامش الصفحة صفر: بذلك لا يطبع المتصفح الرابط والتاريخ وعنوان الصفحة في الرأس والتذييل.
+   الهامش الفعلي يُعاد داخل كل ورقة بحشوة، مع مراعاة تكبير/تصغير الورقة (zoom) المستعمل لتبديل A3/A4. */
+function pageMarginCSS(h){
+ const m=/html\{zoom:([\d.]+)\}/.exec(h),z=m?+m[1]||1:1,mm=v=>(v/z).toFixed(2)+'mm';
+ return `<style id="mo-page">@page{margin:0}html,body{margin:0!important;padding:0!important}
+.print-sheet{padding:${mm(5)} ${mm(6)}!important;box-sizing:border-box!important}
+.print-single-section{padding:${mm(8)} ${mm(9)}!important}
+.teacher-card{padding:${mm(7)} ${mm(8)}!important;box-sizing:border-box!important;height:${mm(206)}!important;max-height:${mm(206)}!important}
+@media print{.print-sheet,.teacher-card{box-shadow:none!important}}
+@media screen{.print-sheet,.teacher-card{margin:0 auto 6mm!important}}</style>`;
+}
+
+/* ملاءمة تلقائية لجدول المدرسة: سطر للمادة وسطر للمدرس دون التفاف، وكل مجموعة مراحل في صفحة واحدة */
 const FIT=`function masarFit(){
- var st=document.createElement('style');st.textContent='.school-print-page table.compact-timetable td.lesson .lesson-inline b,.school-print-page table.compact-timetable td.lesson small,.school-print-page table.compact-timetable td.lesson .lesson-sep{font-size:var(--lf,12px)!important}.school-print-page table.compact-timetable td.lesson{white-space:nowrap!important}';document.head.appendChild(st);
- var limit=Math.round(285*3.7795);
+ var st=document.createElement('style');st.textContent='html body .school-print-page table.compact-timetable tbody td.lesson b{font-size:var(--lf,12px)!important}html body .school-print-page table.compact-timetable tbody td.lesson small{font-size:calc(var(--lf,12px) * .86)!important}html body .school-print-page table.compact-timetable tbody td.lesson{white-space:nowrap!important}';document.head.appendChild(st);
+ var z=parseFloat(getComputedStyle(document.documentElement).zoom)||1,limit=(297-4/z)*3.7795;/* الورقة 297mm قبل التصغير؛ offsetHeight لا يتأثر بـ zoom */
  document.querySelectorAll('.school-print-page').forEach(function(sh){
-  var cells=[].slice.call(sh.querySelectorAll('td.lesson'));
-  function over(){for(var i=0;i<cells.length;i++){if(cells[i].scrollWidth>cells[i].clientWidth+1)return true}return false}
-  var size=12.4;sh.style.setProperty('--lf',size+'px');
-  while(over()&&size>6){size-=.25;sh.style.setProperty('--lf',size+'px')}
-  var rh=6.6;sh.style.setProperty('--row-h',rh+'mm');
-  var hd=document.documentElement.style;
-  while(sh.getBoundingClientRect().height>limit&&rh>4.2){rh-=.2;sh.style.setProperty('--row-h',rh+'mm')}
+  if(sh.classList.contains('print-single-section'))return;
+  var cells=[].slice.call(sh.querySelectorAll('table.compact-timetable td.lesson'));
+  function wide(){for(var i=0;i<cells.length;i++){if(cells[i].scrollWidth>cells[i].clientWidth+1)return true}return false}
+  var cols=sh.querySelectorAll('thead tr.section-names th').length,size=cols&&cols<=8?16:12.6,rh=parseFloat(getComputedStyle(sh.querySelector('table')||sh).getPropertyValue('--row-h'))||7;
+  sh.style.setProperty('--lf',size+'px');sh.style.setProperty('--row-h',rh+'mm');
+  while(wide()&&size>6){size-=.2;sh.style.setProperty('--lf',size+'px')}
+  var n=0;while(sh.offsetHeight>limit&&n++<200){if(rh>5.2){rh-=.1;sh.style.setProperty('--row-h',rh+'mm')}else if(size>6){size-=.2;sh.style.setProperty('--lf',size+'px')}else break}
  });
 }`;
-
 /* ===== هوية جدول الحصص على الشاشة + ألوان مراحل متناغمة ===== */
 const STAGE_PAL=['#1E3FA3','#C8A24A','#0E7490','#3B6FE0','#6D5BD0','#2F855A'];
 window.MASAR_STAGE_PAL=STAGE_PAL;
@@ -114,13 +175,13 @@ window.MASAR_OUT={C,css:()=>CSS,fontCss:()=>FONT_CSS+`html,body{font-family:${BO
 const OPEN=window.open;
 window.open=function(){const w=OPEN.apply(this,arguments);
  try{if(w&&w.document&&!w.__masarFit){w.__masarFit=1;const dw=w.document.write.bind(w.document);
-  w.document.write=function(h){if(typeof h==='string'&&h.includes('window.print()')){const fit=h.includes('school-print-page');h=h.replace(/window\.onload=\(\)=>setTimeout\(\(\)=>window\.print\(\),(\d+)\)/,(m,n)=>'window.onload=()=>{var go=function(){setTimeout(function(){'+(fit?'try{masarFit()}catch(e){}':'')+'window.print()},'+n+')};try{document.fonts.ready.then(go)}catch(e){go()}}');if(fit)h=h.replace('<script>','<script>'+FIT+';',1)}return dw(h)}}}catch(e){}
+  w.document.write=function(h){if(typeof h==='string'&&h.includes('window.print()')){const fit=h.includes('school-print-page');
+   h=h.replace(/window\.onload=\(\)=>setTimeout\(\(\)=>window\.print\(\),(\d+)\)/,(m,n)=>'window.onload=()=>{var go=function(){setTimeout(function(){'+(fit?'try{masarFit()}catch(e){}':'')+'window.print()},'+n+')};try{document.fonts.ready.then(go)}catch(e){go()}}');
+   if(fit)h=h.replace('<script>','<script>'+FIT+';',1);
+   if(/<\/head>/i.test(h))h=h.replace(/<\/head>/i,m=>pageMarginCSS(h)+m);else h=h.replace('<body>',pageMarginCSS(h)+'<body>');
+  }return dw(h)}}}catch(e){}
  return w};
 const wrap=(n)=>{const o=window[n];if(typeof o!=='function')return;window[n]=function(){return o.apply(this,arguments)+CSS}};
 wrap('premiumPrintCSS');wrap('premiumTeacherCSS');
-const oh=window.formalHeader;
-if(typeof oh==='function')window.formalHeader=function(){const h=oh.apply(this,arguments);return h.replace('<div class="formal-side">','<div class="formal-side"><span class="mo-mark">'+mark(32)+'</span>')};
-/* بطاقة المدرس: شعار مسار صغير أسفل البطاقة */
-const ot=window.teacherCard;
-if(typeof ot==='function')window.teacherCard=function(){const h=ot.apply(this,arguments);return h.replace(/<div class="tc-bottom">/,'<div class="tc-bottom"><span class="mo-mark" style="margin-inline-end:1mm">'+mark(16)+'</span>')};
+/* لا شعار للتطبيق في المخرجات: لم يعد يُحقن شعار في الترويسة أو أسفل بطاقة المدرس. */
 })();

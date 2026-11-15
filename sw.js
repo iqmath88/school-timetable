@@ -1,5 +1,5 @@
 /* نيبور — Service Worker: يعمل التطبيق بلا إنترنت. الشبكة أولاً (لتصل التحديثات فور رفعها) ثم النسخة المخزنة. */
-const V='nippur-0.9.38.4';
+const V='nippur-0.9.39.0';
 const FILES=[
   "./",
   "access.js",
@@ -13,6 +13,12 @@ const FILES=[
   "errorlog.js",
   "excel-export.js",
   "excel-import.js",
+  "font-amiri-ar-700.woff2",
+  "font-amiri-la-700.woff2",
+  "font-naskh-ar-400.woff2",
+  "font-naskh-ar-700.woff2",
+  "font-naskh-la-400.woff2",
+  "font-naskh-la-700.woff2",
   "font-messiri-ar-500.woff2",
   "font-messiri-ar-700.woff2",
   "font-messiri-la-500.woff2",
