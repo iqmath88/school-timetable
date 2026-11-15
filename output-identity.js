@@ -8,6 +8,8 @@ const C={ink:'#111111',ink2:'#1F2D3D',muted:'#3C4654',line:'#55606E',line2:'#8A9
  /* أسماء قديمة يستعملها كود الشاشة أدناه */ wine:'#0F2A75',wine2:'#1E3FA3',gold:'#C8A24A',ivory:'#F1F5FC',tint:'#E6EDFA',tint2:'#F4F7FD'};
 
 const U=n=>new URL(n,location.href).href;
+/* Safari يطبع الرابط والتاريخ في رأس/ذيل الورقة دائماً ويحجز لهما مساحة، فنترك هامشاً أكبر حتى لا ينقسم الجدول على صفحتين */
+const SAF=(()=>{try{const u=navigator.userAgent;return /Safari/.test(u)&&!/Chrome|Chromium|CriOS|FxiOS|EdgiOS|Android/.test(u)}catch(e){return false}})();
 const AR='U+0600-06FF,U+0750-077F,U+200C-200E,U+2010-2011,U+204F,U+2E41,U+FB50-FDFF,U+FE70-FEFC',LA='U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+20AC,U+2122,U+2212,U+FEFF,U+FFFD';
 const FF=(fam,w,f,r)=>`@font-face{font-family:"${fam}";font-weight:${w};font-style:normal;font-display:block;src:url(${U(f)}) format("woff2");unicode-range:${r}}`;
 const FONT_CSS=[['Noto Naskh Arabic',400,'naskh'],['Noto Naskh Arabic',700,'naskh'],['Amiri',700,'amiri']].map(([fam,w,k])=>FF(fam,w,'font-'+k+'-ar-'+w+'.woff2',AR)+FF(fam,w,'font-'+k+'-la-'+w+'.woff2',LA)).join('');
@@ -131,7 +133,8 @@ function pageMarginCSS(h){
  return `<style id="mo-page">@page{margin:0}html,body{margin:0!important;padding:0!important}
 .print-sheet{padding:${mm(5)} ${mm(6)}!important;box-sizing:border-box!important}
 .print-single-section{padding:${mm(8)} ${mm(9)}!important}
-.teacher-card{padding:${mm(7)} ${mm(8)}!important;box-sizing:border-box!important;height:${mm(206)}!important;max-height:${mm(206)}!important}
+.teacher-card{padding:${mm(7)} ${mm(8)}!important;box-sizing:border-box!important;height:${mm(SAF?178:206)}!important;max-height:${mm(SAF?178:206)}!important}
+tr,td,th{break-inside:avoid!important;page-break-inside:avoid!important}
 @media print{.print-sheet,.teacher-card{box-shadow:none!important}}
 @media screen{.print-sheet,.teacher-card{margin:0 auto 6mm!important}}</style>`;
 }
@@ -139,7 +142,7 @@ function pageMarginCSS(h){
 /* ملاءمة تلقائية لجدول المدرسة: سطر للمادة وسطر للمدرس دون التفاف، وكل مجموعة مراحل في صفحة واحدة */
 const FIT=`function masarFit(){
  var st=document.createElement('style');st.textContent='html body .school-print-page table.compact-timetable tbody td.lesson b{font-size:var(--lf,12px)!important}html body .school-print-page table.compact-timetable tbody td.lesson small{font-size:calc(var(--lf,12px) * .86)!important}html body .school-print-page table.compact-timetable tbody td.lesson{white-space:nowrap!important}';document.head.appendChild(st);
- var z=parseFloat(getComputedStyle(document.documentElement).zoom)||1,limit=(297-4/z)*3.7795;/* الورقة 297mm قبل التصغير؛ offsetHeight لا يتأثر بـ zoom */
+ var z=parseFloat(getComputedStyle(document.documentElement).zoom)||1,limit=(297-${SAF?30:4}/z)*3.7795;/* الورقة 297mm قبل التصغير؛ offsetHeight لا يتأثر بـ zoom */
  document.querySelectorAll('.school-print-page').forEach(function(sh){
   if(sh.classList.contains('print-single-section'))return;
   var cells=[].slice.call(sh.querySelectorAll('table.compact-timetable td.lesson'));
