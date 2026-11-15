@@ -1,1 +1,1 @@
-0.9.39.1-formal-output
+0.9.39.2-formal-output
