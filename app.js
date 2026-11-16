@@ -1,4 +1,4 @@
-const APP_VERSION='0.9.40.0-stable';
+const APP_VERSION='0.9.41.0-stable';
 const KEY='school-timetable-v01';
 const stageDefaults=[['الأول',1,'#587B9B'],['الثاني',2,'#6F8F72'],['الثالث',3,'#9A7B60'],['الرابع',4,'#7D7398'],['الخامس',5,'#A16F78'],['السادس',6,'#557F83']];
 const defaultDays=[['الأحد',7,true],['الاثنين',7,true],['الثلاثاء',6,true],['الأربعاء',7,true],['الخميس',5,true],['الجمعة',0,false],['السبت',0,false]];
@@ -2057,8 +2057,8 @@ async function renderScheduleCanvas(mode,id,opt){
  const headings=focus?days:sections;
  const rows=focus?Array.from({length:Math.max(...days.map(d=>d.periods))},(_,i)=>({period:i+1})):days.flatMap(day=>Array.from({length:day.periods},(_,i)=>({day,period:i+1})));
  const canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');if(!ctx)throw new Error('المتصفح لا يدعم الرسم');ctx.direction='rtl';
- try{await Promise.all(['400 16px "Noto Naskh Arabic"','700 16px "Noto Naskh Arabic"','700 16px "Amiri"'].map(f=>document.fonts.load(f,'أبجد 123')))}catch(_){}
- const font=(size,bold=false,head=false)=>`${bold?'700':'400'} ${size}px ${head?'"Amiri",':''}"Noto Naskh Arabic","Simplified Arabic",Tahoma,serif`;const TL=printTeacherLabels();
+ try{await Promise.all(['400 16px "Noto Naskh Arabic"','700 16px "Noto Naskh Arabic"','700 16px "Amiri"','500 16px "Noto Sans Arabic"','700 16px "Noto Sans Arabic"'].map(f=>document.fonts.load(f,'أبجد 123')))}catch(_){}
+ const font=(size,bold=false,head=false)=>`${bold?'700':'400'} ${size}px ${head?'"Amiri","Noto Naskh Arabic",':'"Noto Sans Arabic","Noto Naskh Arabic",'}"Simplified Arabic",Tahoma,sans-serif`;const TL=printTeacherLabels();
  const measure=(str,size,bold=false)=>{ctx.font=font(size,bold);return ctx.measureText(String(str||'')).width};
  const wrap=(str,max,size,bold=false)=>{let lines=[''];for(const word of String(str||'—').split(/\s+/)){let i=lines.length-1,test=lines[i]?lines[i]+' '+word:word;if(measure(test,size,bold)<=max||!lines[i])lines[i]=test;else lines.push(word)}return lines};
  const focusW=focus?170:0,dayW=focus?0:34,periodW=focus?32:28,baseFont=focus?17:13,teacherFont=focus?15:12;

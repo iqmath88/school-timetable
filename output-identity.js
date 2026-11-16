@@ -12,7 +12,10 @@ const U=n=>new URL(n,location.href).href;
 const SAF=(()=>{try{const u=navigator.userAgent;return /Safari/.test(u)&&!/Chrome|Chromium|CriOS|FxiOS|EdgiOS|Android/.test(u)}catch(e){return false}})();
 const AR='U+0600-06FF,U+0750-077F,U+200C-200E,U+2010-2011,U+204F,U+2E41,U+FB50-FDFF,U+FE70-FEFC',LA='U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+20AC,U+2122,U+2212,U+FEFF,U+FFFD';
 const FF=(fam,w,f,r)=>`@font-face{font-family:"${fam}";font-weight:${w};font-style:normal;font-display:block;src:url(${U(f)}) format("woff2");unicode-range:${r}}`;
-const FONT_CSS=[['Noto Naskh Arabic',400,'naskh'],['Noto Naskh Arabic',700,'naskh'],['Amiri',700,'amiri']].map(([fam,w,k])=>FF(fam,w,'font-'+k+'-ar-'+w+'.woff2',AR)+FF(fam,w,'font-'+k+'-la-'+w+'.woff2',LA)).join('');
+const FONT_CSS=[['Noto Naskh Arabic',400,'naskh'],['Noto Naskh Arabic',700,'naskh'],['Amiri',700,'amiri']].map(([fam,w,k])=>FF(fam,w,'font-'+k+'-ar-'+w+'.woff2',AR)+FF(fam,w,'font-'+k+'-la-'+w+'.woff2',LA)).join('')
+ /* خط الخلايا: Noto Sans Arabic — حروفه أطول وأوضح فيبدو أكبر عند الطباعة بالحجم نفسه */
+ +`@font-face{font-family:"Noto Sans Arabic";font-weight:400 600;font-display:block;src:url(${U('font-nsans-ar-500.woff2')}) format("woff2");unicode-range:${AR}}@font-face{font-family:"Noto Sans Arabic";font-weight:700;font-display:block;src:url(${U('font-nsans-ar-700.woff2')}) format("woff2");unicode-range:${AR}}`;
+const CELLF='"Noto Sans Arabic","Noto Naskh Arabic",Tahoma,sans-serif';
 const BODYF='"Noto Naskh Arabic","Simplified Arabic","Traditional Arabic",Tahoma,serif',HEADF='"Amiri","Noto Naskh Arabic","Traditional Arabic",serif';
 /* الخطوط متاحة في الصفحة الرئيسية أيضاً، لأن تصدير الصورة وPDF يرسم بها على لوحة canvas */
 try{const fs=document.createElement('style');fs.id='mo-fonts';fs.textContent=FONT_CSS;document.head.appendChild(fs)}catch(e){}
@@ -125,6 +128,21 @@ html .print-single-section .print-signatures span{font-size:12px!important;margi
 .teacher-card{height:196mm!important;max-height:196mm!important;overflow:hidden!important;break-inside:avoid!important}
 .teacher-card .tc-table tbody tr{height:auto!important}
 
+/* ===== خط الخلايا الأوضح ===== */
+table.compact-timetable td,table.compact-timetable th,table.compact-timetable td *,table.compact-timetable th *,
+table.timetable.focused td,table.timetable.focused th,table.timetable.focused td *,
+.teacher-card .tc-table td,.teacher-card .tc-table th,.teacher-card .tc-table td *{font-family:${CELLF}!important}
+/* ===== مساحة أكبر للجدول في ورقة المدرسة: ترويسة وتذييل مضغوطان ===== */
+${S}:not(.print-single-section) .formal-head{height:19mm!important;min-height:19mm!important;max-height:19mm!important;margin-bottom:1.5mm!important;padding-top:0!important;padding-bottom:.6mm!important}
+${S}:not(.print-single-section) .formal-center h1{font-size:16pt!important;line-height:1.15!important}
+${S}:not(.print-single-section) .formal-center h2{font-size:12pt!important;line-height:1.15!important}
+${S}:not(.print-single-section) .formal-center h3{font-size:9pt!important;line-height:1.15!important}
+${S}:not(.print-single-section) .print-footer{display:grid!important;grid-template-columns:1fr 2.2fr!important;gap:4mm!important;align-items:center!important;padding-top:1mm!important}
+${S}:not(.print-single-section) .print-reasons{min-height:0!important;margin:0!important;padding:.8mm 2mm!important}
+${S}:not(.print-single-section) .print-signatures{margin-top:0!important}
+${S}:not(.print-single-section) .print-signatures span{margin-top:1.2mm!important}
+${S} ${T} td.lesson{padding:.2mm .4mm!important}
+${S} ${T} td.lesson .lesson-inline{line-height:1!important}
 /* ===== لمسة فاخرة: كحلي عميق وخط ذهبي رفيع ===== */
 *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
 .print-sheet .formal-head{border-bottom:.9mm solid ${C.navy}!important;box-shadow:0 1.5mm 0 -.9mm ${C.goldL}!important}
@@ -178,14 +196,17 @@ const FIT=`function masarFit(){
   var sel='html body .school-print-page[data-fit="'+ix+'"] table.compact-timetable tbody td.lesson';
   var cells=[].slice.call(sh.querySelectorAll('table.compact-timetable td.lesson'));
   var cols=sh.querySelectorAll('thead tr.section-names th').length;
-  var size=cols&&cols<=8?17:14,rh=8;
-  function apply(){st.textContent=sel+' b{font-size:'+size.toFixed(2)+'px!important;line-height:1.15!important}'+sel+' small{font-size:'+(size*.9).toFixed(2)+'px!important;line-height:1.15!important}'+sel+'{white-space:nowrap!important;height:'+rh.toFixed(2)+'mm!important}'}
+  var size=cols&&cols<=8?22:19,rh=0;
+  function apply(){st.textContent=sel+' b{font-size:'+size.toFixed(2)+'px!important;line-height:1.08!important}'+sel+' small{font-size:'+(size*.92).toFixed(2)+'px!important;line-height:1.08!important}'+sel+'{white-space:nowrap!important;height:'+(rh?rh.toFixed(2)+'mm':'auto')+'!important}'+'html body .school-print-page[data-fit="'+ix+'"] table.compact-timetable tbody tr{height:'+(rh?rh.toFixed(2)+'mm':'auto')+'!important}'}
   var rg=document.createRange();
   function textW(el){if(!el)return 0;rg.selectNodeContents(el);return rg.getBoundingClientRect().width}
   function wide(){for(var i=0;i<cells.length;i++){var c=cells[i],r=c.getBoundingClientRect().width-3;if(r<=0)continue;if(textW(c.querySelector('b'))>r||textW(c.querySelector('small'))>r)return true}return false}
   apply();
-  var n=0;while(wide()&&size>8&&n++<80){size-=.25;apply()}
-  n=0;while(sh.offsetHeight>limit&&n++<200){if(rh>5.6){rh-=.1}else if(size>8){size-=.2}else break;apply()}
+  /* 1) أكبر خط يتسع عرضاً وارتفاعاً (الصفوف بارتفاع المحتوى) */
+  var n=0;while((wide()||sh.offsetHeight>limit)&&size>7&&n++<200){size-=.25;apply()}
+  /* 2) توزيع المساحة الباقية على الصفوف ليملأ الجدول الورقة */
+  var tr=sh.querySelector('table.compact-timetable tbody tr');
+  if(tr){rh=tr.offsetHeight/3.7795;apply();n=0;while(sh.offsetHeight<=limit&&n++<300){rh+=.1;apply()}rh-=.1;apply()}
  });
 }`;
 /* ===== هوية جدول الحصص على الشاشة + ألوان مراحل متناغمة ===== */
