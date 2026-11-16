@@ -188,7 +188,7 @@ tr,td,th{break-inside:avoid!important;page-break-inside:avoid!important}
 /* ملاءمة تلقائية لجدول المدرسة: سطر للمادة وسطر للمدرس دون التفاف، وكل مجموعة مراحل في صفحة واحدة */
 const FIT=`function masarFit(){
  /* أحجام صريحة بالبكسل (لا var/calc) لأن Safari لا يطبّقها دائماً عند الطباعة. القياس بـ Range لعرض النص الفعلي. */
- var z=parseFloat(getComputedStyle(document.documentElement).zoom)||1,limit=(297-${SAF?30:4}/z)*3.7795;
+ var z=parseFloat(getComputedStyle(document.documentElement).zoom)||1,limit=(297-${SAF?50:4}/z)*3.7795;
  document.querySelectorAll('.school-print-page').forEach(function(sh,ix){
   if(sh.classList.contains('print-single-section'))return;
   sh.setAttribute('data-fit',ix);
