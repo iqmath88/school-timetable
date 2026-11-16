@@ -4,7 +4,7 @@
    لا شعار للتطبيق في أي مخرج، ولا رابط في ذيل الصفحة (هوامش الصفحة صفر فلا يطبع المتصفح الرابط والتاريخ).
    تُطبَّق فوق أنماط الطباعة القديمة دون تغيير في بيانات الجدول. */
 (function(){
-const C={ink:'#111111',ink2:'#1F2D3D',muted:'#3C4654',line:'#55606E',line2:'#8A939E',head:'#E3E8EE',head2:'#F1F4F7',soft:'#F7F8FA',
+const C={navy:'#13294B',goldL:'#B8924A',ink:'#111111',ink2:'#1F2D3D',muted:'#3C4654',line:'#55606E',line2:'#8A939E',head:'#E3E8EE',head2:'#F1F4F7',soft:'#F7F8FA',
  /* أسماء قديمة يستعملها كود الشاشة أدناه */ wine:'#0F2A75',wine2:'#1E3FA3',gold:'#C8A24A',ivory:'#F1F5FC',tint:'#E6EDFA',tint2:'#F4F7FD'};
 
 const U=n=>new URL(n,location.href).href;
@@ -124,16 +124,44 @@ html .print-single-section .print-signatures span{font-size:12px!important;margi
 .teacher-card .tc-bottom{display:none!important}
 .teacher-card{height:196mm!important;max-height:196mm!important;overflow:hidden!important;break-inside:avoid!important}
 .teacher-card .tc-table tbody tr{height:auto!important}
+
+/* ===== لمسة فاخرة: كحلي عميق وخط ذهبي رفيع ===== */
+*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+.print-sheet .formal-head{border-bottom:.9mm solid ${C.navy}!important;box-shadow:0 1.5mm 0 -.9mm ${C.goldL}!important}
+.print-sheet .formal-center h1{color:${C.navy}!important}
+${S} ${T} thead tr.stage-groups th{background:${C.navy}!important;color:#fff!important;border-color:${C.navy}!important;font-size:11px!important;letter-spacing:.2px}
+${S} ${T} thead tr.section-names th{background:#E7ECF4!important;color:${C.navy}!important;font-size:10.5px!important}
+${S} th.corner-cell{background:${C.navy}!important;border-color:${C.navy}!important}
+${S} ${T} .day-label{background:${C.navy}!important;color:#fff!important;border-color:${C.navy}!important}
+${S} ${T} .day-label *{color:#fff!important}
+${S} ${T} .vertical-day{font-size:13px!important;letter-spacing:.3px}
+${S} ${T} .period-number{background:#F6F3EC!important;color:${C.navy}!important;font-size:10.5px!important}
+${S} ${T} tbody tr:has(.day-label)>td,${S} ${T} tbody tr:has(.day-label)>th,${S} ${T} tbody tr:has(.day-label)>td.lesson{border-top:.6mm solid ${C.navy}!important}
+${S} ${T} td.lesson b{color:#0E1726!important}
+${S} ${T} td.lesson small{color:#24364F!important;font-weight:600!important;opacity:1!important}
+html .print-single-section table.timetable.focused thead th{background:${C.navy}!important;color:#fff!important;border-color:${C.navy}!important}
+html .print-single-section table.timetable.focused tbody th{background:#F6F3EC!important;color:${C.navy}!important}
+html .print-single-section table.timetable.focused td.lesson small{color:#24364F!important;font-weight:600!important;font-size:17.5px!important}
+.teacher-card .tc-head{border-bottom:.9mm solid ${C.navy}!important;box-shadow:0 1.5mm 0 -.9mm ${C.goldL}!important}
+.teacher-card .tc-school,.teacher-card .tc-person h2{color:${C.navy}!important}
+.teacher-card .tc-table thead th{background:${C.navy}!important;color:#fff!important;border-color:${C.navy}!important}
+.teacher-card .tc-period{background:#F6F3EC!important;color:${C.navy}!important}
+.teacher-card .tc-lesson span{color:#24364F!important;font-weight:600!important;font-size:12px!important}
+.teacher-card .tc-person{border-right:1.2mm solid ${C.goldL}!important}
 `;
 
 /* هوامش الصفحة صفر: بذلك لا يطبع المتصفح الرابط والتاريخ وعنوان الصفحة في الرأس والتذييل.
    الهامش الفعلي يُعاد داخل كل ورقة بحشوة، مع مراعاة تكبير/تصغير الورقة (zoom) المستعمل لتبديل A3/A4. */
 function pageMarginCSS(h){
- const m=/html\{zoom:([\d.]+)\}/.exec(h),z=m?+m[1]||1:1,mm=v=>(v/z).toFixed(2)+'mm';
- return `<style id="mo-page">@page{margin:0}html,body{margin:0!important;padding:0!important}
+ const single=/class="[^"]*print-single-section/.test(h),m=/html\{zoom:([\d.]+)\}/.exec(h);
+ /* جدول الشعبة يُطبع دائماً على A4 أفقي ومصمم بمقياس 0.7071، مهما كان حجم الورق المختار للجدول العام */
+ const z=single?.7071:(m?+m[1]||1:1),mm=v=>(v/z).toFixed(2)+'mm';
+ /* بطاقة المدرس مصممة على A4؛ عند A3 يكبّرها zoom كاملة، لذلك ارتفاعها بوحدات A4 دون قسمة على z */
+ const cardH=SAF?178:204;
+ return `<style id="mo-page">@page{margin:0}html,body{margin:0!important;padding:0!important}${single?'html{zoom:.7071!important}':''}
 .print-sheet{padding:${mm(5)} ${mm(6)}!important;box-sizing:border-box!important}
 .print-single-section{padding:${mm(8)} ${mm(9)}!important}
-.teacher-card{padding:${mm(7)} ${mm(8)}!important;box-sizing:border-box!important;height:${mm(SAF?178:206)}!important;max-height:${mm(SAF?178:206)}!important}
+.teacher-card{padding:6mm 7mm!important;box-sizing:border-box!important;height:${cardH}mm!important;max-height:${cardH}mm!important}
 tr,td,th{break-inside:avoid!important;page-break-inside:avoid!important}
 @media print{.print-sheet,.teacher-card{box-shadow:none!important}}
 @media screen{.print-sheet,.teacher-card{margin:0 auto 6mm!important}}</style>`;
@@ -141,16 +169,23 @@ tr,td,th{break-inside:avoid!important;page-break-inside:avoid!important}
 
 /* ملاءمة تلقائية لجدول المدرسة: سطر للمادة وسطر للمدرس دون التفاف، وكل مجموعة مراحل في صفحة واحدة */
 const FIT=`function masarFit(){
- var st=document.createElement('style');st.textContent='html body .school-print-page table.compact-timetable tbody td.lesson b{font-size:var(--lf,12px)!important}html body .school-print-page table.compact-timetable tbody td.lesson small{font-size:calc(var(--lf,12px) * .86)!important}html body .school-print-page table.compact-timetable tbody td.lesson{white-space:nowrap!important}';document.head.appendChild(st);
- var z=parseFloat(getComputedStyle(document.documentElement).zoom)||1,limit=(297-${SAF?30:4}/z)*3.7795;/* الورقة 297mm قبل التصغير؛ offsetHeight لا يتأثر بـ zoom */
- document.querySelectorAll('.school-print-page').forEach(function(sh){
+ /* أحجام صريحة بالبكسل (لا var/calc) لأن Safari لا يطبّقها دائماً عند الطباعة. القياس بـ Range لعرض النص الفعلي. */
+ var z=parseFloat(getComputedStyle(document.documentElement).zoom)||1,limit=(297-${SAF?30:4}/z)*3.7795;
+ document.querySelectorAll('.school-print-page').forEach(function(sh,ix){
   if(sh.classList.contains('print-single-section'))return;
+  sh.setAttribute('data-fit',ix);
+  var st=document.createElement('style');document.head.appendChild(st);
+  var sel='html body .school-print-page[data-fit="'+ix+'"] table.compact-timetable tbody td.lesson';
   var cells=[].slice.call(sh.querySelectorAll('table.compact-timetable td.lesson'));
-  function wide(){for(var i=0;i<cells.length;i++){if(cells[i].scrollWidth>cells[i].clientWidth+1)return true}return false}
-  var cols=sh.querySelectorAll('thead tr.section-names th').length,size=cols&&cols<=8?16:12.6,rh=parseFloat(getComputedStyle(sh.querySelector('table')||sh).getPropertyValue('--row-h'))||7;
-  sh.style.setProperty('--lf',size+'px');sh.style.setProperty('--row-h',rh+'mm');
-  while(wide()&&size>6){size-=.2;sh.style.setProperty('--lf',size+'px')}
-  var n=0;while(sh.offsetHeight>limit&&n++<200){if(rh>5.2){rh-=.1;sh.style.setProperty('--row-h',rh+'mm')}else if(size>6){size-=.2;sh.style.setProperty('--lf',size+'px')}else break}
+  var cols=sh.querySelectorAll('thead tr.section-names th').length;
+  var size=cols&&cols<=8?17:14,rh=8;
+  function apply(){st.textContent=sel+' b{font-size:'+size.toFixed(2)+'px!important;line-height:1.15!important}'+sel+' small{font-size:'+(size*.9).toFixed(2)+'px!important;line-height:1.15!important}'+sel+'{white-space:nowrap!important;height:'+rh.toFixed(2)+'mm!important}'}
+  var rg=document.createRange();
+  function textW(el){if(!el)return 0;rg.selectNodeContents(el);return rg.getBoundingClientRect().width}
+  function wide(){for(var i=0;i<cells.length;i++){var c=cells[i],r=c.getBoundingClientRect().width-3;if(r<=0)continue;if(textW(c.querySelector('b'))>r||textW(c.querySelector('small'))>r)return true}return false}
+  apply();
+  var n=0;while(wide()&&size>8&&n++<80){size-=.25;apply()}
+  n=0;while(sh.offsetHeight>limit&&n++<200){if(rh>5.6){rh-=.1}else if(size>8){size-=.2}else break;apply()}
  });
 }`;
 /* ===== هوية جدول الحصص على الشاشة + ألوان مراحل متناغمة ===== */
