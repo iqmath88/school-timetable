@@ -1,4 +1,4 @@
-const APP_VERSION='0.9.41.1-stable';
+const APP_VERSION='0.9.41.2-stable';
 const KEY='school-timetable-v01';
 const stageDefaults=[['الأول',1,'#587B9B'],['الثاني',2,'#6F8F72'],['الثالث',3,'#9A7B60'],['الرابع',4,'#7D7398'],['الخامس',5,'#A16F78'],['السادس',6,'#557F83']];
 const defaultDays=[['الأحد',7,true],['الاثنين',7,true],['الثلاثاء',6,true],['الأربعاء',7,true],['الخميس',5,true],['الجمعة',0,false],['السبت',0,false]];
@@ -2055,7 +2055,10 @@ async function renderScheduleCanvas(mode,id,opt){
  if(!days.length)throw new Error('لا توجد أيام دوام مفعّلة للتصدير');
  if(!focus&&!sections.length)throw new Error('لا توجد شعب لهذا النوع من الجدول');
  const headings=focus?days:sections;
- const rows=focus?Array.from({length:Math.max(...days.map(d=>d.periods))},(_,i)=>({period:i+1})):days.flatMap(day=>Array.from({length:day.periods},(_,i)=>({day,period:i+1})));
+ const keyId=item=>mode==='teacher'?id:mode==='section'?id:item.id;
+ /* حذف الحصص الأخيرة الفارغة في كل الأعمدة (مثل حصة سابعة غير مستعملة) حتى لا تأخذ مساحة من الورقة */
+ const usedUpTo=(dayList,cols,max)=>{let last=0;for(let p=1;p<=max;p++)for(const d of dayList)for(const it of cols)if(timetableIndex.has(d.id+'|'+p+'|'+keyId(it)))last=p;return last||max};
+ const rows=focus?Array.from({length:usedUpTo(days,[null],Math.max(...days.map(d=>d.periods)))},(_,i)=>({period:i+1})):days.flatMap(day=>Array.from({length:usedUpTo([day],sections,day.periods)},(_,i)=>({day,period:i+1})));
  const canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');if(!ctx)throw new Error('المتصفح لا يدعم الرسم');ctx.direction='rtl';
  try{await Promise.all(['400 16px "Noto Naskh Arabic"','700 16px "Noto Naskh Arabic"','700 16px "Amiri"','500 16px "Noto Sans Arabic"','700 16px "Noto Sans Arabic"'].map(f=>document.fonts.load(f,'أبجد 123')))}catch(_){}
  const font=(size,bold=false,head=false)=>`${bold?'700':'400'} ${size}px ${head?'"Amiri","Noto Naskh Arabic",':'"Noto Sans Arabic","Noto Naskh Arabic",'}"Simplified Arabic",Tahoma,sans-serif`;const TL=printTeacherLabels();
@@ -2063,7 +2066,7 @@ async function renderScheduleCanvas(mode,id,opt){
  const wrap=(str,max,size,bold=false)=>{let lines=[''];for(const word of String(str||'—').split(/\s+/)){let i=lines.length-1,test=lines[i]?lines[i]+' '+word:word;if(measure(test,size,bold)<=max||!lines[i])lines[i]=test;else lines.push(word)}return lines};
  const focusW=focus?170:0,dayW=focus?0:34,periodW=focus?32:28,baseFont=focus?17:13,teacherFont=focus?15:12;
  const colWidths=headings.map(item=>{if(focus)return focusW;const entries=db.timetable.filter(e=>e.sectionId===item.id);const widest=Math.max(measure(exportSectionName(item.id),14,true),...entries.map(e=>Math.max(measure(db.subjects.find(s=>s.id===e.subjectId)?.name||'',baseFont,true),measure(TL.get(e.teacherId)||'',teacherFont))));return Math.max(66,Math.min(110,Math.ceil(widest+10)))});
- const margin=24,tableW=dayW+periodW+colWidths.reduce((a,b)=>a+b,0),width=Math.max(tableW+margin*2,focus?940:620),headH=52,topH=150,footH=db.printSettings.showSignatures?112:70;
+ const margin=24,tableW=dayW+periodW+colWidths.reduce((a,b)=>a+b,0),width=Math.max(tableW+margin*2,focus?940:620),headH=52,topH=120,footH=(db.printSettings.showSignatures!==false||db.printSettings.showNotes!==false)?66:16;
  const rowHeights=rows.map(r=>{let h=focus?44:31;headings.forEach((item,ci)=>{const day=focus?item:r.day,sectionId=mode==='section'?id:item.id;const e=timetableIndex.get(day.id+'|'+r.period+'|'+(mode==='teacher'?id:sectionId));if(!e)return;const w=colWidths[ci]-14;const sub=db.subjects.find(s=>s.id===e.subjectId)?.name||'—',t=db.teachers.find(t=>t.id===e.teacherId)?.name||'—';const subLines=wrap(sub,w,baseFont,true).length,teachLines=db.printSettings.showTeachers===false?0:wrap(mode==='teacher'?exportSectionName(e.sectionId):(TL.get(e.teacherId)||teacherShort(t)),w,teacherFont).length;h=Math.max(h,5+subLines*(baseFont+1)+teachLines*(teacherFont+1))});return h});
  const height=topH+headH+rowHeights.reduce((a,b)=>a+b,0)+footH;
  if(width>9000||height>9000||width*height>50000000)throw new Error('الصورة كبيرة لهذا الجهاز؛ جرّب تصدير مرحلة واحدة.');
@@ -2074,11 +2077,11 @@ async function renderScheduleCanvas(mode,id,opt){
  const title=mode==='all'?'المدرسة كاملة':mode==='middle'?schoolGroupName(0):mode==='high'?schoolGroupName(1):mode==='stage'?stageDisplayName(db.stages.find(x=>x.id===id)):mode==='teacher'?db.teachers.find(x=>x.id===id)?.name:exportSectionName(id);
  // ترويسة رسمية: خلفية بيضاء، جهة الإصدار يميناً، اسم المدرسة والعنوان في الوسط، العام وتاريخ البدء يساراً، وخط مزدوج أسفلها.
  const sideW=Math.min(190,width/5),sideR=width-margin-sideW/2,sideL=margin+sideW/2,ss=Math.min(14,Math.max(11,width/80));
- text('جمهورية العراق',sideR,40,ss,'#1F2D3D',true);text('وزارة التربية',sideR,40+ss*1.7,ss,'#1F2D3D',true);
- text('العام الدراسي: '+(db.school.year||'—'),sideL,40,ss,'#1F2D3D');text('تاريخ بدء التطبيق: '+(db.printSettings.startDate||'—'),sideL,40+ss*1.7,ss,'#1F2D3D');
- text(db.school.name||'اسم المدرسة',width/2,38,Math.min(28,Math.max(19,width/30)),'#13294B',true,true);
- text(db.printSettings.title||'جدول الحصص الأسبوعية',width/2,74,Math.min(22,Math.max(15,width/40)),'#1F2D3D',true);
- text(title,width/2,104,Math.min(16,Math.max(12,width/52)),'#3C4654',true);
+ text('جمهورية العراق',sideR,32,ss,'#1F2D3D',true);text('وزارة التربية',sideR,32+ss*1.7,ss,'#1F2D3D',true);
+ text('العام الدراسي: '+(db.school.year||'—'),sideL,32,ss,'#1F2D3D');text('تاريخ بدء التطبيق: '+(db.printSettings.startDate||'—'),sideL,32+ss*1.7,ss,'#1F2D3D');
+ text(db.school.name||'اسم المدرسة',width/2,30,Math.min(28,Math.max(19,width/30)),'#13294B',true,true);
+ text(db.printSettings.title||'جدول الحصص الأسبوعية',width/2,62,Math.min(22,Math.max(15,width/40)),'#1F2D3D',true);
+ text(title,width/2,86,Math.min(16,Math.max(12,width/52)),'#3C4654',true);
  c.fillStyle='#13294B';c.fillRect(margin,topH-16,width-margin*2,3);c.fillStyle='#B8924A';c.fillRect(margin,topH-11,width-margin*2,1.2);
  if(db.printSettings.logo&&db.printSettings.logoPosition!=='none'){try{const img=new Image();img.src=db.printSettings.logo;await new Promise((resolve,reject)=>{if(img.complete&&img.naturalWidth)return resolve();img.onload=resolve;img.onerror=reject});const x=db.printSettings.logoPosition==='center'?width/2-22:db.printSettings.logoPosition==='right'?width-82:38;c.drawImage(img,x,5,44,44)}catch(e){/* Continue exporting without invalid logo */}}
  
@@ -2091,8 +2094,9 @@ async function renderScheduleCanvas(mode,id,opt){
  if(!focus){xx-=dayW;if(r.period===1){const start=ri,total=rows.slice(start,start+r.day.periods).reduce((sum,_,j)=>sum+rowHeights[start+j],0);box(xx,yy,dayW,total,dayColors[days.findIndex(d=>d.id===r.day.id)]||'#EAF1F8');c.save();c.translate(xx+dayW/2,yy+total/2);c.rotate(-Math.PI/2);text(r.day.name,0,0,20,'#FFFFFF',true);c.restore()}}
  xx-=periodW;box(xx,yy,periodW,rh,'#F6F3EC');text(String(r.period),xx+periodW/2,yy+rh/2,13,'#13294B',true);
  headings.forEach((item,i)=>{const w=colWidths[i];xx-=w;const day=focus?item:r.day,secId=mode==='section'?id:item.id;const e=timetableIndex.get(day.id+'|'+r.period+'|'+(mode==='teacher'?id:secId));const section=mode==='teacher'?db.sections.find(s=>s.id===e?.sectionId):mode==='section'?db.sections.find(s=>s.id===id):item;const pal=db.printSettings.showColors===false?['#F4F7FA','#334155','#64748B']:(exportPalettes[section?.stageId]||['#F4F7FA','#334155','#64748B']);const off=mode==='teacher'?r.period>day.periods:r.period>sectionDayPeriods(section,day);box(xx,yy,w,rh,off?'#F1F3F6':e?(db.printSettings.theme==='contrast'?'#FFFFFF':pal[0]):ri%2?'#FAFBFC':'#FFFFFF','#8A939E');if(e){const sub=db.subjects.find(s=>s.id===e.subjectId)?.name||'—',teacher=db.teachers.find(t=>t.id===e.teacherId)?.name||'—';const t=mode==='teacher'?exportSectionName(e.sectionId):(TL.get(e.teacherId)||teacherShort(teacher)),subLines=wrap(sub,w-8,baseFont,true),tLines=db.printSettings.showTeachers===false?[]:wrap(t,w-8,teacherFont),total=subLines.length*(baseFont+1)+tLines.length*(teacherFont+3),first=yy+(rh-total)/2+baseFont/2+2;subLines.forEach((line,k)=>text(line,xx+w/2,first+k*(baseFont+1),baseFont,'#111111',true));tLines.forEach((line,k)=>text(line,xx+w/2,first+subLines.length*(baseFont+1)+k*(teacherFont+1),teacherFont,'#24364F',true))}else if(off)text('—',xx+w/2,yy+rh/2,15,'#9AA5B1')});yy+=rh});
- if(db.printSettings.showNotes!==false){c.fillStyle='#FFFFFF';c.fillRect(margin,height-footH+5,width-2*margin,47);c.strokeStyle='#8A939E';c.strokeRect(margin+.5,height-footH+5.5,width-2*margin-1,46);text(`أسباب تغيير الجدول: ${db.printSettings.changeReasons||'—'}`,width/2,height-footH+20,14,'#475569');if(db.printSettings.footer)text(db.printSettings.footer,width/2,height-footH+42,12,'#475569')}
- if(db.printSettings.showSignatures!==false){const labels=[db.printSettings.signature1||'منظّم الجدول',db.printSettings.signature2||'معاون المدير',db.printSettings.signature3||'مدير المدرسة'];labels.forEach((label,i)=>{const x=width*(3-i)/4;text(label,x,height-37,13,'#0B1633',true);text('التوقيع: __________',x,height-17,11,'#475569')})}
+ const fy=height-footH,fullW=width-2*margin,noteW=fullW*.34,sigW=fullW-noteW-16;
+ if(db.printSettings.showNotes!==false){c.fillStyle='#FFFFFF';c.fillRect(width-margin-noteW,fy+8,noteW,footH-14);c.strokeStyle='#8A939E';c.strokeRect(width-margin-noteW+.5,fy+8.5,noteW-1,footH-15);text(`أسباب تغيير الجدول: ${db.printSettings.changeReasons||'—'}`,width-margin-noteW/2,fy+24,12,'#3C4654');if(db.printSettings.footer)text(db.printSettings.footer,width-margin-noteW/2,fy+44,11,'#3C4654')}
+ if(db.printSettings.showSignatures!==false){const labels=[db.printSettings.signature1||'منظّم الجدول',db.printSettings.signature2||'معاون المدير',db.printSettings.signature3||'مدير المدرسة'],sw=db.printSettings.showNotes!==false?sigW:fullW;labels.forEach((label,i)=>{const x=margin+sw*(2.5-i)/3;text(label,x,fy+24,13,'#13294B',true);text('التوقيع: __________',x,fy+46,11,'#3C4654')})}
  return canvas;
 }
 async function exportSchedulePNG(mode,id){
