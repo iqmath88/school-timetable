@@ -1,5 +1,5 @@
 /* نيبور — Service Worker: يعمل التطبيق بلا إنترنت. الشبكة أولاً (لتصل التحديثات فور رفعها) ثم النسخة المخزنة. */
-const V='nippur-0.9.42.0';
+const V='nippur-0.9.43.0';
 const FILES=[
   "./",
   "access.js",
@@ -46,6 +46,13 @@ const FILES=[
   "mip-engine.js",
   "mobile.js",
   "output-identity.js",
+  "pdf-vector.js",
+  "harfbuzz.mjs",
+  "harfbuzz.js",
+  "harfbuzz.wasm",
+  "pdf-font-sans-400.ttf",
+  "pdf-font-sans-700.ttf",
+  "pdf-font-amiri-700.ttf",
   "print-view.js",
   "privacy.html",
   "pwa.js",
