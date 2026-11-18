@@ -1,4 +1,4 @@
-const APP_VERSION='0.9.41.3-stable';
+const APP_VERSION='0.9.41.4-stable';
 const KEY='school-timetable-v01';
 const stageDefaults=[['الأول',1,'#587B9B'],['الثاني',2,'#6F8F72'],['الثالث',3,'#9A7B60'],['الرابع',4,'#7D7398'],['الخامس',5,'#A16F78'],['السادس',6,'#557F83']];
 const defaultDays=[['الأحد',7,true],['الاثنين',7,true],['الثلاثاء',6,true],['الأربعاء',7,true],['الخميس',5,true],['الجمعة',0,false],['السبت',0,false]];
@@ -2108,7 +2108,9 @@ async function exportSchedulePNG(mode,id){
 
 
 /* ===== PDF حقيقي من نفس مسار رسم الصورة (يعمل على iPad عبر قائمة المشاركة: طباعة / حفظ في الملفات) ===== */
-async function deliverFile(blob,filename,title){
+async function deliverFile(blob,filename,title,opt){
+ /* في المتصفح: تنزيل مباشر للملف (يظهر في التنزيلات ويُفتح كما في المعاينة). المشاركة تبقى للتطبيق المثبّت لأنه لا يدعم التنزيل. */
+ if(opt&&opt.direct){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);return 'downloaded'}
  const file=typeof File==='function'?new File([blob],filename,{type:blob.type}):null;
  const share=async()=>{await navigator.share({files:[file],title});return 'shared'};
  if(file&&navigator.canShare&&navigator.canShare({files:[file]})){
@@ -2159,18 +2161,19 @@ async function exportSchedulePDF(scope,id){
  const fitO=(c,o)=>{const w=o==='landscape'?L[0]:L[1],h=o==='landscape'?L[1]:L[0];return Math.min((w-40)/c.width,(h-40)/c.height)};
  /* تلقائي: اتجاه واحد لكل الصفحات (الأفضل للطباعة)، العمودي عند التقارب لأن جداول المراحل طويلة */
  const worst=o=>Math.min(...canvases.map(c=>fitO(c,o)));
- const o=orient!=='auto'?orient:(worst('landscape')>worst('portrait')*1.08?'landscape':'portrait');
+ /* تلقائي: الأفقي هو الأصل لأن جداول المدرسة عريضة؛ العمودي فقط إذا كان أوضح بفارق واضح */
+ const o=orient!=='auto'?orient:(worst('portrait')>worst('landscape')*1.15?'portrait':'landscape');
  const pages=canvases.map(canvas=>({canvas,w:o==='landscape'?L[0]:L[1],h:o==='landscape'?L[1]:L[0]}));
  window.__MASAR_PDF_ORIENT=o;
  const blob=await buildPdf(pages);
  const name='nippur-v'+APP_VERSION.replace(/-.*/,'')+'-'+scope+(id?'-'+String(id).replace(/[^\w-]/g,''):'')+'-'+paper+'-'+(o==='landscape'?'landscape':'portrait')+'-'+new Date().toISOString().slice(0,10)+'.pdf';
  window.__MASAR_LAST_PDF={blob,name,pages:pages.length,paper,orient:o,ver:APP_VERSION};
- return deliverFile(blob,name,'جدول الحصص');
+ return deliverFile(blob,name,'جدول الحصص',{direct:!appInstalled()});
 }
 window.exportSchedulePDF=exportSchedulePDF;
 function appInstalled(){try{return navigator.standalone===true||matchMedia('(display-mode: standalone)').matches}catch(e){return false}}
 function touchDevice(){return (()=>{try{return navigator.standalone===true||matchMedia('(display-mode: standalone)').matches||/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1)}catch(e){return false}})()}
-async function pdfBusy(btn,fn){const t=btn.textContent;btn.disabled=true;btn.textContent='جارٍ تجهيز PDF…';try{const r=await fn();if(r==='shared')alert('تمت المشاركة. اختر «طباعة» أو «حفظ في الملفات» من القائمة.')}catch(e){alert('تعذر إنشاء PDF: '+(e&&e.message||e))}finally{btn.disabled=false;btn.textContent=t}}
+async function pdfBusy(btn,fn){const t=btn.textContent;btn.disabled=true;btn.textContent='جارٍ تجهيز PDF…';try{const r=await fn();if(r==='shared')alert('تمت المشاركة. اختر «طباعة» أو «حفظ في الملفات» من القائمة.');else if(r==='downloaded'&&touchDevice())alert('تم تنزيل ملف PDF. تجده في «التنزيلات» (سهم التنزيل أعلى Safari) أو في تطبيق الملفات.')}catch(e){alert('تعذر إنشاء PDF: '+(e&&e.message||e))}finally{btn.disabled=false;btn.textContent=t}}
 
 $('#exportBtn').onclick=exportSafeBackup;
 // A real, associated file input/label is required for reliable iPad Safari picking.
