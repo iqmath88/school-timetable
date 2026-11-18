@@ -188,7 +188,7 @@ tr,td,th{break-inside:avoid!important;page-break-inside:avoid!important}
 /* ملاءمة تلقائية لجدول المدرسة: سطر للمادة وسطر للمدرس دون التفاف، وكل مجموعة مراحل في صفحة واحدة */
 const FIT=`function masarFit(){
  /* أحجام صريحة بالبكسل (لا var/calc) لأن Safari لا يطبّقها دائماً عند الطباعة. القياس بـ Range لعرض النص الفعلي. */
- var z=parseFloat(getComputedStyle(document.documentElement).zoom)||1,limit=(297-${SAF?50:4}/z)*3.7795;
+ var z=parseFloat(getComputedStyle(document.documentElement).zoom)||1,limit=(297-${SAF?44:4}/z)*3.7795;
  document.querySelectorAll('.school-print-page').forEach(function(sh,ix){
   if(sh.classList.contains('print-single-section'))return;
   sh.setAttribute('data-fit',ix);
@@ -197,10 +197,10 @@ const FIT=`function masarFit(){
   var cells=[].slice.call(sh.querySelectorAll('table.compact-timetable td.lesson'));
   var cols=sh.querySelectorAll('thead tr.section-names th').length;
   var size=cols&&cols<=8?22:19,rh=0;
-  function apply(){st.textContent=sel+' b{font-size:'+size.toFixed(2)+'px!important;line-height:1.08!important}'+sel+' small{font-size:'+(size*.92).toFixed(2)+'px!important;line-height:1.08!important}'+sel+'{white-space:nowrap!important;height:'+(rh?rh.toFixed(2)+'mm':'auto')+'!important}'+'html body .school-print-page[data-fit="'+ix+'"] table.compact-timetable tbody tr{height:'+(rh?rh.toFixed(2)+'mm':'auto')+'!important}'}
+  function apply(){st.textContent=sel+' b{font-size:'+size.toFixed(2)+'px!important;line-height:1.08!important}'+sel+' small{font-size:'+(size*.92).toFixed(2)+'px!important;line-height:1.08!important}'+sel+'{white-space:nowrap!important;height:'+(rh?rh.toFixed(2)+'mm':'auto')+'!important}'+'html body .school-print-page[data-fit="'+ix+'"] table.compact-timetable tbody tr,html body .school-print-page[data-fit="'+ix+'"] table.compact-timetable tbody td,html body .school-print-page[data-fit="'+ix+'"] table.compact-timetable tbody th{height:'+(rh?rh.toFixed(2)+'mm':'auto')+'!important;min-height:0!important;max-height:none!important}';sh.style.setProperty('--row-h',rh?rh.toFixed(2)+'mm':'0mm')}
   var rg=document.createRange();
-  function textW(el){if(!el)return 0;rg.selectNodeContents(el);return rg.getBoundingClientRect().width}
-  function wide(){for(var i=0;i<cells.length;i++){var c=cells[i],r=c.getBoundingClientRect().width-3;if(r<=0)continue;if(textW(c.querySelector('b'))>r||textW(c.querySelector('small'))>r)return true}return false}
+  var cv=document.createElement('canvas').getContext('2d');function textW(el){if(!el)return 0;var cs=getComputedStyle(el);cv.font=cs.fontWeight+' '+cs.fontSize+' '+cs.fontFamily;return cv.measureText(el.textContent||'').width}
+  function wide(){for(var i=0;i<cells.length;i++){var c=cells[i],r=c.clientWidth-4;if(r<=0)continue;if(textW(c.querySelector('b'))>r||textW(c.querySelector('small'))>r)return true}return false}
   apply();
   /* 1) أكبر خط يتسع عرضاً وارتفاعاً (الصفوف بارتفاع المحتوى) */
   var n=0;while((wide()||sh.offsetHeight>limit)&&size>7&&n++<200){size-=.25;apply()}
