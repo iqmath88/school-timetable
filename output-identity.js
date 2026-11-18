@@ -143,29 +143,34 @@ ${S}:not(.print-single-section) .print-signatures{margin-top:0!important}
 ${S}:not(.print-single-section) .print-signatures span{margin-top:1.2mm!important}
 ${S} ${T} td.lesson{padding:.2mm .4mm!important}
 ${S} ${T} td.lesson .lesson-inline{line-height:1!important}
-/* ===== لمسة فاخرة: كحلي عميق وخط ذهبي رفيع ===== */
+/* ===== لوحة الألوان الموحّدة (تطابق outputPalette في app.js) =====
+   الكحلي لصف العناوين فقط، عمود الأيام فاتح، خط ذهبي أوضح، ونمط أبيض وأسود عبر print-bw / tc-bw */
 *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
-.print-sheet .formal-head{border-bottom:.9mm solid ${C.navy}!important;box-shadow:0 1.5mm 0 -.9mm ${C.goldL}!important}
-.print-sheet .formal-center h1{color:${C.navy}!important}
-${S} ${T} thead tr.stage-groups th{background:${C.navy}!important;color:#fff!important;border-color:${C.navy}!important;font-size:11px!important;letter-spacing:.2px}
-${S} ${T} thead tr.section-names th{background:#E7ECF4!important;color:${C.navy}!important;font-size:10.5px!important}
-${S} th.corner-cell{background:${C.navy}!important;border-color:${C.navy}!important}
-${S} ${T} .day-label{background:${C.navy}!important;color:#fff!important;border-color:${C.navy}!important}
-${S} ${T} .day-label *{color:#fff!important}
-${S} ${T} .vertical-day{font-size:13px!important;letter-spacing:.3px}
-${S} ${T} .period-number{background:#F6F3EC!important;color:${C.navy}!important;font-size:10.5px!important}
-${S} ${T} tbody tr:has(.day-label)>td,${S} ${T} tbody tr:has(.day-label)>th,${S} ${T} tbody tr:has(.day-label)>td.lesson{border-top:.6mm solid ${C.navy}!important}
+.print-sheet,.teacher-card{--nv:#13294B;--gd:#B8924A;--tc:#24364F;--dy:#E9EDF3;--pr:#F6F3EC;--sh:#E7ECF4}
+.print-sheet.print-bw,.teacher-card.tc-bw{--nv:#1A1A1A;--gd:#8C8C8C;--tc:#2E2E2E;--dy:#EDEDED;--pr:#F6F6F6;--sh:#E6E6E6}
+.print-sheet.print-bw td.lesson,.teacher-card.tc-bw .tc-lesson{background:#fff!important}
+html .print-sheet.print-bw .formal-head,html .teacher-card.tc-bw .tc-head{background:#fff!important}
+.print-sheet .formal-head{border-bottom:.9mm solid var(--nv)!important;box-shadow:0 1.8mm 0 -.9mm var(--gd)!important}
+.print-sheet .formal-center h1{color:var(--nv)!important}
+${S} ${T} thead tr.stage-groups th{background:var(--nv)!important;color:#fff!important;border-color:var(--nv)!important;font-size:11px!important;letter-spacing:.2px}
+${S} ${T} thead tr.section-names th{background:var(--sh)!important;color:var(--nv)!important;font-size:10.5px!important}
+${S} th.corner-cell{background:var(--nv)!important;border-color:var(--nv)!important}
+${S} ${T} .day-label{background:var(--dy)!important;color:var(--nv)!important;border-color:${C.line2}!important}
+${S} ${T} .day-label *{color:var(--nv)!important}
+${S} ${T} .vertical-day{font-size:13px!important;letter-spacing:.3px;font-weight:700!important}
+${S} ${T} .period-number{background:var(--pr)!important;color:var(--nv)!important;font-size:10.5px!important}
+${S} ${T} tbody tr:has(.day-label)>td,${S} ${T} tbody tr:has(.day-label)>th,${S} ${T} tbody tr:has(.day-label)>td.lesson{border-top:.6mm solid var(--nv)!important}
 ${S} ${T} td.lesson b{color:#0E1726!important}
-${S} ${T} td.lesson small{color:#24364F!important;font-weight:600!important;opacity:1!important}
-html .print-single-section table.timetable.focused thead th{background:${C.navy}!important;color:#fff!important;border-color:${C.navy}!important}
-html .print-single-section table.timetable.focused tbody th{background:#F6F3EC!important;color:${C.navy}!important}
-html .print-single-section table.timetable.focused td.lesson small{color:#24364F!important;font-weight:600!important;font-size:17.5px!important}
-.teacher-card .tc-head{border-bottom:.9mm solid ${C.navy}!important;box-shadow:0 1.5mm 0 -.9mm ${C.goldL}!important}
-.teacher-card .tc-school,.teacher-card .tc-person h2{color:${C.navy}!important}
-.teacher-card .tc-table thead th{background:${C.navy}!important;color:#fff!important;border-color:${C.navy}!important}
-.teacher-card .tc-period{background:#F6F3EC!important;color:${C.navy}!important}
-.teacher-card .tc-lesson span{color:#24364F!important;font-weight:600!important;font-size:12px!important}
-.teacher-card .tc-person{border-right:1.2mm solid ${C.goldL}!important}
+${S} ${T} td.lesson small{color:var(--tc)!important;font-weight:600!important;opacity:1!important}
+html .print-single-section table.timetable.focused thead th{background:var(--nv)!important;color:#fff!important;border-color:var(--nv)!important}
+html .print-single-section table.timetable.focused tbody th{background:var(--pr)!important;color:var(--nv)!important}
+html .print-single-section table.timetable.focused td.lesson small{color:var(--tc)!important;font-weight:600!important;font-size:17.5px!important}
+.teacher-card .tc-head{border-bottom:.9mm solid var(--nv)!important;box-shadow:0 1.8mm 0 -.9mm var(--gd)!important}
+.teacher-card .tc-school,.teacher-card .tc-person h2{color:var(--nv)!important}
+.teacher-card .tc-table thead th{background:var(--nv)!important;color:#fff!important;border-color:var(--nv)!important}
+.teacher-card .tc-period{background:var(--pr)!important;color:var(--nv)!important}
+.teacher-card .tc-lesson span{color:var(--tc)!important;font-weight:600!important;font-size:12px!important}
+.teacher-card .tc-person{border-right:1.2mm solid var(--gd)!important}
 `;
 
 /* هوامش الصفحة صفر: بذلك لا يطبع المتصفح الرابط والتاريخ وعنوان الصفحة في الرأس والتذييل.
